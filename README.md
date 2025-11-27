@@ -36,13 +36,15 @@ Before using ActiveShopifyGraphQL, you need to configure the API clients:
 
 ```ruby
 # config/initializers/active_shopify_graphql.rb
-ActiveShopifyGraphQL.configure do |config|
-  # Configure the Admin API client (must respond to #execute(query, **variables))
-  config.admin_api_client = ShopifyGraphQL::Client
+Rails.configuration.to_prepare do
+  ActiveShopifyGraphQL.configure do |config|
+    # Configure the Admin API client (must respond to #execute(query, **variables))
+    config.admin_api_client = ShopifyGraphQL::Client
 
-  # Configure the Customer Account API client class (must have .from_config(token) class method)
-  # and reponsd to #execute(query, **variables)
-  config.customer_account_client_class = Shopify::Account::Client
+    # Configure the Customer Account API client class (must have .from_config(token) class method)
+    # and reponsd to #execute(query, **variables)
+    config.customer_account_client_class = Shopify::Account::Client
+  end
 end
 ```
 
@@ -56,9 +58,13 @@ Create a model that includes `ActiveShopifyGraphQL::Base`:
 class Customer
   include ActiveShopifyGraphQL::Base
 
-  attr_accessor :id, :display_name, :email, :created_at
+  attr_accessor :id, :name, :email, :created_at
 
   validates :id, presence: true
+
+  def first_name
+    name.split(" ").first
+  end
 end
 ```
 
@@ -89,7 +95,7 @@ module ActiveShopifyGraphQL::Loaders::AdminApi
 
       {
         id: customer_data["id"],
-        display_name: customer_data["displayName"],
+        name: customer_data["displayName"],
         email: customer_data.dig("defaultEmailAddress", "emailAddress"),
         created_at: customer_data["createdAt"]
       }
