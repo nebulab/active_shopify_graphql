@@ -8,7 +8,7 @@ module ActiveShopifyGraphQL
       # @param loader [ActiveShopifyGraphQL::Loader] The loader to use for fetching data
       # @return [Object, nil] The model instance or nil if not found
       def find(id, loader: default_loader)
-        gid = URI::GID.build(app: "shopify", model_name: model_name.name.demodulize, id: id)
+        gid = URI::GID.build(app: "shopify", model_name: model_name.name.demodulize, model_id: id)
         model_type = name.demodulize
         attributes = loader.load_attributes(gid, model_type)
 
@@ -18,7 +18,7 @@ module ActiveShopifyGraphQL
       end
 
       # Returns the default loader for this model's queries
-      # @return [Shopify::Loader] The default loader instance
+      # @return [ActiveGraphQL::Loader] The default loader instance
       def default_loader
         if respond_to?(:default_loader_instance)
           default_loader_instance
@@ -28,7 +28,7 @@ module ActiveShopifyGraphQL
       end
 
       # Allows setting a custom default loader (useful for testing)
-      # @param loader [Shopify::Loader] The loader to set as default
+      # @param loader [ActiveGraphQL::Loader] The loader to set as default
       def default_loader=(loader)
         @default_loader = loader
       end
@@ -36,7 +36,7 @@ module ActiveShopifyGraphQL
       private
 
       # Infers the loader class name from the model name
-      # e.g., Shopify::Customer -> Shopify::CustomerLoader
+      # e.g., Customer -> ActiveGraphQL::CustomerLoader
       # @return [Class] The loader class
       def default_loader_class
         loader_class_name = "#{name}Loader"

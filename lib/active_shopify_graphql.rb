@@ -11,10 +11,6 @@ require_relative "active_shopify_graphql/loader"
 require_relative "active_shopify_graphql/admin_api_loader"
 require_relative "active_shopify_graphql/customer_account_api_loader"
 
-# Load specific loader implementations
-require_relative "active_shopify_graphql/loaders/admin_api/customer_loader"
-require_relative "active_shopify_graphql/loaders/customer_account_api/customer_loader"
-
 module ActiveShopifyGraphQL
   class Error < StandardError; end
 end
