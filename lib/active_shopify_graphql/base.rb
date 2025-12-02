@@ -38,8 +38,9 @@ module ActiveShopifyGraphQL
       # @param path [String] The GraphQL field path (auto-inferred if not provided)
       # @param type [Symbol] The type for coercion (:string, :integer, :float, :boolean, :datetime). Arrays are preserved automatically.
       # @param null [Boolean] Whether the attribute can be null (default: true)
+      # @param default [Object] Default value to use when the GraphQL response is nil
       # @param transform [Proc] Custom transform block for the value
-      def attribute(name, path: nil, type: :string, null: true, transform: nil)
+      def attribute(name, path: nil, type: :string, null: true, default: nil, transform: nil)
         @base_attributes ||= {}
 
         # Auto-infer GraphQL path for simple cases: display_name -> displayName
@@ -49,6 +50,7 @@ module ActiveShopifyGraphQL
           path: path,
           type: type,
           null: null,
+          default: default,
           transform: transform
         }
 
@@ -62,8 +64,9 @@ module ActiveShopifyGraphQL
       # @param key [String] The metafield key
       # @param type [Symbol] The type for coercion (:string, :integer, :float, :boolean, :datetime, :json). Arrays are preserved automatically.
       # @param null [Boolean] Whether the attribute can be null (default: true)
+      # @param default [Object] Default value to use when the GraphQL response is nil
       # @param transform [Proc] Custom transform block for the value
-      def metafield_attribute(name, namespace:, key:, type: :string, null: true, transform: nil)
+      def metafield_attribute(name, namespace:, key:, type: :string, null: true, default: nil, transform: nil)
         @base_attributes ||= {}
         @metafields ||= {}
 
@@ -83,6 +86,7 @@ module ActiveShopifyGraphQL
           path: path,
           type: type,
           null: null,
+          default: default,
           transform: transform,
           is_metafield: true,
           metafield_alias: alias_name,
@@ -135,13 +139,13 @@ module ActiveShopifyGraphQL
       private
 
       # Override attribute method to handle loader context
-      def attribute_with_context(name, path: nil, type: :string, null: true, transform: nil)
+      def attribute_with_context(name, path: nil, type: :string, null: true, default: nil, transform: nil)
         if @current_loader_context
           # Auto-infer path if not provided
           path ||= infer_path(name)
-          @loader_contexts[@current_loader_context][name] = { path: path, type: type, null: null, transform: transform }
+          @loader_contexts[@current_loader_context][name] = { path: path, type: type, null: null, default: default, transform: transform }
         else
-          attribute_without_context(name, path: path, type: type, null: null, transform: transform)
+          attribute_without_context(name, path: path, type: type, null: null, default: default, transform: transform)
         end
 
         # Always create attr_accessor for the attribute on base model
@@ -174,6 +178,7 @@ module ActiveShopifyGraphQL
             path: path,
             type: type,
             null: options[:null] || true,
+            default: options[:default],
             transform: options[:transform],
             is_metafield: true,
             metafield_alias: alias_name,

@@ -31,7 +31,7 @@ module ActiveShopifyGraphQL
       attr_writer :model_class
 
       # For backward compatibility - loaders can still define attributes directly
-      def attribute(name, path: nil, type: :string, null: true, transform: nil)
+      def attribute(name, path: nil, type: :string, null: true, default: nil, transform: nil)
         @attributes ||= {}
 
         # Auto-infer GraphQL path for simple cases: display_name -> displayName
@@ -41,12 +41,13 @@ module ActiveShopifyGraphQL
           path: path,
           type: type,
           null: null,
+          default: default,
           transform: transform
         }
       end
 
       # For backward compatibility - loaders can still define metafield attributes directly
-      def metafield_attribute(name, namespace:, key:, type: :string, null: true, transform: nil)
+      def metafield_attribute(name, namespace:, key:, type: :string, null: true, default: nil, transform: nil)
         @attributes ||= {}
         @metafields ||= {}
 
@@ -66,6 +67,7 @@ module ActiveShopifyGraphQL
           path: path,
           type: type,
           null: null,
+          default: default,
           transform: transform,
           is_metafield: true,
           metafield_alias: alias_name,
@@ -436,18 +438,25 @@ module ActiveShopifyGraphQL
         # Use dig to safely extract the value
         value = root_data.dig(*path_parts)
 
-        # Validate null constraint
+        # Handle nil values with defaults or transforms
+        if value.nil?
+          # Use default value if provided (more efficient than transform for simple defaults)
+          if !config[:default].nil?
+            value = config[:default]
+          elsif config[:transform]
+            # Only call transform if no default is provided
+            value = config[:transform].call(value)
+          end
+        elsif config[:transform]
+          # Apply transform to non-nil values
+          value = config[:transform].call(value)
+        end
+
+        # Validate null constraint after applying defaults/transforms
         raise ArgumentError, "Attribute '#{attr_name}' (GraphQL path: '#{path}') cannot be null but received nil" if !config[:null] && value.nil?
 
-        # Apply type coercion if value is not nil
-        if value.nil?
-          result[attr_name] = nil
-        else
-          # Apply custom transform first, then type coercion
-          value = config[:transform].call(value) if config[:transform]
-
-          result[attr_name] = coerce_value(value, config[:type], attr_name, path)
-        end
+        # Apply type coercion
+        result[attr_name] = value.nil? ? nil : coerce_value(value, config[:type], attr_name, path)
       end
 
       result

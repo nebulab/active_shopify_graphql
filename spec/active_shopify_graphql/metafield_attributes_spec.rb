@@ -199,6 +199,110 @@ RSpec.describe "Metafield attribute functionality" do
       expect(attributes[:tags]).to eq(%w[TAG1 TAG2])
     end
 
+    it "handles nil metafields with default values" do
+      default_loader = Class.new(ActiveShopifyGraphQL::Loader) do
+        graphql_type "Product"
+
+        metafield_attribute :missing_string, namespace: 'custom', key: 'missing_str', type: :string,
+                                             default: "default_value"
+
+        metafield_attribute :missing_json, namespace: 'custom', key: 'missing_json', type: :json,
+                                           default: { "default" => true }
+
+        metafield_attribute :missing_integer, namespace: 'custom', key: 'missing_int', type: :integer,
+                                              default: 42
+
+        def execute_graphql_query(_query, **_variables)
+          {
+            "data" => {
+              "product" => {
+                "missing_stringMetafield" => nil,
+                "missing_jsonMetafield" => nil,
+                "missing_integerMetafield" => nil
+              }
+            }
+          }
+        end
+      end
+
+      loader = default_loader.new
+      attributes = loader.load_attributes("test-id")
+
+      expect(attributes[:missing_string]).to eq("default_value")
+      expect(attributes[:missing_json]).to eq({ "default" => true })
+      expect(attributes[:missing_integer]).to eq(42)
+    end
+
+    it "handles nil metafields with transform blocks providing defaults" do
+      transform_loader = Class.new(ActiveShopifyGraphQL::Loader) do
+        graphql_type "Product"
+
+        metafield_attribute :missing_string, namespace: 'custom', key: 'missing', type: :string,
+                                             transform: ->(value) { value.nil? ? "transform_default" : value }
+
+        metafield_attribute :missing_json, namespace: 'custom', key: 'json', type: :json,
+                                           transform: ->(value) { value.nil? ? { "transform" => true } : value }
+
+        def execute_graphql_query(_query, **_variables)
+          {
+            "data" => {
+              "product" => {
+                "missing_stringMetafield" => nil,
+                "missing_jsonMetafield" => nil
+              }
+            }
+          }
+        end
+      end
+
+      loader = transform_loader.new
+      attributes = loader.load_attributes("test-id")
+
+      expect(attributes[:missing_string]).to eq("transform_default")
+      expect(attributes[:missing_json]).to eq({ "transform" => true })
+    end
+
+    it "prefers default over transform for nil values (optimization)" do
+      call_count = 0
+
+      mixed_loader = Class.new(ActiveShopifyGraphQL::Loader) do
+        graphql_type "Product"
+
+        # This should use default and NOT call transform
+        metafield_attribute :with_default, namespace: 'custom', key: 'def', type: :string,
+                                           default: "default_used",
+                                           transform: lambda { |value|
+                                             call_count += 1
+                                             "transform_should_not_be_called"
+                                           }
+
+        # This should call transform since no default
+        metafield_attribute :with_transform, namespace: 'custom', key: 'trans', type: :string,
+                                             transform: lambda { |value|
+                                               call_count += 1
+                                               "transform_called"
+                                             }
+
+        def execute_graphql_query(_query, **_variables)
+          {
+            "data" => {
+              "product" => {
+                "with_defaultMetafield" => nil,
+                "with_transformMetafield" => nil
+              }
+            }
+          }
+        end
+      end
+
+      loader = mixed_loader.new
+      attributes = loader.load_attributes("test-id")
+
+      expect(attributes[:with_default]).to eq("default_used")
+      expect(attributes[:with_transform]).to eq("transform_called")
+      expect(call_count).to eq(1) # Only transform should be called once
+    end
+
     it "generates unique aliases for metafields with same namespace/key but different names" do
       multi_loader = Class.new(ActiveShopifyGraphQL::Loader) do
         graphql_type "Product"
