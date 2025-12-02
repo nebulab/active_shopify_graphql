@@ -52,13 +52,20 @@ end
 
 ### Basic Model Setup
 
-Create a model that includes `ActiveShopifyGraphQL::Base`:
+Create a model that includes `ActiveShopifyGraphQL::Base` and define attributes directly:
 
 ```ruby
 class Customer
   include ActiveShopifyGraphQL::Base
 
-  attr_accessor :id, :name, :email, :created_at
+  # Define the GraphQL type
+  graphql_type "Customer"
+
+  # Define attributes with automatic GraphQL path inference and type coercion
+  attribute :id, type: :string
+  attribute :name, path: "displayName", type: :string
+  attribute :email, path: "defaultEmailAddress.emailAddress", type: :string
+  attribute :created_at, type: :datetime
 
   validates :id, presence: true
 
@@ -68,38 +75,95 @@ class Customer
 end
 ```
 
-### Creating Loaders
+### Defining Attributes
 
-Create loader classes to define how to fetch and map data from Shopify's GraphQL APIs:
+Attributes are now defined directly in the model class using the `attribute` method. The GraphQL fragments and response mapping are automatically generated!
+
+#### Basic Attribute Definition
 
 ```ruby
-# For Admin API
-module ActiveShopifyGraphQL::Loaders::AdminApi
-  class CustomerLoader < ActiveShopifyGraphQL::AdminApiLoader
-    def fragment
-      <<~GRAPHQL
-        fragment CustomerFragment on Customer {
-          id
-          displayName
-          defaultEmailAddress {
-            emailAddress
-          }
-          createdAt
-        }
-      GRAPHQL
-    end
+class Customer
+  include ActiveShopifyGraphQL::Base
 
-    def map_response_to_attributes(response_data)
-      customer_data = response_data.dig("data", "customer")
-      return nil unless customer_data
+  graphql_type "Customer"
 
-      {
-        id: customer_data["id"],
-        name: customer_data["displayName"],
-        email: customer_data.dig("defaultEmailAddress", "emailAddress"),
-        created_at: customer_data["createdAt"]
-      }
-    end
+  # Define attributes with automatic GraphQL path inference and type coercion
+  attribute :id, type: :string
+  attribute :name, path: "displayName", type: :string
+  attribute :email, path: "defaultEmailAddress.emailAddress", type: :string
+  attribute :created_at, type: :datetime
+
+  # Custom transform example
+  attribute :tags, type: :string, transform: ->(tags_array) { tags_array.join(", ") }
+end
+```
+
+#### Attribute Definition Options
+
+The `attribute` method supports several options for flexibility:
+
+```ruby
+attribute :name,
+  path: "displayName",                    # Custom GraphQL path (auto-inferred if omitted)
+  type: :string,                          # Type coercion (:string, :integer, :float, :boolean, :datetime)
+  null: false,                            # Whether the attribute can be null (default: true)
+  transform: ->(value) { value.upcase }   # Custom transformation block
+```
+
+**Auto-inference:** When `path` is omitted, it's automatically inferred by converting snake_case to camelCase (e.g., `display_name` → `displayName`).
+
+**Nested paths:** Use dot notation for nested GraphQL fields (e.g., `"defaultEmailAddress.emailAddress"`).
+
+**Type coercion:** Automatic conversion using ActiveModel types ensures type safety.
+
+**Array handling:** Arrays are automatically preserved regardless of the specified type.
+
+#### Metafield Attributes
+
+Shopify metafields can be easily accessed using the `metafield_attribute` method:
+
+```ruby
+class Product
+  include ActiveShopifyGraphQL::Base
+
+  graphql_type "Product"
+
+  # Regular attributes
+  attribute :id, type: :string
+  attribute :title, type: :string
+
+  # Metafield attributes
+  metafield_attribute :boxes_available, namespace: 'custom', key: 'available_boxes', type: :integer
+  metafield_attribute :seo_description, namespace: 'seo', key: 'meta_description', type: :string
+  metafield_attribute :product_data, namespace: 'custom', key: 'data', type: :json
+  metafield_attribute :is_featured, namespace: 'custom', key: 'featured', type: :boolean, null: false
+end
+```
+
+The metafield attributes automatically generate the correct GraphQL syntax and handle value extraction from either `value` or `jsonValue` fields based on the type.
+
+#### API-Specific Attributes
+
+For models that need different attributes depending on the API being used, you can define loader-specific overrides:
+
+```ruby
+class Customer
+  include ActiveShopifyGraphQL::Base
+
+  graphql_type "Customer"
+
+  # Default attributes (used by Admin API)
+  attribute :id, type: :string
+  attribute :name, path: "displayName", type: :string
+  attribute :email, path: "defaultEmailAddress.emailAddress", type: :string
+  attribute :created_at, type: :datetime
+
+  # Customer Account API uses different field names
+  for_loader ActiveShopifyGraphQL::CustomerAccountApiLoader do
+    attribute :name, path: "firstName", type: :string
+    attribute :last_name, path: "lastName", type: :string
+    attribute :email, path: "emailAddress.emailAddress", type: :string
+    attribute :phone, path: "phoneNumber.phoneNumber", type: :string, null: true
   end
 end
 ```
@@ -109,11 +173,10 @@ end
 Use the `find` method to retrieve records by ID:
 
 ```ruby
-# Using default loader (Admin API)
+# Using Admin API (default)
 customer = Customer.find("gid://shopify/Customer/123456789")
-
-# Using specific loader
-customer = Customer.find("gid://shopify/Customer/123456789", loader: custom_loader)
+# You can also use just the ID number
+customer = Customer.find(123456789)
 
 # Using Customer Account API
 customer = Customer.with_customer_account_api(token).find
@@ -134,6 +197,63 @@ customer = Customer.with_customer_account_api(token).find
 customer = Customer.with_admin_api.find(id)
 ```
 
+### Querying Records
+
+Use the `where` method to query multiple records using Shopify's search syntax:
+
+```ruby
+# Simple conditions
+customers = Customer.where(email: "john@example.com")
+
+# Range queries
+customers = Customer.where(created_at: { gte: "2024-01-01", lt: "2024-02-01" })
+customers = Customer.where(orders_count: { gte: 5 })
+
+# Multi-word values are automatically quoted
+customers = Customer.where(first_name: "John Doe")
+
+# With limits
+customers = Customer.where({ email: "john@example.com" }, limit: 100)
+```
+
+The `where` method automatically converts Ruby conditions into Shopify's GraphQL query syntax and validates that the query fields are supported by Shopify.
+
+### Optimizing Queries with Select
+
+Use the `select` method to only fetch specific attributes, reducing GraphQL query size and improving performance:
+
+```ruby
+# Only fetch id, name, and email
+customer = Customer.select(:id, :name, :email).find(123)
+
+# Works with where queries too
+customers = Customer.select(:id, :name).where(country: "Canada")
+
+# Always includes id even if not specified
+customer = Customer.select(:name).find(123)
+# This will still include :id in the GraphQL query
+```
+
+The `select` method validates that the specified attributes exist and automatically includes the `id` field for proper object identification.
+
+### Optimizing Queries with Select
+
+Use the `select` method to only fetch specific attributes, reducing GraphQL query size and improving performance:
+
+```ruby
+# Only fetch id, name, and email
+customer = Customer.select(:id, :name, :email).find(123)
+
+# Works with where queries too
+customers = Customer.select(:id, :name).where(country: "Canada")
+
+# Always includes id even if not specified
+customer = Customer.select(:name).find(123)
+# This will still include :id in the GraphQL query
+```
+
+The `select` method validates that the specified attributes exist and automatically includes the `id` field for proper object identification.
+
 ## Associations
 
 ActiveShopifyGraphQL provides ActiveRecord-like associations to define relationships between the Shopify native models and your own custom ones.
@@ -146,19 +266,16 @@ Use `has_many` to define one-to-many relationships:
 class Customer
   include ActiveShopifyGraphQL::Base
 
-  attr_accessor :id, :display_name, :email, :created_at
+  graphql_type "Customer"
+
+  attribute :id, type: :string
+  attribute :display_name, type: :string
+  attribute :email, path: "defaultEmailAddress.emailAddress", type: :string
+  attribute :created_at, type: :datetime
 
   # Define an association to one of your own ActiveRecord models
   # foreign_key maps the id of the GraphQL powered model to the rewards.shopify_customer_id table
   has_many :rewards, foreign_key: :shopify_customer_id
-
-  validates :id, presence: true
-end
-
-class Order
-  include ActiveShopifyGraphQL::Base
-
-  attr_accessor :id, :name, :shopify_customer_id, :created_at
 
   validates :id, presence: true
 end
@@ -167,7 +284,7 @@ end
 #### Using the Association
 
 ```ruby
-customer = Customer.find("gid://shopify/Customer/123456789")
+customer = Customer.find("gid://shopify/Customer/123456789") # or Customer.find(123456789)
 
 # Access associated orders (lazy loaded)
 customer.rewards
@@ -191,8 +308,14 @@ The associations automatically handle Shopify GID format conversion, extracting 
 
 ## Next steps
 
-- [ ] Support `Model.where(param: value)` proxying params to the GraphQL query attribute
+- [x] Support `Model.where(param: value)` proxying params to the GraphQL query attribute
+- [x] Attribute-based model definition with automatic GraphQL fragment generation
+- [x] Metafield attributes for easy access to Shopify metafields
+- [x] Query optimization with `select` method
 - [ ] Eager loading of GraphQL connections via `Customer.includes(:orders).find(id)` in a single GraphQL query
+- [ ] Better error handling and retry mechanisms for GraphQL API calls
+- [ ] Caching layer for frequently accessed data
+- [ ] Support for GraphQL subscriptions
 
 ## Development
 
@@ -200,7 +323,7 @@ After checking out the repo, run `bin/setup` to install dependencies. Then, run 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/team-cometeer/active_shopify_graphql.
+Bug reports and pull requests are welcome on GitHub at https://github.com/nebulab/active_shopify_graphql.
 
 ## License
 

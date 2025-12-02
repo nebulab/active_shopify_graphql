@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module ActiveShopifyGraphQL
   module FinderMethods
     extend ActiveSupport::Concern
@@ -10,7 +12,7 @@ module ActiveShopifyGraphQL
       def find(id, loader: default_loader)
         gid = URI::GID.build(app: "shopify", model_name: model_name.name.demodulize, model_id: id)
         model_type = name.demodulize
-        attributes = loader.load_attributes(gid, model_type)
+        attributes = loader.load_attributes(model_type, gid)
 
         return nil if attributes.nil?
 
@@ -23,7 +25,7 @@ module ActiveShopifyGraphQL
         if respond_to?(:default_loader_instance)
           default_loader_instance
         else
-          @default_loader ||= default_loader_class.new
+          @default_loader ||= default_loader_class.new(self)
         end
       end
 
@@ -33,7 +35,115 @@ module ActiveShopifyGraphQL
         @default_loader = loader
       end
 
+      # Select specific attributes to optimize GraphQL queries
+      # @param *attributes [Symbol] The attributes to select
+      # @return [Class] A class with modified default loader for method chaining
+      #
+      # @example
+      #   Customer.select(:id, :email).find(123)
+      #   Customer.select(:id, :email).where(first_name: "John")
+      def select(*attributes)
+        # Validate attributes exist
+        attrs = Array(attributes).flatten.map(&:to_sym)
+        validate_select_attributes!(attrs)
+
+        # Create a new class that inherits from self with a modified default loader
+        selected_class = Class.new(self)
+
+        # Override the default_loader method to return a loader with selected attributes
+        selected_class.define_singleton_method(:default_loader) do
+          @selective_loader ||= superclass.default_loader.class.new(
+            superclass,
+            selected_attributes: attrs
+          )
+        end
+
+        # Preserve the original class name and model name for GraphQL operations
+        selected_class.define_singleton_method(:name) { superclass.name }
+        selected_class.define_singleton_method(:model_name) { superclass.model_name }
+
+        selected_class
+      end
+
+      # Query for multiple records using attribute conditions
+      # @param conditions [Hash] The conditions to query (e.g., { email: "example@test.com", first_name: "John" })
+      # @param options [Hash] Options hash containing loader and limit (when first arg is a Hash)
+      # @option options [ActiveShopifyGraphQL::Loader] :loader The loader to use for fetching data
+      # @option options [Integer] :limit The maximum number of records to return (default: 250, max: 250)
+      # @return [Array<Object>] Array of model instances
+      # @raise [ArgumentError] If any attribute is not valid for querying
+      #
+      # @example
+      #   # Keyword argument style (recommended)
+      #   Customer.where(email: "john@example.com")
+      #   Customer.where(first_name: "John", country: "Canada")
+      #   Customer.where(orders_count: { gte: 5 })
+      #   Customer.where(created_at: { gte: "2024-01-01", lt: "2024-02-01" })
+      #
+      #   # Hash style with options
+      #   Customer.where({ email: "john@example.com" }, loader: custom_loader, limit: 100)
+      def where(conditions_or_first_condition = {}, *args, **options)
+        # Handle both syntaxes:
+        # where(email: "john@example.com") - keyword args become options
+        # where({ email: "john@example.com" }, loader: custom_loader) - explicit hash + options
+        if conditions_or_first_condition.is_a?(Hash) && !conditions_or_first_condition.empty?
+          # Explicit hash provided as first argument
+          conditions = conditions_or_first_condition
+          # Any additional options passed as keyword args or second hash argument
+          final_options = args.first.is_a?(Hash) ? options.merge(args.first) : options
+        else
+          # Keyword arguments style - conditions come from options, excluding known option keys
+          known_option_keys = %i[loader limit]
+          conditions = options.except(*known_option_keys)
+          final_options = options.slice(*known_option_keys)
+        end
+
+        loader = final_options[:loader] || default_loader
+        limit = final_options[:limit] || 250
+
+        model_type = name.demodulize
+        attributes_array = loader.load_collection(model_type, conditions, limit: limit)
+
+        attributes_array.map { |attributes| new(attributes) }
+      end
+
       private
+
+      # Validates that selected attributes exist in the model
+      # @param attributes [Array<Symbol>] The attributes to validate
+      # @raise [ArgumentError] If any attribute is invalid
+      def validate_select_attributes!(attributes)
+        return if attributes.empty?
+
+        available_attrs = available_select_attributes
+        invalid_attrs = attributes - available_attrs
+
+        return unless invalid_attrs.any?
+
+        raise ArgumentError, "Invalid attributes for #{name}: #{invalid_attrs.join(', ')}. " \
+                           "Available attributes are: #{available_attrs.join(', ')}"
+      end
+
+      # Gets all available attributes for selection
+      # @return [Array<Symbol>] Available attribute names
+      def available_select_attributes
+        attrs = []
+
+        # Get attributes from the model class
+        if respond_to?(:attributes_for_loader)
+          loader_class = default_loader.class
+          model_attrs = attributes_for_loader(loader_class)
+          attrs.concat(model_attrs.keys)
+        end
+
+        # Get attributes from the loader class
+        if default_loader.respond_to?(:defined_attributes)
+          loader_attrs = default_loader.class.defined_attributes
+          attrs.concat(loader_attrs.keys)
+        end
+
+        attrs.map(&:to_sym).uniq.sort
+      end
 
       # Infers the loader class name from the model name
       # e.g., Customer -> ActiveGraphQL::CustomerLoader
@@ -41,10 +151,13 @@ module ActiveShopifyGraphQL
       def default_loader_class
         loader_class_name = "#{name}Loader"
         loader_class_name.constantize
-      rescue NameError => e
-        raise NameError, "Default loader class '#{loader_class_name}' not found for model '#{name}'. " \
-                        "Please create the loader class or override the default_loader method. " \
-                        "Original error: #{e.message}"
+      rescue NameError
+        # Fall back to the LoaderSwitchable's default_loader_class if inference fails
+        if respond_to?(:default_loader_class, true)
+          super
+        else
+          ActiveShopifyGraphQL::AdminApiLoader
+        end
       end
     end
   end
