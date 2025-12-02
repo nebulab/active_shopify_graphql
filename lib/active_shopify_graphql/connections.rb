@@ -224,11 +224,11 @@ module ActiveShopifyGraphQL
         nodes.last
       end
 
-      def has_next_page?
+      def next_page?
         page_info["hasNextPage"]
       end
 
-      def has_previous_page?
+      def previous_page?
         page_info["hasPreviousPage"]
       end
 

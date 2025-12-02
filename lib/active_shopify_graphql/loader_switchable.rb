@@ -67,7 +67,7 @@ module ActiveShopifyGraphQL
       # @param api_type [String] The API type ('AdminApi' or 'CustomerAccountApi')
       # @return [Class] The inferred loader class
       def infer_loader_class(api_type)
-        model_name = name.demodulize # e.g., 'Customer' from 'Shopify::Customer'
+        model_name = name.demodulize # e.g., 'Customer' from 'MyApp::Customer'
 
         loader_class_name = "ActiveShopifyGraphQL::Loaders::#{api_type}::#{model_name}Loader"
         loader_class_name.constantize
