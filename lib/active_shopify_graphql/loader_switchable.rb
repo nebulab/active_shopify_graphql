@@ -89,7 +89,7 @@ module ActiveShopifyGraphQL
 
           # Convert to GID only if ID is provided
           gid = id ? @model_class.send(:convert_to_gid, id) : nil
-          attributes = @loader.load_attributes(gid, model_type)
+          attributes = @loader.load_attributes(model_type, gid)
 
           return nil if attributes.nil?
 

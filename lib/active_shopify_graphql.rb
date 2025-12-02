@@ -1,5 +1,12 @@
 # frozen_string_literal: true
 
+require 'active_support'
+require 'active_support/inflector'
+require 'active_support/concern'
+require 'active_support/core_ext/object/blank'
+require 'active_model'
+require 'globalid'
+
 require_relative "active_shopify_graphql/version"
 require_relative "active_shopify_graphql/configuration"
 require_relative "active_shopify_graphql/base"

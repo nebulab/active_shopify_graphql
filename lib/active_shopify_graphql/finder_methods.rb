@@ -12,7 +12,7 @@ module ActiveShopifyGraphQL
       def find(id, loader: default_loader)
         gid = URI::GID.build(app: "shopify", model_name: model_name.name.demodulize, model_id: id)
         model_type = name.demodulize
-        attributes = loader.load_attributes(gid, model_type)
+        attributes = loader.load_attributes(model_type, gid)
 
         return nil if attributes.nil?
 
@@ -33,6 +33,48 @@ module ActiveShopifyGraphQL
       # @param loader [ActiveGraphQL::Loader] The loader to set as default
       def default_loader=(loader)
         @default_loader = loader
+      end
+
+      # Query for multiple records using attribute conditions
+      # @param conditions [Hash] The conditions to query (e.g., { email: "example@test.com", first_name: "John" })
+      # @param options [Hash] Options hash containing loader and limit (when first arg is a Hash)
+      # @option options [ActiveShopifyGraphQL::Loader] :loader The loader to use for fetching data
+      # @option options [Integer] :limit The maximum number of records to return (default: 250, max: 250)
+      # @return [Array<Object>] Array of model instances
+      # @raise [ArgumentError] If any attribute is not valid for querying
+      #
+      # @example
+      #   # Keyword argument style (recommended)
+      #   Customer.where(email: "john@example.com")
+      #   Customer.where(first_name: "John", country: "Canada")
+      #   Customer.where(orders_count: { gte: 5 })
+      #   Customer.where(created_at: { gte: "2024-01-01", lt: "2024-02-01" })
+      #
+      #   # Hash style with options
+      #   Customer.where({ email: "john@example.com" }, loader: custom_loader, limit: 100)
+      def where(conditions_or_first_condition = {}, *args, **options)
+        # Handle both syntaxes:
+        # where(email: "john@example.com") - keyword args become options
+        # where({ email: "john@example.com" }, loader: custom_loader) - explicit hash + options
+        if conditions_or_first_condition.is_a?(Hash) && !conditions_or_first_condition.empty?
+          # Explicit hash provided as first argument
+          conditions = conditions_or_first_condition
+          # Any additional options passed as keyword args or second hash argument
+          final_options = args.first.is_a?(Hash) ? options.merge(args.first) : options
+        else
+          # Keyword arguments style - conditions come from options, excluding known option keys
+          known_option_keys = %i[loader limit]
+          conditions = options.except(*known_option_keys)
+          final_options = options.slice(*known_option_keys)
+        end
+
+        loader = final_options[:loader] || default_loader
+        limit = final_options[:limit] || 250
+
+        model_type = name.demodulize
+        attributes_array = loader.load_collection(model_type, conditions, limit: limit)
+
+        attributes_array.map { |attributes| new(attributes) }
       end
 
       private

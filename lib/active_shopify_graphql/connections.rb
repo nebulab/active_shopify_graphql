@@ -49,7 +49,7 @@ module ActiveShopifyGraphQL
         end
       end
 
-      def connection(name, target_class: nil, arguments: {}, &block)
+      def connection(name, target_class: nil, arguments: {})
         target_class_name = target_class&.to_s || name.to_s.singularize.classify
 
         # Store connection metadata

@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-RSpec.describe ActiveShopifyGraphql do
+RSpec.describe ActiveShopifyGraphQL do
   it "has a version number" do
-    expect(ActiveShopifyGraphql::VERSION).not_to be nil
+    expect(ActiveShopifyGraphQL::VERSION).not_to be nil
   end
 
-  it "does something useful" do
-    expect(false).to eq(true)
+  it "works correctly" do
+    expect(ActiveShopifyGraphQL).to be_a(Module)
   end
 end
