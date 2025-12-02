@@ -25,7 +25,7 @@ module ActiveShopifyGraphQL
         if respond_to?(:default_loader_instance)
           default_loader_instance
         else
-          @default_loader ||= default_loader_class.new
+          @default_loader ||= default_loader_class.new(self)
         end
       end
 
@@ -85,10 +85,13 @@ module ActiveShopifyGraphQL
       def default_loader_class
         loader_class_name = "#{name}Loader"
         loader_class_name.constantize
-      rescue NameError => e
-        raise NameError, "Default loader class '#{loader_class_name}' not found for model '#{name}'. " \
-                        "Please create the loader class or override the default_loader method. " \
-                        "Original error: #{e.message}"
+      rescue NameError
+        # Fall back to the LoaderSwitchable's default_loader_class if inference fails
+        if respond_to?(:default_loader_class, true)
+          super
+        else
+          ActiveShopifyGraphQL::AdminApiLoader
+        end
       end
     end
   end

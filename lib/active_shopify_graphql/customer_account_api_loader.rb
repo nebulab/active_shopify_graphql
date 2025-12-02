@@ -2,7 +2,8 @@
 
 module ActiveShopifyGraphQL
   class CustomerAccountApiLoader < Loader
-    def initialize(token)
+    def initialize(model_class = nil, token = nil)
+      super(model_class)
       @token = token
     end
 

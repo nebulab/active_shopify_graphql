@@ -9,15 +9,28 @@ module ActiveShopifyGraphQL
       def graphql_type(type = nil)
         return @graphql_type = type if type
 
-        @graphql_type || raise(NotImplementedError, "#{self} must define graphql_type")
+        # Try to get GraphQL type from associated model class first
+        return model_class.graphql_type_for_loader(self) if model_class.respond_to?(:graphql_type_for_loader)
+
+        @graphql_type || raise(NotImplementedError, "#{self} must define graphql_type or have an associated model with graphql_type")
       end
 
-      # Define an attribute with GraphQL path mapping and type coercion
-      # @param name [Symbol] The Ruby attribute name
-      # @param path [String] The GraphQL field path (auto-inferred if not provided)
-      # @param type [Symbol] The type for coercion (:string, :integer, :float, :boolean, :datetime). Arrays are preserved automatically.
-      # @param null [Boolean] Whether the attribute can be null (default: true)
-      # @param transform [Proc] Custom transform block for the value
+      # Set or get the client type for this loader (:admin_api or :customer_account_api)
+      def client_type(type = nil)
+        return @client_type = type if type
+
+        @client_type || :admin_api # Default to admin API
+      end
+
+      # Get the model class associated with this loader
+      def model_class
+        @model_class ||= infer_model_class
+      end
+
+      # Set the model class associated with this loader
+      attr_writer :model_class
+
+      # For backward compatibility - loaders can still define attributes directly
       def attribute(name, path: nil, type: :string, null: true, transform: nil)
         @attributes ||= {}
 
@@ -25,20 +38,14 @@ module ActiveShopifyGraphQL
         path ||= infer_path(name)
 
         @attributes[name] = {
-          path:,
-          type:,
-          null:,
-          transform:,
+          path: path,
+          type: type,
+          null: null,
+          transform: transform
         }
       end
 
-      # Define a metafield attribute with GraphQL path mapping and type coercion
-      # @param name [Symbol] The Ruby attribute name
-      # @param namespace [String] The metafield namespace
-      # @param key [String] The metafield key
-      # @param type [Symbol] The type for coercion (:string, :integer, :float, :boolean, :datetime, :json). Arrays are preserved automatically.
-      # @param null [Boolean] Whether the attribute can be null (default: true)
-      # @param transform [Proc] Custom transform block for the value
+      # For backward compatibility - loaders can still define metafield attributes directly
       def metafield_attribute(name, namespace:, key:, type: :string, null: true, transform: nil)
         @attributes ||= {}
         @metafields ||= {}
@@ -67,14 +74,33 @@ module ActiveShopifyGraphQL
         }
       end
 
-      # Get all defined attributes
+      # Get all defined attributes (includes both direct and model attributes)
       def attributes
-        @attributes || {}
+        defined_attributes
       end
 
-      # Get all defined metafields
+      # Get all defined metafields (includes both direct and model metafields)
       def metafields
-        @metafields || {}
+        defined_metafields
+      end
+
+      # Get attributes from the model class for this loader
+      def defined_attributes
+        return @attributes || {} unless model_class.respond_to?(:attributes_for_loader)
+
+        # Get attributes defined in the model for this loader class
+        model_attrs = model_class.attributes_for_loader(self)
+        direct_attrs = @attributes || {}
+
+        # Merge direct loader attributes with model attributes (model takes precedence)
+        direct_attrs.merge(model_attrs)
+      end
+
+      # Get metafields from the model class
+      def defined_metafields
+        return @metafields || {} unless model_class.respond_to?(:metafields)
+
+        model_class.metafields
       end
 
       # Set or get the GraphQL fragment fields for this loader
@@ -101,11 +127,53 @@ module ActiveShopifyGraphQL
       def infer_path(name)
         name.to_s.camelize(:lower)
       end
+
+      # Infer the model class from the GraphQL type
+      # e.g., graphql_type "Customer" -> Customer
+      def infer_model_class
+        type = @graphql_type
+        return nil unless type
+
+        # Try to find the class based on GraphQL type
+        begin
+          Object.const_get(type)
+        rescue NameError
+          # If not found, return nil - the model class may not exist yet
+          nil
+        end
+      end
     end
 
-    # Override this to define special behavior at loader initialization
-    def initialize(**)
-      # no-op
+    # Initialize loader with optional model class
+    def initialize(model_class = nil, **)
+      @model_class = model_class || self.class.model_class
+    end
+
+    # Get GraphQL type for this loader instance
+    def graphql_type
+      if @model_class.respond_to?(:graphql_type_for_loader)
+        @model_class.graphql_type_for_loader(self.class)
+      else
+        self.class.graphql_type
+      end
+    end
+
+    # Get defined attributes for this loader instance
+    def defined_attributes
+      if @model_class.respond_to?(:attributes_for_loader)
+        @model_class.attributes_for_loader(self.class)
+      else
+        self.class.defined_attributes
+      end
+    end
+
+    # Get defined metafields for this loader instance
+    def defined_metafields
+      if @model_class.respond_to?(:metafields)
+        @model_class.metafields
+      else
+        self.class.defined_metafields
+      end
     end
 
     # Returns the complete GraphQL fragment built from class-level fragment fields
@@ -115,19 +183,19 @@ module ActiveShopifyGraphQL
 
     # Override this to define the query name (can accept model_type for customization)
     def query_name(model_type = nil)
-      type = model_type || self.class.graphql_type
+      type = model_type || graphql_type
       type.downcase
     end
 
     # Override this to define the fragment name (can accept model_type for customization)
     def fragment_name(model_type = nil)
-      type = model_type || self.class.graphql_type
+      type = model_type || graphql_type
       "#{type}Fragment"
     end
 
     # Builds the complete GraphQL query using the fragment
     def graphql_query(model_type = nil)
-      type = model_type || self.class.graphql_type
+      type = model_type || graphql_type
       query_name_value = query_name(type)
       fragment_name_value = fragment_name(type)
 
@@ -144,7 +212,8 @@ module ActiveShopifyGraphQL
     # Override this to map the GraphQL response to model attributes
     def map_response_to_attributes(response_data)
       # Use attributes-based mapping if attributes are defined, otherwise require manual implementation
-      raise NotImplementedError, "#{self.class} must implement map_response_to_attributes" unless self.class.attributes.any?
+      attrs = defined_attributes
+      raise NotImplementedError, "#{self.class} must implement map_response_to_attributes" unless attrs.any?
 
       map_response_from_attributes(response_data)
     end
@@ -156,7 +225,7 @@ module ActiveShopifyGraphQL
       if id.nil?
         # New signature: load_attributes(id)
         actual_id = model_type_or_id
-        type = self.class.graphql_type
+        type = graphql_type
       else
         # Old signature: load_attributes(model_type, id)
         type = model_type_or_id
@@ -257,11 +326,11 @@ module ActiveShopifyGraphQL
 
     # Builds the complete fragment from class-level fragment fields or declared attributes
     def build_fragment_from_fields
-      type = self.class.graphql_type
+      type = graphql_type
       fragment_name_value = fragment_name(type)
 
       # Use attributes-based fragment if attributes are defined, otherwise fall back to manual fragment
-      fragment_fields = if self.class.attributes.any?
+      fragment_fields = if defined_attributes.any?
                           build_fragment_from_attributes
                         else
                           self.class.fragment
@@ -280,7 +349,7 @@ module ActiveShopifyGraphQL
       metafield_aliases = {}
 
       # Build a tree structure for nested paths
-      self.class.attributes.each_value do |config|
+      defined_attributes.each_value do |config|
         if config[:is_metafield]
           # Handle metafield attributes specially
           alias_name = config[:metafield_alias]
@@ -342,15 +411,13 @@ module ActiveShopifyGraphQL
 
     # Map GraphQL response to attributes using declared attribute metadata
     def map_response_from_attributes(response_data)
-      type = self.class.graphql_type
+      type = graphql_type
       query_name_value = query_name(type)
       root_data = response_data.dig("data", query_name_value)
-
       return {} unless root_data
 
       result = {}
-
-      self.class.attributes.each do |attr_name, config|
+      defined_attributes.each do |attr_name, config|
         path = config[:path]
         path_parts = path.split('.')
 
@@ -405,8 +472,20 @@ module ActiveShopifyGraphQL
       end
     end
 
-    def execute_graphql_query
-      raise NotImplementedError, "#{self.class} must implement execute_graphql_query"
+    def execute_graphql_query(query, **variables)
+      case self.class.client_type
+      when :admin_api
+        client = ActiveShopifyGraphQL.configuration.admin_api_client
+        raise Error, "Admin API client not configured. Please configure it using ActiveShopifyGraphQL.configure" unless client
+
+        client.execute(query, **variables)
+      when :customer_account_api
+        # Customer Account API implementation would go here
+        # For now, raise an error since we'd need token handling
+        raise NotImplementedError, "Customer Account API support needs token handling implementation"
+      else
+        raise ArgumentError, "Unknown client type: #{self.class.client_type}"
+      end
     end
 
     # Validates that all query attributes are supported by the model

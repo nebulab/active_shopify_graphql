@@ -2,6 +2,10 @@
 
 module ActiveShopifyGraphQL
   class AdminApiLoader < Loader
+    def initialize(model_class = nil)
+      super(model_class)
+    end
+
     private
 
     def execute_graphql_query(query, **variables)
