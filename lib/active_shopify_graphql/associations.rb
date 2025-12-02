@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module ActiveShopifyGraphQL
   module Associations
     extend ActiveSupport::Concern
@@ -17,7 +19,7 @@ module ActiveShopifyGraphQL
         association_primary_key = primary_key || :id
 
         # Store association metadata
-        self.associations[name] = {
+        associations[name] = {
           type: :has_many,
           class_name: association_class_name,
           foreign_key: association_foreign_key,
@@ -34,9 +36,7 @@ module ActiveShopifyGraphQL
           return @_association_cache[name] = [] if primary_key_value.blank?
 
           # Extract numeric ID from Shopify GID if needed
-          if primary_key_value.gid?
-            primary_key_value = primary_key_value.to_plain_id
-          end
+          primary_key_value = primary_key_value.to_plain_id if primary_key_value.gid?
 
           association_class = association_class_name.constantize
           @_association_cache[name] = association_class.where(association_foreign_key => primary_key_value)
@@ -55,7 +55,7 @@ module ActiveShopifyGraphQL
         association_primary_key = primary_key || :id
 
         # Store association metadata
-        self.associations[name] = {
+        associations[name] = {
           type: :has_one,
           class_name: association_class_name,
           foreign_key: association_foreign_key,
@@ -72,9 +72,7 @@ module ActiveShopifyGraphQL
           return @_association_cache[name] = nil if primary_key_value.blank?
 
           # Extract numeric ID from Shopify GID if needed
-          if primary_key_value.gid?
-            primary_key_value = primary_key_value.to_plain_id
-          end
+          primary_key_value = primary_key_value.to_plain_id if primary_key_value.gid?
 
           association_class = association_class_name.constantize
           @_association_cache[name] = association_class.find_by(association_foreign_key => primary_key_value)

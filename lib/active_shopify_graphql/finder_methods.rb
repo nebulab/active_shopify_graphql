@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module ActiveShopifyGraphQL
   module FinderMethods
     extend ActiveSupport::Concern

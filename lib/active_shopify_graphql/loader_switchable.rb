@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module ActiveShopifyGraphQL
   module LoaderSwitchable
     extend ActiveSupport::Concern
@@ -94,14 +96,12 @@ module ActiveShopifyGraphQL
           @model_class.new(attributes)
         end
 
-        def loader
-          @loader
-        end
+        attr_reader :loader
 
         def inspect
           "#{@model_class.name}(with_#{@loader.class.name.demodulize})"
         end
-        alias_method :to_s, :inspect
+        alias to_s inspect
       end
     end
   end

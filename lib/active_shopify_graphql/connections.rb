@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module ActiveShopifyGraphQL
   module Connections
     extend ActiveSupport::Concern
@@ -51,7 +53,7 @@ module ActiveShopifyGraphQL
         target_class_name = target_class&.to_s || name.to_s.singularize.classify
 
         # Store connection metadata
-        self.defined_connections[name] = {
+        defined_connections[name] = {
           target_class: target_class_name,
           arguments: arguments,
           field_name: name.to_s.camelize(:lower)
@@ -166,11 +168,9 @@ module ActiveShopifyGraphQL
       def build_variables_string(arguments)
         return "" if arguments.empty?
 
-        variables = arguments.map do |key, _value|
+        arguments.map do |key, _value|
           ", $#{key}: #{graphql_type_for_argument(key)}"
         end.join("")
-
-        variables
       end
 
       def graphql_type_for_argument(key)

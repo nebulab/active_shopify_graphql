@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module ActiveShopifyGraphQL
   module Base
     extend ActiveSupport::Concern
