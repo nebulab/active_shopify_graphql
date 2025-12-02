@@ -13,42 +13,6 @@ module ActiveShopifyGraphQL
     end
 
     class_methods do
-      def metafield(attribute_name, graphql_field: "metafield", target_class: "Shopify::GraphQL::Metafield")
-        # Define the metafield accessor method
-        define_method attribute_name do |namespace:, key:|
-          cache_key = "#{attribute_name}_#{namespace}_#{key}"
-          return @_metafield_cache[cache_key] if @_metafield_cache&.key?(cache_key)
-
-          @_metafield_cache ||= {}
-
-          # Build the metafield query
-          metafield_query = self.class.send(:build_metafield_query, graphql_field, target_class)
-
-          # Execute the query
-          id_for_query = id.to_gid(self.class.model_name.name.demodulize)
-          variables = { id: id_for_query, namespace: namespace, key: key }
-
-          response = ActiveShopifyGraphQL.configuration.admin_api_client.execute(metafield_query, **variables)
-
-          # Parse the response
-          metafield_data = response.dig("data", self.class.finder_query_name, graphql_field)
-
-          if metafield_data
-            target_class_const = target_class.constantize
-            @_metafield_cache[cache_key] = target_class_const.new(metafield_data)
-          else
-            @_metafield_cache[cache_key] = nil
-          end
-        end
-
-        # Define a setter method for testing/mocking
-        define_method "#{attribute_name}=" do |value|
-          @_metafield_cache ||= {}
-          # Use a generic cache key for setter (since we don't have namespace/key)
-          @_metafield_cache["#{attribute_name}_test"] = value
-        end
-      end
-
       def connection(name, target_class: nil, arguments: {})
         target_class_name = target_class&.to_s || name.to_s.singularize.classify
 
@@ -105,22 +69,6 @@ module ActiveShopifyGraphQL
       end
 
       private
-
-      def build_metafield_query(graphql_field, target_class)
-        target_class_const = target_class.constantize
-        target_fragment = target_class_const.fragment
-
-        <<~GRAPHQL
-          #{target_fragment}
-          query #{model_name.singular}Metafield($id: ID!, $namespace: String!, $key: String!) {
-            #{@finder_query_name || model_name.singular}(id: $id) {
-              #{graphql_field}(namespace: $namespace, key: $key) {
-                ...shopify_#{target_class_const.model_name.element.downcase}Fragment
-              }
-            }
-          }
-        GRAPHQL
-      end
 
       def build_connection_query(connection_name, arguments)
         connection_info = defined_connections[connection_name]
