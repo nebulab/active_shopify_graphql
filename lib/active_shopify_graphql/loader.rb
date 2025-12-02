@@ -15,7 +15,7 @@ module ActiveShopifyGraphQL
       # Define an attribute with GraphQL path mapping and type coercion
       # @param name [Symbol] The Ruby attribute name
       # @param path [String] The GraphQL field path (auto-inferred if not provided)
-      # @param type [Symbol] The type for coercion (:string, :integer, :float, :boolean, :datetime)
+      # @param type [Symbol] The type for coercion (:string, :integer, :float, :boolean, :datetime). Arrays are preserved automatically.
       # @param null [Boolean] Whether the attribute can be null (default: true)
       # @param transform [Proc] Custom transform block for the value
       def attribute(name, path: nil, type: :string, null: true, transform: nil)
@@ -36,7 +36,7 @@ module ActiveShopifyGraphQL
       # @param name [Symbol] The Ruby attribute name
       # @param namespace [String] The metafield namespace
       # @param key [String] The metafield key
-      # @param type [Symbol] The type for coercion (:string, :integer, :float, :boolean, :datetime, :json)
+      # @param type [Symbol] The type for coercion (:string, :integer, :float, :boolean, :datetime, :json). Arrays are preserved automatically.
       # @param null [Boolean] Whether the attribute can be null (default: true)
       # @param transform [Proc] Custom transform block for the value
       def metafield_attribute(name, namespace:, key:, type: :string, null: true, transform: nil)
@@ -280,7 +280,7 @@ module ActiveShopifyGraphQL
       metafield_aliases = {}
 
       # Build a tree structure for nested paths
-      self.class.attributes.each do |_name, config|
+      self.class.attributes.each_value do |config|
         if config[:is_metafield]
           # Handle metafield attributes specially
           alias_name = config[:metafield_alias]
@@ -376,6 +376,9 @@ module ActiveShopifyGraphQL
 
     # Coerce a value to the specified type using ActiveSupport's type system
     def coerce_value(value, type, attr_name, path)
+      # Automatically preserve arrays regardless of specified type
+      return value if value.is_a?(Array)
+
       type_caster = get_type_caster(type)
       type_caster.cast(value)
     rescue ArgumentError, TypeError => e
@@ -395,6 +398,7 @@ module ActiveShopifyGraphQL
         ActiveModel::Type::Boolean.new
       when :datetime
         ActiveModel::Type::DateTime.new
+
       else
         # For unknown types, use a pass-through type that returns the value as-is
         ActiveModel::Type::Value.new
