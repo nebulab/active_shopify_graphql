@@ -107,6 +107,7 @@ attribute :name,
   path: "displayName",                    # Custom GraphQL path (auto-inferred if omitted)
   type: :string,                          # Type coercion (:string, :integer, :float, :boolean, :datetime)
   null: false,                            # Whether the attribute can be null (default: true)
+  default: "a default value",             # The value to assign in case it's nil (default: nil)
   transform: ->(value) { value.upcase }   # Custom transformation block
 ```
 
@@ -152,18 +153,19 @@ class Customer
 
   graphql_type "Customer"
 
-  # Default attributes (used by Admin API)
+  # Default attributes (used by all loaders)
   attribute :id, type: :string
   attribute :name, path: "displayName", type: :string
-  attribute :email, path: "defaultEmailAddress.emailAddress", type: :string
-  attribute :created_at, type: :datetime
+
+  for_loader ActiveShopifyGraphQL::AdminApiLoader do
+    attribute :email, path: "defaultEmailAddress.emailAddress", type: :string
+    attribute :created_at, type: :datetime
+  end
 
   # Customer Account API uses different field names
   for_loader ActiveShopifyGraphQL::CustomerAccountApiLoader do
-    attribute :name, path: "firstName", type: :string
-    attribute :last_name, path: "lastName", type: :string
     attribute :email, path: "emailAddress.emailAddress", type: :string
-    attribute :phone, path: "phoneNumber.phoneNumber", type: :string, null: true
+    attribute :created_at, path: "creationDate", type: :datetime
   end
 end
 ```
