@@ -238,24 +238,6 @@ customer = Customer.select(:name).find(123)
 
 The `select` method validates that the specified attributes exist and automatically includes the `id` field for proper object identification.
 
-### Optimizing Queries with Select
-
-Use the `select` method to only fetch specific attributes, reducing GraphQL query size and improving performance:
-
-```ruby
-# Only fetch id, name, and email
-customer = Customer.select(:id, :name, :email).find(123)
-
-# Works with where queries too
-customers = Customer.select(:id, :name).where(country: "Canada")
-
-# Always includes id even if not specified
-customer = Customer.select(:name).find(123)
-# This will still include :id in the GraphQL query
-```
-
-The `select` method validates that the specified attributes exist and automatically includes the `id` field for proper object identification.
-
 ## Associations
 
 ActiveShopifyGraphQL provides ActiveRecord-like associations to define relationships between the Shopify native models and your own custom ones.
