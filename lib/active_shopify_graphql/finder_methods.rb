@@ -35,6 +35,36 @@ module ActiveShopifyGraphQL
         @default_loader = loader
       end
 
+      # Select specific attributes to optimize GraphQL queries
+      # @param *attributes [Symbol] The attributes to select
+      # @return [Class] A class with modified default loader for method chaining
+      #
+      # @example
+      #   Customer.select(:id, :email).find(123)
+      #   Customer.select(:id, :email).where(first_name: "John")
+      def select(*attributes)
+        # Validate attributes exist
+        attrs = Array(attributes).flatten.map(&:to_sym)
+        validate_select_attributes!(attrs)
+
+        # Create a new class that inherits from self with a modified default loader
+        selected_class = Class.new(self)
+
+        # Override the default_loader method to return a loader with selected attributes
+        selected_class.define_singleton_method(:default_loader) do
+          @selective_loader ||= superclass.default_loader.class.new(
+            superclass,
+            selected_attributes: attrs
+          )
+        end
+
+        # Preserve the original class name and model name for GraphQL operations
+        selected_class.define_singleton_method(:name) { superclass.name }
+        selected_class.define_singleton_method(:model_name) { superclass.model_name }
+
+        selected_class
+      end
+
       # Query for multiple records using attribute conditions
       # @param conditions [Hash] The conditions to query (e.g., { email: "example@test.com", first_name: "John" })
       # @param options [Hash] Options hash containing loader and limit (when first arg is a Hash)
@@ -78,6 +108,42 @@ module ActiveShopifyGraphQL
       end
 
       private
+
+      # Validates that selected attributes exist in the model
+      # @param attributes [Array<Symbol>] The attributes to validate
+      # @raise [ArgumentError] If any attribute is invalid
+      def validate_select_attributes!(attributes)
+        return if attributes.empty?
+
+        available_attrs = available_select_attributes
+        invalid_attrs = attributes - available_attrs
+
+        return unless invalid_attrs.any?
+
+        raise ArgumentError, "Invalid attributes for #{name}: #{invalid_attrs.join(', ')}. " \
+                           "Available attributes are: #{available_attrs.join(', ')}"
+      end
+
+      # Gets all available attributes for selection
+      # @return [Array<Symbol>] Available attribute names
+      def available_select_attributes
+        attrs = []
+
+        # Get attributes from the model class
+        if respond_to?(:attributes_for_loader)
+          loader_class = default_loader.class
+          model_attrs = attributes_for_loader(loader_class)
+          attrs.concat(model_attrs.keys)
+        end
+
+        # Get attributes from the loader class
+        if default_loader.respond_to?(:defined_attributes)
+          loader_attrs = default_loader.class.defined_attributes
+          attrs.concat(loader_attrs.keys)
+        end
+
+        attrs.map(&:to_sym).uniq.sort
+      end
 
       # Infers the loader class name from the model name
       # e.g., Customer -> ActiveGraphQL::CustomerLoader

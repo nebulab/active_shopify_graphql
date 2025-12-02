@@ -2,8 +2,8 @@
 
 module ActiveShopifyGraphQL
   class AdminApiLoader < Loader
-    def initialize(model_class = nil)
-      super(model_class)
+    def initialize(model_class = nil, selected_attributes: nil)
+      super(model_class, selected_attributes: selected_attributes)
     end
 
     private

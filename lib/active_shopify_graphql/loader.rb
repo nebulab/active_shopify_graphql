@@ -144,9 +144,10 @@ module ActiveShopifyGraphQL
       end
     end
 
-    # Initialize loader with optional model class
-    def initialize(model_class = nil, **)
+    # Initialize loader with optional model class and selected attributes
+    def initialize(model_class = nil, selected_attributes: nil, **)
       @model_class = model_class || self.class.model_class
+      @selected_attributes = selected_attributes&.map(&:to_sym)
     end
 
     # Get GraphQL type for this loader instance
@@ -160,10 +161,21 @@ module ActiveShopifyGraphQL
 
     # Get defined attributes for this loader instance
     def defined_attributes
-      if @model_class.respond_to?(:attributes_for_loader)
-        @model_class.attributes_for_loader(self.class)
+      attrs = if @model_class.respond_to?(:attributes_for_loader)
+                @model_class.attributes_for_loader(self.class)
+              else
+                self.class.defined_attributes
+              end
+
+      # Filter by selected attributes if specified
+      if @selected_attributes
+        selected_attrs = {}
+        (@selected_attributes + [:id]).uniq.each do |attr|
+          selected_attrs[attr] = attrs[attr] if attrs.key?(attr)
+        end
+        selected_attrs
       else
-        self.class.defined_attributes
+        attrs
       end
     end
 
