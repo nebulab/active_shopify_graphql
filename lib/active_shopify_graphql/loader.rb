@@ -32,9 +32,49 @@ module ActiveShopifyGraphQL
         }
       end
 
+      # Define a metafield attribute with GraphQL path mapping and type coercion
+      # @param name [Symbol] The Ruby attribute name
+      # @param namespace [String] The metafield namespace
+      # @param key [String] The metafield key
+      # @param type [Symbol] The type for coercion (:string, :integer, :float, :boolean, :datetime, :json)
+      # @param null [Boolean] Whether the attribute can be null (default: true)
+      # @param transform [Proc] Custom transform block for the value
+      def metafield_attribute(name, namespace:, key:, type: :string, null: true, transform: nil)
+        @attributes ||= {}
+        @metafields ||= {}
+
+        # Store metafield metadata for special handling
+        @metafields[name] = {
+          namespace: namespace,
+          key: key,
+          type: type
+        }
+
+        # Generate alias and path for metafield
+        alias_name = "#{name}Metafield"
+        value_field = type == :json ? 'jsonValue' : 'value'
+        path = "#{alias_name}.#{value_field}"
+
+        @attributes[name] = {
+          path: path,
+          type: type,
+          null: null,
+          transform: transform,
+          is_metafield: true,
+          metafield_alias: alias_name,
+          metafield_namespace: namespace,
+          metafield_key: key
+        }
+      end
+
       # Get all defined attributes
       def attributes
         @attributes || {}
+      end
+
+      # Get all defined metafields
+      def metafields
+        @metafields || {}
       end
 
       # Set or get the GraphQL fragment fields for this loader
@@ -237,26 +277,51 @@ module ActiveShopifyGraphQL
     # Build GraphQL fragment fields from declared attributes with path merging
     def build_fragment_from_attributes
       path_tree = {}
+      metafield_aliases = {}
 
       # Build a tree structure for nested paths
       self.class.attributes.each do |_name, config|
-        path_parts = config[:path].split('.')
-        current_level = path_tree
+        if config[:is_metafield]
+          # Handle metafield attributes specially
+          alias_name = config[:metafield_alias]
+          namespace = config[:metafield_namespace]
+          key = config[:metafield_key]
+          value_field = config[:type] == :json ? 'jsonValue' : 'value'
 
-        path_parts.each_with_index do |part, index|
-          if index == path_parts.length - 1
-            # Leaf node - store as string
-            current_level[part] = true
-          else
-            # Branch node - ensure it's a hash
-            current_level[part] ||= {}
-            current_level = current_level[part]
+          # Store metafield definition for later insertion
+          metafield_aliases[alias_name] = {
+            namespace: namespace,
+            key: key,
+            value_field: value_field
+          }
+        else
+          # Handle regular attributes
+          path_parts = config[:path].split('.')
+          current_level = path_tree
+
+          path_parts.each_with_index do |part, index|
+            if index == path_parts.length - 1
+              # Leaf node - store as string
+              current_level[part] = true
+            else
+              # Branch node - ensure it's a hash
+              current_level[part] ||= {}
+              current_level = current_level[part]
+            end
           end
         end
       end
 
-      # Convert tree structure to GraphQL fragment syntax
-      build_graphql_from_tree(path_tree, 0)
+      # Build fragment from regular attributes
+      regular_fields = build_graphql_from_tree(path_tree, 0)
+
+      # Build metafield fragments
+      metafield_fragments = metafield_aliases.map do |alias_name, config|
+        "  #{alias_name}: metafield(namespace: \"#{config[:namespace]}\", key: \"#{config[:key]}\") {\n    #{config[:value_field]}\n  }"
+      end
+
+      # Combine regular fields and metafield fragments
+      [regular_fields, metafield_fragments].flatten.compact.reject(&:empty?).join("\n")
     end
 
     # Convert path tree to GraphQL syntax with proper indentation
