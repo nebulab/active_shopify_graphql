@@ -9,7 +9,7 @@ module ActiveShopifyGraphQL
 
     # Override to handle Customer queries that don't need an ID
     def graphql_query(model_type = nil)
-      type = model_type || self.class.graphql_type
+      type = model_type || graphql_type
       if type == 'Customer'
         # Customer Account API doesn't need ID for customer queries - token identifies the customer
         customer_only_query(type)
@@ -22,13 +22,13 @@ module ActiveShopifyGraphQL
     # Override load_attributes to handle the Customer case
     def load_attributes(model_type_or_id = nil, id = nil)
       # Handle both old and new signatures like the parent class
-      if id.nil? && model_type_or_id.is_a?(String) && model_type_or_id != self.class.graphql_type
+      if id.nil? && model_type_or_id.is_a?(String) && model_type_or_id != graphql_type
         # Old signature: load_attributes(model_type)
         type = model_type_or_id
         actual_id = nil
       elsif id.nil?
         # New signature: load_attributes() or load_attributes(id) - but for Customer, we don't need ID
-        type = self.class.graphql_type
+        type = graphql_type
         actual_id = model_type_or_id
       else
         # Old signature: load_attributes(model_type, id)
@@ -64,7 +64,7 @@ module ActiveShopifyGraphQL
 
     # Builds a customer-only query (no ID parameter needed)
     def customer_only_query(model_type = nil)
-      type = model_type || self.class.graphql_type
+      type = model_type || graphql_type
       query_name_value = query_name(type)
       fragment_name_value = fragment_name(type)
 

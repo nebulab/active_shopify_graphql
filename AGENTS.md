@@ -30,6 +30,7 @@
 - Use short, imperative commit subjects (≈50 chars) with focused diffs; group related changes together.
 - Reference issues in commit messages or PR bodies when relevant.
 - PRs should include: what changed, why, and how to test (commands run, expected outcomes). Add screenshots only if user-facing behavior is affected.
+- When changing public APIs, update relevant documentation in the README.
 - Ensure CI-critical commands (`bundle exec rake spec`, `bundle exec rubocop`) pass locally before opening a PR.
 
 ## Security & Configuration Tips
