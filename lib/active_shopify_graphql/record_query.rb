@@ -5,10 +5,10 @@ module ActiveShopifyGraphQL
   class RecordQuery
     attr_reader :graphql_type, :loader_class
 
-    def initialize(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:, fragment_generator:, fragment_name_proc:)
+    def initialize(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:, fragment:, fragment_name_proc:)
       @graphql_type = graphql_type
       @loader_class = loader_class
-      @fragment_proc = fragment_generator
+      @fragment = fragment
       # Store data needed to create Fragment instances
       @defined_attributes = defined_attributes
       @model_class = model_class
@@ -34,17 +34,13 @@ module ActiveShopifyGraphQL
       query_name_value = query_name(type)
       fragment_name_value = fragment_name(type)
 
-      if ActiveShopifyGraphQL.configuration.compact_queries
-        "#{@fragment_proc.call} query get#{type}($id: ID!) { #{query_name_value}(id: $id) { ...#{fragment_name_value} } }"
+      compact = ActiveShopifyGraphQL.configuration.compact_queries
+      fragment_string = @fragment.to_s
+
+      if compact
+        "#{fragment_string} query get#{type}($id: ID!) { #{query_name_value}(id: $id) { ...#{fragment_name_value} } }"
       else
-        <<~GRAPHQL
-          #{@fragment_proc.call}
-          query get#{type}($id: ID!) {
-            #{query_name_value}(id: $id) {
-              ...#{fragment_name_value}
-            }
-          }
-        GRAPHQL
+        "#{fragment_string}\n\nquery get#{type}($id: ID!) {\n  #{query_name_value}(id: $id) {\n    ...#{fragment_name_value}\n  }\n}\n"
       end
     end
 

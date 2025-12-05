@@ -54,14 +54,14 @@ module ActiveShopifyGraphQL
       query_name_value = query_name(type)
       fragment_name_value = fragment_name(type)
 
-      <<~GRAPHQL
-        #{fragment}
-        query getCurrentCustomer {
-          #{query_name_value} {
-            ...#{fragment_name_value}
-          }
-        }
-      GRAPHQL
+      compact = ActiveShopifyGraphQL.configuration.compact_queries
+      fragment_string = fragment
+
+      if compact
+        "#{fragment_string} query getCurrentCustomer { #{query_name_value} { ...#{fragment_name_value} } }"
+      else
+        "#{fragment_string}\n\nquery getCurrentCustomer {\n  #{query_name_value} {\n    ...#{fragment_name_value}\n  }\n}\n"
+      end
     end
   end
 end

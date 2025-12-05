@@ -85,7 +85,7 @@ RSpec.describe "Metafield attribute functionality" do
   describe "#fragment generation" do
     it "includes metafield GraphQL syntax in generated fragment" do
       loader = test_loader_class.new
-      fragment = loader.fragment
+      fragment = loader.fragment.to_s
 
       expect(fragment).to include("fragment ProductFragment on Product {")
       expect(fragment).to include("id")
@@ -98,7 +98,7 @@ RSpec.describe "Metafield attribute functionality" do
 
     it "uses value field for non-json types" do
       loader = test_loader_class.new
-      fragment = loader.fragment
+      fragment = loader.fragment.to_s
 
       expect(fragment).to include('boxesAvailableMetafield: metafield(namespace: "custom", key: "available_boxes") {')
       expect(fragment).to include('descriptionMetafield: metafield(namespace: "seo", key: "meta_description") {')
@@ -108,7 +108,7 @@ RSpec.describe "Metafield attribute functionality" do
 
     it "uses jsonValue field for json type" do
       loader = test_loader_class.new
-      fragment = loader.fragment
+      fragment = loader.fragment.to_s
 
       expect(fragment).to include('boxesSentMetafield: metafield(namespace: "custom", key: "sent_boxes") {')
       expect(fragment).to match(/boxesSentMetafield[^}]*jsonValue[^}]*}/m)
@@ -370,7 +370,7 @@ RSpec.describe "Metafield attribute functionality" do
             defined_attributes: defined_attributes,
             model_class: instance_variable_get(:@model_class),
             included_connections: instance_variable_get(:@included_connections),
-            fragment_name_proc: ->(type) { fragment_name(type) }
+            fragment_name_proc: ->(type) { "#{type}Fragment" }
           ).to_s
         end
       end

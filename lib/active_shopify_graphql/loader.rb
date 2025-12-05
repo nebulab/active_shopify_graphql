@@ -148,14 +148,14 @@ module ActiveShopifyGraphQL
 
     # Returns the complete GraphQL fragment built from class-level fragment fields
     def fragment
-      Fragment.new(
+      @fragment ||= Fragment.new(
         graphql_type: graphql_type,
         loader_class: self.class,
         defined_attributes: defined_attributes,
         model_class: @model_class,
         included_connections: @included_connections,
-        fragment_name_proc: ->(type) { fragment_name(type) }
-      ).to_s
+        fragment_name_proc: ->(type) { "#{type}Fragment" }
+      )
     end
 
     # Get or create a RecordQuery instance for this loader
@@ -166,7 +166,7 @@ module ActiveShopifyGraphQL
         defined_attributes: defined_attributes,
         model_class: @model_class,
         included_connections: @included_connections,
-        fragment_generator: -> { fragment },
+        fragment: fragment,
         fragment_name_proc: ->(type) { fragment_name(type) }
       )
     end
@@ -245,7 +245,7 @@ module ActiveShopifyGraphQL
         query_builder: record_query,
         query_name_proc: ->(type) { query_name(type) },
         fragment_name_proc: ->(type) { fragment_name(type) },
-        fragment_generator: -> { fragment },
+        fragment: fragment,
         map_response_proc: ->(response) { map_response_to_attributes(response) },
         client_type: self.class.client_type
       )

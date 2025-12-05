@@ -10,7 +10,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
       fragment_name_proc = ->(type) { "#{type}Fragment" }
-      fragment_generator = -> { "fragment CustomerFragment on Customer { id }" }
+      fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment CustomerFragment on Customer { id }")
       map_response_proc = ->(_response) { {} }
 
       collection_query = described_class.new(
@@ -18,7 +18,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         query_builder: query_builder,
         query_name_proc: query_name_proc,
         fragment_name_proc: fragment_name_proc,
-        fragment_generator: fragment_generator,
+        fragment: fragment,
         map_response_proc: map_response_proc,
         client_type: :admin_api
       )
@@ -37,7 +37,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
       fragment_name_proc = ->(type) { "#{type}Fragment" }
-      fragment_generator = -> { "fragment CustomerFragment on Customer { id }" }
+      fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment CustomerFragment on Customer { id }")
       map_response_proc = ->(response) { response.dig("data", "customer") }
 
       collection_query = described_class.new(
@@ -45,7 +45,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         query_builder: query_builder,
         query_name_proc: query_name_proc,
         fragment_name_proc: fragment_name_proc,
-        fragment_generator: fragment_generator,
+        fragment: fragment,
         map_response_proc: map_response_proc,
         client_type: :admin_api
       )
@@ -78,7 +78,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
       fragment_name_proc = ->(type) { "#{type}Fragment" }
-      fragment_generator = -> { "fragment OrderFragment on Order { id }" }
+      fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment OrderFragment on Order { id }")
       map_response_proc = ->(_response) { {} }
 
       collection_query = described_class.new(
@@ -86,7 +86,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         query_builder: query_builder,
         query_name_proc: query_name_proc,
         fragment_name_proc: fragment_name_proc,
-        fragment_generator: fragment_generator,
+        fragment: fragment,
         map_response_proc: map_response_proc,
         client_type: :admin_api
       )
@@ -110,7 +110,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
       fragment_name_proc = ->(type) { "#{type}Fragment" }
-      fragment_generator = -> { "fragment CustomerFragment on Customer { id }" }
+      fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment CustomerFragment on Customer { id }")
       map_response_proc = ->(_response) { {} }
 
       collection_query = described_class.new(
@@ -118,7 +118,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         query_builder: query_builder,
         query_name_proc: query_name_proc,
         fragment_name_proc: fragment_name_proc,
-        fragment_generator: fragment_generator,
+        fragment: fragment,
         map_response_proc: map_response_proc,
         client_type: :admin_api
       )
@@ -142,7 +142,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
       fragment_name_proc = ->(type) { "#{type}Fragment" }
-      fragment_generator = -> { "fragment CustomerFragment on Customer { id }" }
+      fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment CustomerFragment on Customer { id }")
       map_response_proc = ->(_response) { {} }
 
       collection_query = described_class.new(
@@ -150,7 +150,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         query_builder: query_builder,
         query_name_proc: query_name_proc,
         fragment_name_proc: fragment_name_proc,
-        fragment_generator: fragment_generator,
+        fragment: fragment,
         map_response_proc: map_response_proc,
         client_type: :admin_api
       )
@@ -174,7 +174,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
       fragment_name_proc = ->(type) { "#{type}Fragment" }
-      fragment_generator = -> { "fragment CustomerFragment on Customer { id }" }
+      fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment CustomerFragment on Customer { id }")
       map_response_proc = ->(_response) { {} }
 
       collection_query = described_class.new(
@@ -182,7 +182,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         query_builder: query_builder,
         query_name_proc: query_name_proc,
         fragment_name_proc: fragment_name_proc,
-        fragment_generator: fragment_generator,
+        fragment: fragment,
         map_response_proc: map_response_proc,
         client_type: :admin_api
       )
@@ -206,7 +206,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
       fragment_name_proc = ->(type) { "#{type}Fragment" }
-      fragment_generator = -> { "fragment CustomerFragment on Customer { id }" }
+      fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment CustomerFragment on Customer { id }")
       map_response_proc = ->(_response) { {} }
 
       collection_query = described_class.new(
@@ -214,7 +214,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         query_builder: query_builder,
         query_name_proc: query_name_proc,
         fragment_name_proc: fragment_name_proc,
-        fragment_generator: fragment_generator,
+        fragment: fragment,
         map_response_proc: map_response_proc,
         client_type: :admin_api
       )
@@ -244,7 +244,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
       fragment_name_proc = ->(type) { "#{type}Fragment" }
-      fragment_generator = -> { "fragment CustomerFragment on Customer { id name }" }
+      fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment CustomerFragment on Customer { id name }")
       map_response_proc = ->(_response) { {} }
 
       collection_query = described_class.new(
@@ -252,7 +252,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         query_builder: query_builder,
         query_name_proc: query_name_proc,
         fragment_name_proc: fragment_name_proc,
-        fragment_generator: fragment_generator,
+        fragment: fragment,
         map_response_proc: map_response_proc,
         client_type: :admin_api
       )
@@ -270,7 +270,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
       fragment_name_proc = ->(type) { "#{type}Fragment" }
-      fragment_generator = -> { "fragment OrderFragment on Order { id name }" }
+      fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment OrderFragment on Order { id name }")
       map_response_proc = ->(_response) { {} }
 
       collection_query = described_class.new(
@@ -278,7 +278,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         query_builder: query_builder,
         query_name_proc: query_name_proc,
         fragment_name_proc: fragment_name_proc,
-        fragment_generator: fragment_generator,
+        fragment: fragment,
         map_response_proc: map_response_proc,
         client_type: :admin_api
       )
@@ -297,7 +297,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
       fragment_name_proc = ->(type) { "#{type}Fragment" }
-      fragment_generator = -> { "fragment CustomerFragment on Customer { id name }" }
+      fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment CustomerFragment on Customer { id name }")
       map_response_proc = ->(_response) { {} }
 
       collection_query = described_class.new(
@@ -305,7 +305,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         query_builder: query_builder,
         query_name_proc: query_name_proc,
         fragment_name_proc: fragment_name_proc,
-        fragment_generator: fragment_generator,
+        fragment: fragment,
         map_response_proc: map_response_proc,
         client_type: :admin_api
       )

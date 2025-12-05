@@ -5,12 +5,12 @@ module ActiveShopifyGraphQL
   class CollectionQuery
     attr_reader :graphql_type
 
-    def initialize(graphql_type:, query_builder:, query_name_proc:, fragment_name_proc:, fragment_generator:, map_response_proc:, client_type:)
+    def initialize(graphql_type:, query_builder:, query_name_proc:, fragment_name_proc:, fragment:, map_response_proc:, client_type:)
       @graphql_type = graphql_type
       @query_builder = query_builder
       @query_name_proc = query_name_proc
       @fragment_name_proc = fragment_name_proc
-      @fragment_generator = fragment_generator
+      @fragment = fragment
       @map_response_proc = map_response_proc
       @client_type = client_type
     end
@@ -42,19 +42,13 @@ module ActiveShopifyGraphQL
       query_name_value = @query_name_proc.call(type).pluralize
       fragment_name_value = @fragment_name_proc.call(type)
 
-      if ActiveShopifyGraphQL.configuration.compact_queries
-        "#{@fragment_generator.call} query get#{type.pluralize}($query: String, $first: Int!) { #{query_name_value}(query: $query, first: $first) { nodes { ...#{fragment_name_value} } } }"
+      compact = ActiveShopifyGraphQL.configuration.compact_queries
+      fragment_string = @fragment.to_s
+
+      if compact
+        "#{fragment_string} query get#{type.pluralize}($query: String, $first: Int!) { #{query_name_value}(query: $query, first: $first) { nodes { ...#{fragment_name_value} } } }"
       else
-        <<~GRAPHQL
-          #{@fragment_generator.call}
-          query get#{type.pluralize}($query: String, $first: Int!) {
-            #{query_name_value}(query: $query, first: $first) {
-              nodes {
-                ...#{fragment_name_value}
-              }
-            }
-          }
-        GRAPHQL
+        "#{fragment_string}\nquery get#{type.pluralize}($query: String, $first: Int!) {\n  #{query_name_value}(query: $query, first: $first) {\n    nodes {\n      ...#{fragment_name_value}\n    }\n  }\n}\n"
       end
     end
 

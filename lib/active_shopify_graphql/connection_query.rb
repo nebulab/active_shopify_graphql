@@ -21,9 +21,6 @@ module ActiveShopifyGraphQL
       parent_type = parent.class.graphql_type_for_loader(@loader_class)
       parent_query_name = parent_type.downcase
 
-      # Get just the fragment fields without the fragment wrapper
-      fragment_fields = create_fragment.fields_from_attributes
-
       # Only the parent ID is passed as a variable; all other arguments are inline
       query_params = ["$id: ID!"]
       field_params = []
@@ -43,47 +40,19 @@ module ActiveShopifyGraphQL
 
       query_signature = "(#{query_params.join(', ')})"
       field_signature = field_params.empty? ? "" : "(#{field_params.join(', ')})"
-
       connection_type = connection_config&.dig(:type) || :connection
 
-      if connection_type == :singular
-        if ActiveShopifyGraphQL.configuration.compact_queries
-          "query#{query_signature} { #{parent_query_name}(id: $id) { #{connection_field_name}#{field_signature} { #{fragment_fields} } } }"
-        else
-          <<~GRAPHQL
-            query#{query_signature} {
-              #{parent_query_name}(id: $id) {
-                #{connection_field_name}#{field_signature} {
-                  #{fragment_fields}
-                }
-              }
-            }
-          GRAPHQL
-        end
-      elsif ActiveShopifyGraphQL.configuration.compact_queries
-        "query#{query_signature} { #{parent_query_name}(id: $id) { #{connection_field_name}#{field_signature} { edges { node { #{fragment_fields} } } } } }"
-      else
-        <<~GRAPHQL
-          query#{query_signature} {
-            #{parent_query_name}(id: $id) {
-              #{connection_field_name}#{field_signature} {
-                edges {
-                  node {
-                    #{fragment_fields}
-                  }
-                }
-              }
-            }
-          }
-        GRAPHQL
-      end
+      # Use Fragment's query building methods
+      create_fragment.build_query_structure(
+        query_signature: query_signature,
+        parent_query: "#{parent_query_name}(id: $id)",
+        field_query: "#{connection_field_name}#{field_signature}",
+        connection_type: connection_type
+      )
     end
 
     # Build GraphQL query for connection with dynamic parameters
     def connection_graphql_query(query_name, variables, connection_config = nil)
-      # Get just the fragment fields without the fragment wrapper
-      fragment_fields = create_fragment.fields_from_attributes
-
       # All arguments are passed as inline values (no GraphQL variables needed)
       field_params = []
 
@@ -101,36 +70,15 @@ module ActiveShopifyGraphQL
       end
 
       field_signature = field_params.empty? ? "" : "(#{field_params.join(', ')})"
-
       connection_type = connection_config&.dig(:type) || :connection
 
-      if connection_type == :singular
-        if ActiveShopifyGraphQL.configuration.compact_queries
-          "query { #{query_name}#{field_signature} { #{fragment_fields} } }"
-        else
-          <<~GRAPHQL
-            query {
-              #{query_name}#{field_signature} {
-                #{fragment_fields}
-              }
-            }
-          GRAPHQL
-        end
-      elsif ActiveShopifyGraphQL.configuration.compact_queries
-        "query { #{query_name}#{field_signature} { edges { node { #{fragment_fields} } } } }"
-      else
-        <<~GRAPHQL
-          query {
-            #{query_name}#{field_signature} {
-              edges {
-                node {
-                  #{fragment_fields}
-                }
-              }
-            }
-          }
-        GRAPHQL
-      end
+      # Use Fragment's query building methods
+      create_fragment.build_query_structure(
+        query_signature: "",
+        parent_query: nil,
+        field_query: "#{query_name}#{field_signature}",
+        connection_type: connection_type
+      )
     end
 
     private

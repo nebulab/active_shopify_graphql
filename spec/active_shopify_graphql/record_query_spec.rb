@@ -7,14 +7,14 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
 
   describe "#initialize" do
     it "stores the graphql_type" do
-      fragment_proc = -> { "fragment TestFragment on Test { id }" }
+      fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment TestFragment on Test { id }")
       query = described_class.new(
         graphql_type: "Customer",
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        fragment_generator: fragment_proc,
+        fragment: fragment,
         fragment_name_proc: ->(type) { "#{type}Fragment" }
       )
 
@@ -22,14 +22,14 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
     end
 
     it "stores the loader_class" do
-      fragment_proc = -> { "fragment TestFragment on Test { id }" }
+      fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment TestFragment on Test { id }")
       query = described_class.new(
         graphql_type: "Customer",
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        fragment_generator: fragment_proc,
+        fragment: fragment,
         fragment_name_proc: ->(type) { "#{type}Fragment" }
       )
 
@@ -39,14 +39,14 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
 
   describe "#query_name" do
     it "returns lowercased graphql_type by default" do
-      fragment_proc = -> { "fragment TestFragment on Test { id }" }
+      fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment TestFragment on Test { id }")
       query = described_class.new(
         graphql_type: "Customer",
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        fragment_generator: fragment_proc,
+        fragment: fragment,
         fragment_name_proc: ->(type) { "#{type}Fragment" }
       )
 
@@ -54,14 +54,14 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
     end
 
     it "accepts optional model_type parameter" do
-      fragment_proc = -> { "fragment TestFragment on Test { id }" }
+      fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment TestFragment on Test { id }")
       query = described_class.new(
         graphql_type: "Customer",
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        fragment_generator: fragment_proc,
+        fragment: fragment,
         fragment_name_proc: ->(type) { "#{type}Fragment" }
       )
 
@@ -71,14 +71,14 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
 
   describe "#fragment_name" do
     it "returns Fragment-suffixed name based on graphql_type" do
-      fragment_proc = -> { "fragment TestFragment on Test { id }" }
+      fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment TestFragment on Test { id }")
       query = described_class.new(
         graphql_type: "Customer",
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        fragment_generator: fragment_proc,
+        fragment: fragment,
         fragment_name_proc: ->(type) { "#{type}Fragment" }
       )
 
@@ -86,14 +86,14 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
     end
 
     it "accepts optional model_type parameter" do
-      fragment_proc = -> { "fragment TestFragment on Test { id }" }
+      fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment TestFragment on Test { id }")
       query = described_class.new(
         graphql_type: "Customer",
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        fragment_generator: fragment_proc,
+        fragment: fragment,
         fragment_name_proc: ->(type) { "#{type}Fragment" }
       )
 
@@ -103,14 +103,14 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
 
   describe "#graphql_query" do
     it "builds complete GraphQL query with fragment" do
-      fragment_proc = -> { "fragment CustomerFragment on Customer { id name }" }
+      fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment CustomerFragment on Customer { id name }")
       query = described_class.new(
         graphql_type: "Customer",
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        fragment_generator: fragment_proc,
+        fragment: fragment,
         fragment_name_proc: ->(type) { "#{type}Fragment" }
       )
 
@@ -123,14 +123,14 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
     end
 
     it "accepts optional model_type parameter" do
-      fragment_proc = -> { "fragment OrderFragment on Order { id name }" }
+      fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment OrderFragment on Order { id name }")
       query = described_class.new(
         graphql_type: "Customer",
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        fragment_generator: fragment_proc,
+        fragment: fragment,
         fragment_name_proc: ->(type) { "#{type}Fragment" }
       )
 
@@ -146,14 +146,14 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
         config.compact_queries = true
       end
 
-      fragment_proc = -> { "fragment CustomerFragment on Customer { id name }" }
+      fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment CustomerFragment on Customer { id name }")
       query = described_class.new(
         graphql_type: "Customer",
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        fragment_generator: fragment_proc,
+        fragment: fragment,
         fragment_name_proc: ->(type) { "#{type}Fragment" }
       )
 

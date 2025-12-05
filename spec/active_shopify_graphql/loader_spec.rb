@@ -74,7 +74,7 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
 
     it 'builds fragment automatically from class-level fragment definition' do
       loader = test_loader_class.new
-      fragment = loader.fragment
+      fragment = loader.fragment.to_s
 
       expect(fragment).to include("fragment TestModelFragment on TestModel {")
       expect(fragment).to include("id")
@@ -84,7 +84,7 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
 
     it 'generates fragment from attributes' do
       loader = test_loader_class.new
-      fragment = loader.fragment
+      fragment = loader.fragment.to_s
       expect(fragment).to include("id")
       expect(fragment).to include("name")
     end
@@ -110,7 +110,7 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
         end
       end
 
-      expect { loader_without_fragment.new.fragment }.to raise_error(NotImplementedError, /must define attributes/)
+      expect { loader_without_fragment.new.fragment.to_s }.to raise_error(NotImplementedError, /must define attributes/)
     end
 
     it 'loads attributes using graphql_type' do
