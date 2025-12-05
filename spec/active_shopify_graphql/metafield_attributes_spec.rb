@@ -311,7 +311,7 @@ RSpec.describe "Metafield attribute functionality" do
         metafield_attribute :weight_display, namespace: 'shipping', key: 'weight', type: :string
 
         def fragment
-          ActiveShopifyGraphQL::FragmentBuilder.new(self).build_fragment_from_fields
+          ActiveShopifyGraphQL::Fragment.new(self).to_s
         end
       end
 

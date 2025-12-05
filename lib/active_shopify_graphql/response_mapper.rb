@@ -93,7 +93,7 @@ module ActiveShopifyGraphQL
 
       connection_cache = {}
       connections = @loader.instance_variable_get(:@model_class).connections
-      normalized_includes = FragmentBuilder.new(@loader).send(:normalize_includes, @loader.instance_variable_get(:@included_connections))
+      normalized_includes = Fragment.new(@loader).normalize_includes(@loader.instance_variable_get(:@included_connections))
 
       normalized_includes.each do |connection_name, nested_includes|
         connection_config = connections[connection_name]
