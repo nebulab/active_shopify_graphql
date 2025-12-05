@@ -48,30 +48,6 @@ module ActiveShopifyGraphQL
       end
     end
 
-    # Builds the GraphQL query for collections
-    # @param model_type [String] The model type (optional, uses class graphql_type if not provided)
-    # @return [String] The GraphQL query string
-    def collection_graphql_query(model_type = nil)
-      type = model_type || @graphql_type
-      query_name_value = query_name(type).pluralize
-      fragment_name_value = fragment_name(type)
-
-      if ActiveShopifyGraphQL.configuration.compact_queries
-        "#{@fragment_proc.call} query get#{type.pluralize}($query: String, $first: Int!) { #{query_name_value}(query: $query, first: $first) { nodes { ...#{fragment_name_value} } } }"
-      else
-        <<~GRAPHQL
-          #{@fragment_proc.call}
-          query get#{type.pluralize}($query: String, $first: Int!) {
-            #{query_name_value}(query: $query, first: $first) {
-              nodes {
-                ...#{fragment_name_value}
-              }
-            }
-          }
-        GRAPHQL
-      end
-    end
-
     private
 
     # Create a Fragment instance with explicit parameters

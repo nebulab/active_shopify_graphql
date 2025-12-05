@@ -324,37 +324,12 @@ module ActiveShopifyGraphQL
         graphql_type: graphql_type,
         query_builder: record_query,
         query_name_proc: ->(type) { query_name(type) },
+        fragment_name_proc: ->(type) { fragment_name(type) },
+        fragment_generator: -> { fragment },
         map_response_proc: ->(response) { map_response_to_attributes(response) },
         client_type: self.class.client_type
       )
       collection_query.execute(conditions, limit: actual_limit)
-    end
-
-    # Build Shopify query string from Ruby conditions
-
-    # Builds the GraphQL query for collections
-    # @param model_type [String] The model type (optional, uses class graphql_type if not provided)
-    # @return [String] The GraphQL query string
-    def collection_graphql_query(model_type = nil)
-      record_query.collection_graphql_query(model_type)
-    end
-
-    # Override this to map collection GraphQL responses to model attributes
-    # @param response_data [Hash] The GraphQL response data
-    # @param model_type [String] The model type (optional, uses class graphql_type if not provided)
-    # @return [Array<Hash>] Array of attribute hashes
-    def map_collection_response_to_attributes(response_data, model_type = nil)
-      type = model_type || self.class.graphql_type
-      query_name_value = query_name(type).pluralize
-      nodes = response_data.dig("data", query_name_value, "nodes")
-
-      return [] unless nodes&.any?
-
-      nodes.map do |node_data|
-        # Create a response structure similar to single record queries
-        single_response = { "data" => { query_name(type) => node_data } }
-        map_response_to_attributes(single_response)
-      end.compact
     end
 
     # Load records for a connection query

@@ -9,12 +9,16 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
     it "stores the graphql_type" do
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
+      fragment_name_proc = ->(type) { "#{type}Fragment" }
+      fragment_generator = -> { "fragment CustomerFragment on Customer { id }" }
       map_response_proc = ->(_response) { {} }
 
       collection_query = described_class.new(
         graphql_type: "Customer",
         query_builder: query_builder,
         query_name_proc: query_name_proc,
+        fragment_name_proc: fragment_name_proc,
+        fragment_generator: fragment_generator,
         map_response_proc: map_response_proc,
         client_type: :admin_api
       )
@@ -32,17 +36,21 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
 
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
+      fragment_name_proc = ->(type) { "#{type}Fragment" }
+      fragment_generator = -> { "fragment CustomerFragment on Customer { id }" }
       map_response_proc = ->(response) { response.dig("data", "customer") }
 
       collection_query = described_class.new(
         graphql_type: "Customer",
         query_builder: query_builder,
         query_name_proc: query_name_proc,
+        fragment_name_proc: fragment_name_proc,
+        fragment_generator: fragment_generator,
         map_response_proc: map_response_proc,
         client_type: :admin_api
       )
 
-      query_string = "query { customers { nodes { id } } }"
+      query_string = collection_query.collection_graphql_query
       response_data = {
         "data" => {
           "customers" => {
@@ -54,13 +62,11 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         }
       }
 
-      allow(query_builder).to receive(:collection_graphql_query).with("Customer").and_return(query_string)
       allow(mock_client).to receive(:execute).with(query_string, query: "", first: 250).and_return(response_data)
 
       result = collection_query.execute
 
       expect(result.length).to eq(2)
-      expect(query_builder).to have_received(:collection_graphql_query).with("Customer")
     end
 
     it "builds query string from conditions" do
@@ -71,20 +77,23 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
 
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
+      fragment_name_proc = ->(type) { "#{type}Fragment" }
+      fragment_generator = -> { "fragment OrderFragment on Order { id }" }
       map_response_proc = ->(_response) { {} }
 
       collection_query = described_class.new(
         graphql_type: "Order",
         query_builder: query_builder,
         query_name_proc: query_name_proc,
+        fragment_name_proc: fragment_name_proc,
+        fragment_generator: fragment_generator,
         map_response_proc: map_response_proc,
         client_type: :admin_api
       )
 
-      query_string = "query { orders { nodes { id } } }"
+      query_string = collection_query.collection_graphql_query
       response_data = { "data" => { "orders" => { "nodes" => [] } } }
 
-      allow(query_builder).to receive(:collection_graphql_query).and_return(query_string)
       allow(mock_client).to receive(:execute).with(query_string, query: "status:open", first: 250).and_return(response_data)
 
       collection_query.execute({ status: "open" })
@@ -100,20 +109,23 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
 
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
+      fragment_name_proc = ->(type) { "#{type}Fragment" }
+      fragment_generator = -> { "fragment CustomerFragment on Customer { id }" }
       map_response_proc = ->(_response) { {} }
 
       collection_query = described_class.new(
         graphql_type: "Customer",
         query_builder: query_builder,
         query_name_proc: query_name_proc,
+        fragment_name_proc: fragment_name_proc,
+        fragment_generator: fragment_generator,
         map_response_proc: map_response_proc,
         client_type: :admin_api
       )
 
-      query_string = "query { customers { nodes { id } } }"
+      query_string = collection_query.collection_graphql_query
       response_data = { "data" => { "customers" => { "nodes" => [] } } }
 
-      allow(query_builder).to receive(:collection_graphql_query).and_return(query_string)
       allow(mock_client).to receive(:execute).with(query_string, query: "", first: 50).and_return(response_data)
 
       collection_query.execute({}, limit: 50)
@@ -129,20 +141,23 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
 
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
+      fragment_name_proc = ->(type) { "#{type}Fragment" }
+      fragment_generator = -> { "fragment CustomerFragment on Customer { id }" }
       map_response_proc = ->(_response) { {} }
 
       collection_query = described_class.new(
         graphql_type: "Customer",
         query_builder: query_builder,
         query_name_proc: query_name_proc,
+        fragment_name_proc: fragment_name_proc,
+        fragment_generator: fragment_generator,
         map_response_proc: map_response_proc,
         client_type: :admin_api
       )
 
-      query_string = "query { customers { nodes { id } } }"
+      query_string = collection_query.collection_graphql_query
       response_data = { "data" => { "customers" => { "nodes" => [] } } }
 
-      allow(query_builder).to receive(:collection_graphql_query).and_return(query_string)
       allow(mock_client).to receive(:execute).and_return(response_data)
 
       result = collection_query.execute
@@ -158,20 +173,23 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
 
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
+      fragment_name_proc = ->(type) { "#{type}Fragment" }
+      fragment_generator = -> { "fragment CustomerFragment on Customer { id }" }
       map_response_proc = ->(_response) { {} }
 
       collection_query = described_class.new(
         graphql_type: "Customer",
         query_builder: query_builder,
         query_name_proc: query_name_proc,
+        fragment_name_proc: fragment_name_proc,
+        fragment_generator: fragment_generator,
         map_response_proc: map_response_proc,
         client_type: :admin_api
       )
 
-      query_string = "query { customers { nodes { id } } }"
+      query_string = collection_query.collection_graphql_query
       response_data = { "data" => { "customers" => {} } }
 
-      allow(query_builder).to receive(:collection_graphql_query).and_return(query_string)
       allow(mock_client).to receive(:execute).and_return(response_data)
 
       result = collection_query.execute
@@ -187,17 +205,21 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
 
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
+      fragment_name_proc = ->(type) { "#{type}Fragment" }
+      fragment_generator = -> { "fragment CustomerFragment on Customer { id }" }
       map_response_proc = ->(_response) { {} }
 
       collection_query = described_class.new(
         graphql_type: "Customer",
         query_builder: query_builder,
         query_name_proc: query_name_proc,
+        fragment_name_proc: fragment_name_proc,
+        fragment_generator: fragment_generator,
         map_response_proc: map_response_proc,
         client_type: :admin_api
       )
 
-      query_string = "query { customers { nodes { id } } }"
+      query_string = collection_query.collection_graphql_query
       response_data = {
         "data" => { "customers" => { "nodes" => [] } },
         "extensions" => {
@@ -211,10 +233,87 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         }
       }
 
-      allow(query_builder).to receive(:collection_graphql_query).and_return(query_string)
       allow(mock_client).to receive(:execute).and_return(response_data)
 
       expect { collection_query.execute }.to raise_error(ArgumentError, /Shopify query validation failed/)
+    end
+  end
+
+  describe "#collection_graphql_query" do
+    it "builds collection query with plural query name" do
+      query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
+      query_name_proc = ->(type) { type.downcase }
+      fragment_name_proc = ->(type) { "#{type}Fragment" }
+      fragment_generator = -> { "fragment CustomerFragment on Customer { id name }" }
+      map_response_proc = ->(_response) { {} }
+
+      collection_query = described_class.new(
+        graphql_type: "Customer",
+        query_builder: query_builder,
+        query_name_proc: query_name_proc,
+        fragment_name_proc: fragment_name_proc,
+        fragment_generator: fragment_generator,
+        map_response_proc: map_response_proc,
+        client_type: :admin_api
+      )
+
+      result = collection_query.collection_graphql_query
+
+      expect(result).to include("fragment CustomerFragment on Customer { id name }")
+      expect(result).to include("query getCustomers($query: String, $first: Int!)")
+      expect(result).to include("customers(query: $query, first: $first)")
+      expect(result).to include("nodes")
+      expect(result).to include("...CustomerFragment")
+    end
+
+    it "accepts optional model_type parameter" do
+      query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
+      query_name_proc = ->(type) { type.downcase }
+      fragment_name_proc = ->(type) { "#{type}Fragment" }
+      fragment_generator = -> { "fragment OrderFragment on Order { id name }" }
+      map_response_proc = ->(_response) { {} }
+
+      collection_query = described_class.new(
+        graphql_type: "Customer",
+        query_builder: query_builder,
+        query_name_proc: query_name_proc,
+        fragment_name_proc: fragment_name_proc,
+        fragment_generator: fragment_generator,
+        map_response_proc: map_response_proc,
+        client_type: :admin_api
+      )
+
+      result = collection_query.collection_graphql_query("Order")
+
+      expect(result).to include("query getOrders($query: String, $first: Int!)")
+      expect(result).to include("orders(query: $query, first: $first)")
+    end
+
+    it "builds compact query when compact_queries is enabled" do
+      ActiveShopifyGraphQL.configure do |config|
+        config.compact_queries = true
+      end
+
+      query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
+      query_name_proc = ->(type) { type.downcase }
+      fragment_name_proc = ->(type) { "#{type}Fragment" }
+      fragment_generator = -> { "fragment CustomerFragment on Customer { id name }" }
+      map_response_proc = ->(_response) { {} }
+
+      collection_query = described_class.new(
+        graphql_type: "Customer",
+        query_builder: query_builder,
+        query_name_proc: query_name_proc,
+        fragment_name_proc: fragment_name_proc,
+        fragment_generator: fragment_generator,
+        map_response_proc: map_response_proc,
+        client_type: :admin_api
+      )
+
+      result = collection_query.collection_graphql_query
+
+      expect(result).not_to include("\n")
+      expect(result).to eq("fragment CustomerFragment on Customer { id name } query getCustomers($query: String, $first: Int!) { customers(query: $query, first: $first) { nodes { ...CustomerFragment } } }")
     end
   end
 end
