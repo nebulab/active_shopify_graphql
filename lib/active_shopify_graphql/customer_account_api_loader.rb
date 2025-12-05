@@ -2,8 +2,8 @@
 
 module ActiveShopifyGraphQL
   class CustomerAccountApiLoader < Loader
-    def initialize(model_class = nil, token = nil, selected_attributes: nil)
-      super(model_class, selected_attributes: selected_attributes)
+    def initialize(model_class = nil, token = nil, selected_attributes: nil, included_connections: nil)
+      super(model_class, selected_attributes: selected_attributes, included_connections: included_connections)
       @token = token
     end
 
@@ -20,26 +20,12 @@ module ActiveShopifyGraphQL
     end
 
     # Override load_attributes to handle the Customer case
-    def load_attributes(model_type_or_id = nil, id = nil)
-      # Handle both old and new signatures like the parent class
-      if id.nil? && model_type_or_id.is_a?(String) && model_type_or_id != graphql_type
-        # Old signature: load_attributes(model_type)
-        type = model_type_or_id
-        actual_id = nil
-      elsif id.nil?
-        # New signature: load_attributes() or load_attributes(id) - but for Customer, we don't need ID
-        type = graphql_type
-        actual_id = model_type_or_id
-      else
-        # Old signature: load_attributes(model_type, id)
-        type = model_type_or_id
-        actual_id = id
-      end
-
+    def load_attributes(id = nil)
+      type = graphql_type
       query = graphql_query(type)
 
       # For Customer queries, we don't need variables; for others, we need the ID
-      variables = type == 'Customer' ? {} : { id: actual_id }
+      variables = type == 'Customer' ? {} : { id: id }
 
       response_data = execute_graphql_query(query, **variables)
 
@@ -57,7 +43,7 @@ module ActiveShopifyGraphQL
       @client ||= ActiveShopifyGraphQL.configuration.customer_account_client_class.from_config(@token)
     end
 
-    def execute_graphql_query(query, **variables)
+    def perform_graphql_query(query, **variables)
       # The customer access token is already set in the client's headers
       client.query(query, variables)
     end
@@ -68,14 +54,14 @@ module ActiveShopifyGraphQL
       query_name_value = query_name(type)
       fragment_name_value = fragment_name(type)
 
-      <<~GRAPHQL
-        #{fragment}
-        query getCurrentCustomer {
-          #{query_name_value} {
-            ...#{fragment_name_value}
-          }
-        }
-      GRAPHQL
+      compact = ActiveShopifyGraphQL.configuration.compact_queries
+      fragment_string = fragment
+
+      if compact
+        "#{fragment_string} query getCurrentCustomer { #{query_name_value} { ...#{fragment_name_value} } }"
+      else
+        "#{fragment_string}\n\nquery getCurrentCustomer {\n  #{query_name_value} {\n    ...#{fragment_name_value}\n  }\n}\n"
+      end
     end
   end
 end

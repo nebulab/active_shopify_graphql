@@ -3,11 +3,14 @@
 module ActiveShopifyGraphQL
   # Configuration class for setting up external dependencies
   class Configuration
-    attr_accessor :admin_api_client, :customer_account_client_class
+    attr_accessor :admin_api_client, :customer_account_client_class, :logger, :log_queries, :compact_queries
 
     def initialize
       @admin_api_client = nil
       @customer_account_client_class = nil
+      @logger = nil
+      @log_queries = false
+      @compact_queries = false
     end
   end
 

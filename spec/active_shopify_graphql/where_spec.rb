@@ -131,7 +131,7 @@ RSpec.describe "Where functionality" do
     it "raises ArgumentError when Shopify returns field validation warnings" do
       # Mock a response with search warnings
       mock_response = {
-        "data" => { "customers" => { "edges" => [] } },
+        "data" => { "customers" => { "nodes" => [] } },
         "extensions" => {
           "search" => [{
             "path" => ["customers"],
@@ -144,7 +144,7 @@ RSpec.describe "Where functionality" do
         }
       }
 
-      allow(customer_class.default_loader).to receive(:execute_graphql_query).and_return(mock_response)
+      expect(mock_client).to receive(:execute).and_return(mock_response)
 
       expect do
         customer_class.where(invalid_field: "test")

@@ -76,7 +76,7 @@ RSpec.describe "Select functionality" do
     it "generates GraphQL fragments with only selected attributes" do
       selected_class = customer_class.select(:name, :email)
       loader = selected_class.default_loader
-      fragment = loader.fragment
+      fragment = loader.fragment.to_s
 
       expect(fragment).to include("id") # Always included
       expect(fragment).to include("displayName")

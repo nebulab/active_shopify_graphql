@@ -47,6 +47,16 @@ module ActiveShopifyGraphQL
         @default_loader_class = loader_class
       end
 
+      # Define loader-specific attribute and graphql_type overrides
+      # @param loader_class [Class] The loader class to override attributes for
+      def for_loader(loader_class, &block)
+        @current_loader_context = loader_class
+        @loader_contexts ||= {}
+        @loader_contexts[loader_class] ||= {}
+        instance_eval(&block) if block_given?
+        @current_loader_context = nil
+      end
+
       # Class-level method to execute with admin API loader
       # @return [LoaderProxy] Proxy object with find method
       def with_admin_api
@@ -87,11 +97,7 @@ module ActiveShopifyGraphQL
         # For other cases, require ID and use standard flow
         return nil if id.nil?
 
-        gid = if id.is_a?(String) && id.include?('gid://')
-                id
-              else
-                URI::GID.build(app: "shopify", model_name: @model_class.model_name.name.demodulize, model_id: id)
-              end
+        gid = GidHelper.normalize_gid(id, @model_class.model_name.name.demodulize)
 
         attributes = @loader.load_attributes(gid)
         return nil if attributes.nil?

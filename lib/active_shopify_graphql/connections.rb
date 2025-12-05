@@ -1,191 +1,170 @@
 # frozen_string_literal: true
 
+require_relative "connections/connection_proxy"
+
 module ActiveShopifyGraphQL
   module Connections
     extend ActiveSupport::Concern
 
     included do
       class << self
-        attr_accessor :defined_connections
+        attr_accessor :connections
       end
 
-      self.defined_connections = {}
+      self.connections = {}
     end
 
     class_methods do
-      def connection(name, target_class: nil, arguments: {})
-        target_class_name = target_class&.to_s || name.to_s.singularize.classify
+      # Define a singular connection (returns a single object)
+      # @see #connection
+      def has_one_connected(name, **options)
+        connection(name, type: :singular, **options)
+      end
+
+      # Define a plural connection (returns a collection via edges)
+      # @see #connection
+      def has_many_connected(name, **options)
+        connection(name, type: :connection, **options)
+      end
+
+      # Define a GraphQL connection to another ActiveShopifyGraphQL model
+      # @param name [Symbol] The connection name (e.g., :orders)
+      # @param class_name [String] The target model class name (defaults to name.to_s.classify)
+      # @param query_name [String] The GraphQL query field name (auto-determined based on nested/root-level)
+      # @param foreign_key [String] The field to filter by (auto-determined for root-level queries)
+      # @param loader_class [Class] Custom loader class to use (defaults to model's default loader)
+      # @param eager_load [Boolean] Whether to automatically eager load this connection (default: false)
+      # @param type [Symbol] The type of connection (:connection, :singular). Default is :connection.
+      # @param default_arguments [Hash] Default arguments to pass to the GraphQL query (e.g. first: 10)
+      def connection(name, class_name: nil, query_name: nil, foreign_key: nil, loader_class: nil, eager_load: false, type: :connection, default_arguments: {})
+        # Infer defaults
+        connection_class_name = class_name || name.to_s.classify
+
+        # Set query_name - default to camelCase for nested fields
+        connection_query_name = query_name || name.to_s.camelize(:lower)
+
+        connection_loader_class = loader_class
 
         # Store connection metadata
-        defined_connections[name] = {
-          target_class: target_class_name,
-          arguments: arguments,
-          field_name: name.to_s.camelize(:lower)
+        connections[name] = {
+          class_name: connection_class_name,
+          query_name: connection_query_name,
+          foreign_key: foreign_key,
+          loader_class: connection_loader_class,
+          eager_load: eager_load,
+          type: type,
+          nested: true, # Always treated as nested (accessed via parent field)
+          target_class_name: connection_class_name,
+          original_name: name,
+          default_arguments: default_arguments
         }
 
-        # Define the connection method
-        define_method name do |**query_args|
-          return @_connection_cache[name][query_args] if @_connection_cache&.dig(name, query_args)
+        # Define the connection method that returns a proxy
+        define_method name do |**options|
+          # Check if this connection was eager loaded
+          return @_connection_cache[name] if @_connection_cache&.key?(name)
 
-          @_connection_cache ||= {}
-          @_connection_cache[name] ||= {}
+          config = self.class.connections[name]
+          if config[:type] == :singular
+            # Lazy load singular association
+            loader_class = config[:loader_class] || self.class.default_loader.class
+            target_class = config[:class_name].constantize
+            loader = loader_class.new(target_class)
 
-          # Merge default arguments with provided ones
-          merged_args = self.class.defined_connections[name][:arguments].merge(query_args)
+            # Load the record
+            records = loader.load_connection_records(config[:query_name], options, self, config)
 
-          # Build the connection query
-          connection_query = self.class.send(:build_connection_query, name, merged_args)
-
-          # Execute the query
-          id_for_query = id.to_gid(self.class.model_name.name.demodulize)
-          variables = { id: id_for_query }.merge(merged_args)
-
-          response = ActiveShopifyGraphQL.configuration.admin_api_client.execute(connection_query, **variables)
-
-          # Parse the response
-          connection_data = response.dig("data", self.class.finder_query_name, name.to_s.camelize(:lower))
-
-          if connection_data && connection_data["edges"]
-            target_class = target_class_name.constantize
-            nodes = connection_data["edges"].map { |edge| target_class.new(edge["node"]) }
-
-            # Return a connection result with nodes and page info
-            @_connection_cache[name][query_args] = ConnectionResult.new(
-              nodes: nodes,
-              page_info: connection_data["pageInfo"],
-              total_count: connection_data["totalCount"] # May be nil
+            # Cache it
+            @_connection_cache ||= {}
+            @_connection_cache[name] = records
+            records
+          elsif options.empty?
+            # If no runtime options are provided, reuse existing proxy if it exists
+            @_connection_proxies ||= {}
+            @_connection_proxies[name] ||= ConnectionProxy.new(
+              parent: self,
+              connection_name: name,
+              connection_config: self.class.connections[name],
+              options: options
             )
           else
-            @_connection_cache[name][query_args] = ConnectionResult.new(nodes: [], page_info: {}, total_count: 0)
+            # Create a new proxy for custom options (don't cache these)
+            ConnectionProxy.new(
+              parent: self,
+              connection_name: name,
+              connection_config: self.class.connections[name],
+              options: options
+            )
           end
         end
 
-        # Define a setter method for testing/mocking
+        # Define setter method for testing/caching
         define_method "#{name}=" do |value|
           @_connection_cache ||= {}
-          @_connection_cache[name] ||= {}
-          @_connection_cache[name][{}] = value
+          @_connection_cache[name] = value
         end
+      end
+
+      # Load records with eager-loaded connections
+      # @param *connection_names [Symbol, Hash] The connection names to eager load
+      # @return [Class] A modified class for method chaining
+      #
+      # @example
+      #   Customer.includes(:orders).find(123)
+      #   Customer.includes(:orders, :addresses).where(email: "john@example.com")
+      #   Order.includes(line_items: :variant)
+      def includes(*connection_names)
+        # Validate connections exist
+        validate_includes_connections!(connection_names)
+
+        # Collect connections with eager_load: true
+        auto_included_connections = []
+        auto_included_connections = connections.select { |_name, config| config[:eager_load] }.keys if respond_to?(:connections)
+
+        # Merge manual and automatic connections
+        all_included_connections = (connection_names + auto_included_connections).uniq
+
+        # Create a new class that inherits from self with eager loading enabled
+        included_class = Class.new(self)
+
+        # Store the connections to include
+        included_class.instance_variable_set(:@included_connections, all_included_connections)
+
+        # Override methods to use eager loading
+        included_class.define_singleton_method(:default_loader) do
+          @default_loader ||= superclass.default_loader.class.new(
+            superclass,
+            included_connections: @included_connections
+          )
+        end
+
+        # Preserve the original class name and model name for GraphQL operations
+        included_class.define_singleton_method(:name) { superclass.name }
+        included_class.define_singleton_method(:model_name) { superclass.model_name }
+        included_class.define_singleton_method(:connections) { superclass.connections }
+
+        included_class
       end
 
       private
 
-      def build_connection_query(connection_name, arguments)
-        connection_info = defined_connections[connection_name]
-        target_class = connection_info[:target_class].constantize
-        field_name = connection_info[:field_name]
+      def validate_includes_connections!(connection_names)
+        connection_names.each do |name|
+          if name.is_a?(Hash)
+            name.each do |key, value|
+              raise ArgumentError, "Invalid connection for #{self.name}: #{key}. Available connections: #{connections.keys.join(', ')}" unless connections.key?(key.to_sym)
 
-        # Build arguments string for GraphQL
-        args_string = build_arguments_string(arguments)
-
-        # Get the target class fragment
-        target_fragment = target_class.fragment
-
-        <<~GRAPHQL
-          #{target_fragment}
-          query #{model_name.singular}Connection($id: ID!#{build_variables_string(arguments)}) {
-            #{@finder_query_name || model_name.singular}(id: $id) {
-              #{field_name}#{args_string} {
-                edges {
-                  node {
-                    ...shopify_#{target_class.model_name.element.downcase}Fragment
-                  }
-                }
-                pageInfo {
-                  hasNextPage
-                  hasPreviousPage
-                  startCursor
-                  endCursor
-                }
-              }
-            }
-          }
-        GRAPHQL
-      end
-
-      def build_arguments_string(arguments)
-        return "" if arguments.empty?
-
-        args = arguments.map do |key, _value|
-          "#{key}: $#{key}"
-        end.join(", ")
-
-        "(#{args})"
-      end
-
-      def build_variables_string(arguments)
-        return "" if arguments.empty?
-
-        arguments.map do |key, _value|
-          ", $#{key}: #{graphql_type_for_argument(key)}"
-        end.join("")
-      end
-
-      def graphql_type_for_argument(key)
-        case key.to_s
-        when 'first', 'last' then 'Int'
-        when 'after', 'before' then 'String'
-        when 'sortKey' then 'OrderSortKeys' # Use proper enum type
-        when 'reverse' then 'Boolean'
-        when 'query' then 'String'
-        when 'namespace' then 'String'
-        else 'String' # Default fallback
+              # Recursively validate nested connections
+              target_class = connections[key.to_sym][:class_name].constantize
+              if target_class.respond_to?(:validate_includes_connections!, true)
+                nested_names = value.is_a?(Array) ? value : [value]
+                target_class.send(:validate_includes_connections!, nested_names)
+              end
+            end
+          else
+            raise ArgumentError, "Invalid connection for #{self.name}: #{name}. Available connections: #{connections.keys.join(', ')}" unless connections.key?(name.to_sym)
+          end
         end
-      end
-    end
-
-    # Result wrapper for connections
-    class ConnectionResult
-      attr_reader :nodes, :page_info, :total_count
-
-      def initialize(nodes:, page_info:, total_count: nil)
-        @nodes = nodes
-        @page_info = page_info || {}
-        @total_count = total_count
-      end
-
-      def each(&block)
-        nodes.each(&block)
-      end
-
-      def map(&block)
-        nodes.map(&block)
-      end
-
-      def size
-        nodes.size
-      end
-
-      def count
-        total_count || nodes.size
-      end
-
-      def empty?
-        nodes.empty?
-      end
-
-      def first
-        nodes.first
-      end
-
-      def last
-        nodes.last
-      end
-
-      def next_page?
-        page_info["hasNextPage"]
-      end
-
-      def previous_page?
-        page_info["hasPreviousPage"]
-      end
-
-      def end_cursor
-        page_info["endCursor"]
-      end
-
-      def start_cursor
-        page_info["startCursor"]
       end
     end
   end
