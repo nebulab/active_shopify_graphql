@@ -5,15 +5,13 @@ module ActiveShopifyGraphQL
   class Fragment # rubocop:disable Metrics/ClassLength
     attr_reader :graphql_type, :loader_class, :defined_attributes, :model_class, :included_connections
 
-    def initialize(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:, fragment_name_proc:, fallback_fragment_proc: nil)
+    def initialize(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:, fragment_name_proc:)
       @graphql_type = graphql_type
       @loader_class = loader_class
       @defined_attributes = defined_attributes
       @model_class = model_class
       @included_connections = included_connections
       @fragment_name_proc = fragment_name_proc
-      @has_fallback = @defined_attributes.empty? && fallback_fragment_proc
-      @fallback_fragment_proc = fallback_fragment_proc
     end
 
     # Returns the complete GraphQL fragment string
@@ -34,14 +32,9 @@ module ActiveShopifyGraphQL
 
     # Returns the fragment fields (attributes and metafields) as GraphQL string
     def fields
-      # Use attributes-based fragment if attributes are defined, otherwise fall back to manual fragment
-      if @defined_attributes.any?
-        fields_from_attributes
-      elsif @has_fallback
-        @fallback_fragment_proc.call
-      else
-        raise NotImplementedError, "#{@loader_class} must define fragment or attributes"
-      end
+      raise NotImplementedError, "#{@loader_class} must define attributes" if @defined_attributes.empty?
+
+      fields_from_attributes
     end
 
     # Returns the connection fields as GraphQL string
@@ -66,8 +59,7 @@ module ActiveShopifyGraphQL
           defined_attributes: target_loader.defined_attributes,
           model_class: target_loader.instance_variable_get(:@model_class),
           included_connections: target_loader.instance_variable_get(:@included_connections),
-          fragment_name_proc: ->(type) { target_loader.fragment_name(type) },
-          fallback_fragment_proc: -> { target_loader.class.fragment }
+          fragment_name_proc: ->(type) { target_loader.fragment_name(type) }
         )
         target_fragment_fields = if target_class.respond_to?(:attributes_for_loader) && target_class.attributes_for_loader(@loader_class).any?
                                    target_fragment.fields_from_attributes

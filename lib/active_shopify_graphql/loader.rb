@@ -4,7 +4,8 @@ require 'active_model/type'
 require 'global_id'
 require_relative 'fragment'
 require_relative 'response_mapper'
-require_relative 'query'
+require_relative 'record_query'
+require_relative 'connection_query'
 require_relative 'executor'
 require_relative 'collection_query'
 require_relative 'connection_loader'
@@ -209,36 +210,46 @@ module ActiveShopifyGraphQL
         defined_attributes: defined_attributes,
         model_class: @model_class,
         included_connections: @included_connections,
-        fragment_name_proc: ->(type) { fragment_name(type) },
-        fallback_fragment_proc: -> { self.class.fragment }
+        fragment_name_proc: ->(type) { fragment_name(type) }
       ).to_s
     end
 
-    # Get or create a Query instance for this loader
-    def query_builder
-      @query_builder ||= Query.new(
+    # Get or create a RecordQuery instance for this loader
+    def record_query
+      @record_query ||= RecordQuery.new(
         graphql_type: graphql_type,
         loader_class: self.class,
         defined_attributes: defined_attributes,
         model_class: @model_class,
         included_connections: @included_connections,
         fragment_generator: -> { fragment },
-        fragment_name_proc: ->(type) { fragment_name(type) },
-        fallback_fragment_proc: -> { self.class.fragment }
+        fragment_name_proc: ->(type) { fragment_name(type) }
       )
     end
 
-    # Delegate query building methods to Query class
+    # Get or create a ConnectionQuery instance for this loader
+    def connection_query
+      @connection_query ||= ConnectionQuery.new(
+        graphql_type: graphql_type,
+        loader_class: self.class,
+        defined_attributes: defined_attributes,
+        model_class: @model_class,
+        included_connections: @included_connections,
+        fragment_name_proc: ->(type) { fragment_name(type) }
+      )
+    end
+
+    # Delegate query building methods to RecordQuery class
     def query_name(model_type = nil)
-      query_builder.query_name(model_type)
+      record_query.query_name(model_type)
     end
 
     def fragment_name(model_type = nil)
-      query_builder.fragment_name(model_type)
+      record_query.fragment_name(model_type)
     end
 
     def graphql_query(model_type = nil)
-      query_builder.graphql_query(model_type)
+      record_query.graphql_query(model_type)
     end
 
     # Override this to map the GraphQL response to model attributes
@@ -311,7 +322,7 @@ module ActiveShopifyGraphQL
 
       collection_query = CollectionQuery.new(
         graphql_type: graphql_type,
-        query_builder: query_builder,
+        query_builder: record_query,
         query_name_proc: ->(type) { query_name(type) },
         map_response_proc: ->(response) { map_response_to_attributes(response) },
         client_type: self.class.client_type
@@ -325,7 +336,7 @@ module ActiveShopifyGraphQL
     # @param model_type [String] The model type (optional, uses class graphql_type if not provided)
     # @return [String] The GraphQL query string
     def collection_graphql_query(model_type = nil)
-      query_builder.collection_graphql_query(model_type)
+      record_query.collection_graphql_query(model_type)
     end
 
     # Override this to map collection GraphQL responses to model attributes
@@ -354,7 +365,7 @@ module ActiveShopifyGraphQL
     # @return [Array<Object>] Array of model instances
     def load_connection_records(query_name, variables, parent = nil, connection_config = nil)
       connection_loader = ConnectionLoader.new(
-        query_builder: query_builder,
+        connection_query: connection_query,
         loader_class: self.class,
         client_type: self.class.client_type,
         response_mapper_factory: lambda {

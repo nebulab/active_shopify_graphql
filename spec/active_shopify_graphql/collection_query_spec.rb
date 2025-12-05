@@ -7,7 +7,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
 
   describe "#initialize" do
     it "stores the graphql_type" do
-      query_builder = instance_double(ActiveShopifyGraphQL::Query)
+      query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
       map_response_proc = ->(_response) { {} }
 
@@ -30,7 +30,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         config.admin_api_client = mock_client
       end
 
-      query_builder = instance_double(ActiveShopifyGraphQL::Query)
+      query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
       map_response_proc = ->(response) { response.dig("data", "customer") }
 
@@ -69,7 +69,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         config.admin_api_client = mock_client
       end
 
-      query_builder = instance_double(ActiveShopifyGraphQL::Query)
+      query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
       map_response_proc = ->(_response) { {} }
 
@@ -98,7 +98,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         config.admin_api_client = mock_client
       end
 
-      query_builder = instance_double(ActiveShopifyGraphQL::Query)
+      query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
       map_response_proc = ->(_response) { {} }
 
@@ -127,7 +127,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         config.admin_api_client = mock_client
       end
 
-      query_builder = instance_double(ActiveShopifyGraphQL::Query)
+      query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
       map_response_proc = ->(_response) { {} }
 
@@ -156,7 +156,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         config.admin_api_client = mock_client
       end
 
-      query_builder = instance_double(ActiveShopifyGraphQL::Query)
+      query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
       map_response_proc = ->(_response) { {} }
 
@@ -185,7 +185,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         config.admin_api_client = mock_client
       end
 
-      query_builder = instance_double(ActiveShopifyGraphQL::Query)
+      query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       query_name_proc = ->(type) { type.downcase }
       map_response_proc = ->(_response) { {} }
 

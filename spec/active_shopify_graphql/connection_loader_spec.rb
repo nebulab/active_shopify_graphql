@@ -3,25 +3,25 @@
 RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
   describe "#initialize" do
     it "stores the query_builder" do
-      query_builder = instance_double(ActiveShopifyGraphQL::Query)
+      query_builder = instance_double(ActiveShopifyGraphQL::ConnectionQuery)
       mapper_factory = -> { instance_double(ActiveShopifyGraphQL::ResponseMapper) }
 
       loader = described_class.new(
-        query_builder: query_builder,
+        connection_query: query_builder,
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         client_type: :admin_api,
         response_mapper_factory: mapper_factory
       )
 
-      expect(loader.query_builder).to eq(query_builder)
+      expect(loader.connection_query).to eq(query_builder)
     end
 
     it "stores the loader_class" do
-      query_builder = instance_double(ActiveShopifyGraphQL::Query)
+      query_builder = instance_double(ActiveShopifyGraphQL::ConnectionQuery)
       mapper_factory = -> { instance_double(ActiveShopifyGraphQL::ResponseMapper) }
 
       loader = described_class.new(
-        query_builder: query_builder,
+        connection_query: query_builder,
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         client_type: :admin_api,
         response_mapper_factory: mapper_factory
@@ -43,12 +43,12 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
           config.admin_api_client = mock_client
         end
 
-        query_builder = instance_double(ActiveShopifyGraphQL::Query)
+        query_builder = instance_double(ActiveShopifyGraphQL::ConnectionQuery)
         response_mapper = instance_double(ActiveShopifyGraphQL::ResponseMapper)
         mapper_factory = -> { response_mapper }
 
         loader = described_class.new(
-          query_builder: query_builder,
+          connection_query: query_builder,
           loader_class: ActiveShopifyGraphQL::AdminApiLoader,
           client_type: :admin_api,
           response_mapper_factory: mapper_factory
@@ -75,12 +75,12 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
           config.admin_api_client = mock_client
         end
 
-        query_builder = instance_double(ActiveShopifyGraphQL::Query)
+        query_builder = instance_double(ActiveShopifyGraphQL::ConnectionQuery)
         response_mapper = instance_double(ActiveShopifyGraphQL::ResponseMapper)
         mapper_factory = -> { response_mapper }
 
         loader = described_class.new(
-          query_builder: query_builder,
+          connection_query: query_builder,
           loader_class: ActiveShopifyGraphQL::AdminApiLoader,
           client_type: :admin_api,
           response_mapper_factory: mapper_factory
@@ -106,11 +106,11 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
           config.admin_api_client = mock_client
         end
 
-        query_builder = instance_double(ActiveShopifyGraphQL::Query)
+        query_builder = instance_double(ActiveShopifyGraphQL::ConnectionQuery)
         mapper_factory = -> { instance_double(ActiveShopifyGraphQL::ResponseMapper) }
 
         loader = described_class.new(
-          query_builder: query_builder,
+          connection_query: query_builder,
           loader_class: ActiveShopifyGraphQL::AdminApiLoader,
           client_type: :admin_api,
           response_mapper_factory: mapper_factory
@@ -132,12 +132,12 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
           config.admin_api_client = mock_client
         end
 
-        query_builder = instance_double(ActiveShopifyGraphQL::Query)
+        query_builder = instance_double(ActiveShopifyGraphQL::ConnectionQuery)
         response_mapper = instance_double(ActiveShopifyGraphQL::ResponseMapper)
         mapper_factory = -> { response_mapper }
 
         loader = described_class.new(
-          query_builder: query_builder,
+          connection_query: query_builder,
           loader_class: ActiveShopifyGraphQL::AdminApiLoader,
           client_type: :admin_api,
           response_mapper_factory: mapper_factory
@@ -179,12 +179,12 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
           config.admin_api_client = mock_client
         end
 
-        query_builder = instance_double(ActiveShopifyGraphQL::Query)
+        query_builder = instance_double(ActiveShopifyGraphQL::ConnectionQuery)
         response_mapper = instance_double(ActiveShopifyGraphQL::ResponseMapper)
         mapper_factory = -> { response_mapper }
 
         loader = described_class.new(
-          query_builder: query_builder,
+          connection_query: query_builder,
           loader_class: ActiveShopifyGraphQL::AdminApiLoader,
           client_type: :admin_api,
           response_mapper_factory: mapper_factory
@@ -220,12 +220,12 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
           config.admin_api_client = mock_client
         end
 
-        query_builder = instance_double(ActiveShopifyGraphQL::Query)
+        query_builder = instance_double(ActiveShopifyGraphQL::ConnectionQuery)
         response_mapper = instance_double(ActiveShopifyGraphQL::ResponseMapper)
         mapper_factory = -> { response_mapper }
 
         loader = described_class.new(
-          query_builder: query_builder,
+          connection_query: query_builder,
           loader_class: ActiveShopifyGraphQL::AdminApiLoader,
           client_type: :admin_api,
           response_mapper_factory: mapper_factory
@@ -260,12 +260,12 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
           config.admin_api_client = mock_client
         end
 
-        query_builder = instance_double(ActiveShopifyGraphQL::Query)
+        query_builder = instance_double(ActiveShopifyGraphQL::ConnectionQuery)
         response_mapper = instance_double(ActiveShopifyGraphQL::ResponseMapper)
         mapper_factory = -> { response_mapper }
 
         loader = described_class.new(
-          query_builder: query_builder,
+          connection_query: query_builder,
           loader_class: ActiveShopifyGraphQL::AdminApiLoader,
           client_type: :admin_api,
           response_mapper_factory: mapper_factory
@@ -301,11 +301,11 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
           config.admin_api_client = mock_client
         end
 
-        query_builder = instance_double(ActiveShopifyGraphQL::Query)
+        query_builder = instance_double(ActiveShopifyGraphQL::ConnectionQuery)
         mapper_factory = -> { instance_double(ActiveShopifyGraphQL::ResponseMapper) }
 
         loader = described_class.new(
-          query_builder: query_builder,
+          connection_query: query_builder,
           loader_class: ActiveShopifyGraphQL::AdminApiLoader,
           client_type: :admin_api,
           response_mapper_factory: mapper_factory

@@ -98,26 +98,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
       expect(result).to include("}")
     end
 
-    it "uses fallback_fragment_proc when no attributes defined" do
-      fallback_proc = -> { "id\nlegacyResourceId" }
-      fragment = described_class.new(
-        graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
-        defined_attributes: {},
-        model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" },
-        fallback_fragment_proc: fallback_proc
-      )
-
-      result = fragment.to_s
-
-      expect(result).to include("fragment CustomerFragment on Customer {")
-      expect(result).to include("id")
-      expect(result).to include("legacyResourceId")
-    end
-
-    it "raises error when no attributes and no fallback" do
+    it "raises error when no attributes defined" do
       fragment = described_class.new(
         graphql_type: "Customer",
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
@@ -127,7 +108,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         fragment_name_proc: ->(type) { "#{type}Fragment" }
       )
 
-      expect { fragment.to_s }.to raise_error(NotImplementedError, /must define fragment or attributes/)
+      expect { fragment.to_s }.to raise_error(NotImplementedError, /must define attributes/)
     end
 
     it "generates compact fragment when compact_queries is enabled" do

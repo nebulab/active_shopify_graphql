@@ -5,10 +5,10 @@ require 'global_id'
 module ActiveShopifyGraphQL
   # Handles loading records for connections (associations)
   class ConnectionLoader
-    attr_reader :query_builder, :loader_class
+    attr_reader :connection_query, :loader_class
 
-    def initialize(query_builder:, loader_class:, client_type:, response_mapper_factory:)
-      @query_builder = query_builder
+    def initialize(connection_query:, loader_class:, client_type:, response_mapper_factory:)
+      @connection_query = connection_query
       @loader_class = loader_class
       @client_type = client_type
       @response_mapper_factory = response_mapper_factory
@@ -35,7 +35,7 @@ module ActiveShopifyGraphQL
 
     # Load records for a nested connection (field on parent object)
     def load_nested_connection(query_name, variables, parent, connection_config)
-      query = @query_builder.nested_connection_graphql_query(query_name, variables, parent, connection_config)
+      query = @connection_query.nested_connection_graphql_query(query_name, variables, parent, connection_config)
       # Only the parent ID is passed as a variable for nested connections
       # Ensure we use the full GID format
       parent_id = extract_gid(parent)
@@ -51,7 +51,7 @@ module ActiveShopifyGraphQL
 
     # Load records for a root-level connection
     def load_root_connection(query_name, variables, connection_config)
-      query = @query_builder.connection_graphql_query(query_name, variables, connection_config)
+      query = @connection_query.connection_graphql_query(query_name, variables, connection_config)
       # No variables needed for root-level connections - all args are inline
       query_variables = {}
 

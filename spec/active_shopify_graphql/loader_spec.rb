@@ -12,13 +12,31 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
   end
 
   describe '.graphql_type and .fragment' do
+    let(:test_model_class) do
+      Class.new do
+        include ActiveShopifyGraphQL::Attributes
+
+        attribute :id
+        attribute :name
+
+        def self.graphql_type_for_loader(_loader_class)
+          "TestModel"
+        end
+
+        def self.name
+          "TestModel"
+        end
+      end
+    end
+
     let(:test_loader_class) do
+      model_class = test_model_class
       Class.new(described_class) do
         graphql_type "TestModel"
-        fragment <<~GRAPHQL
-          id
-          name
-        GRAPHQL
+
+        define_method(:initialize) do |model_class_arg = model_class, **options|
+          super(model_class_arg, **options)
+        end
 
         def map_response_to_attributes(response_data)
           { id: response_data.dig("data", "testmodel", "id") }
@@ -64,17 +82,35 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
       expect(fragment).to include("}")
     end
 
-    it 'allows getting fragment fields at class level' do
-      expect(test_loader_class.fragment).to include("id")
-      expect(test_loader_class.fragment).to include("name")
+    it 'generates fragment from attributes' do
+      loader = test_loader_class.new
+      fragment = loader.fragment
+      expect(fragment).to include("id")
+      expect(fragment).to include("name")
     end
 
     it 'raises error when fragment is not defined' do
-      loader_without_fragment = Class.new(described_class) do
-        graphql_type "NoFragment"
+      empty_model_class = Class.new do
+        include ActiveShopifyGraphQL::Attributes
+
+        def self.graphql_type_for_loader(_loader_class)
+          "NoFragment"
+        end
+
+        def self.name
+          "NoFragment"
+        end
       end
 
-      expect { loader_without_fragment.fragment }.to raise_error(NotImplementedError)
+      loader_without_fragment = Class.new(described_class) do
+        graphql_type "NoFragment"
+
+        define_method(:initialize) do |model_class_arg = empty_model_class, **options|
+          super(model_class_arg, **options)
+        end
+      end
+
+      expect { loader_without_fragment.new.fragment }.to raise_error(NotImplementedError, /must define attributes/)
     end
 
     it 'loads attributes using graphql_type' do
