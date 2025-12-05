@@ -5,7 +5,7 @@ module ActiveShopifyGraphQL
   class RecordQuery
     attr_reader :graphql_type, :loader_class
 
-    def initialize(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:, fragment:, fragment_name_proc:)
+    def initialize(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:, fragment:)
       @graphql_type = graphql_type
       @loader_class = loader_class
       @fragment = fragment
@@ -13,7 +13,6 @@ module ActiveShopifyGraphQL
       @defined_attributes = defined_attributes
       @model_class = model_class
       @included_connections = included_connections
-      @fragment_name_proc = fragment_name_proc
     end
 
     # Override this to define the query name (can accept model_type for customization)
@@ -53,8 +52,7 @@ module ActiveShopifyGraphQL
         loader_class: @loader_class,
         defined_attributes: @defined_attributes,
         model_class: @model_class,
-        included_connections: @included_connections,
-        fragment_name_proc: @fragment_name_proc
+        included_connections: @included_connections
       )
     end
   end

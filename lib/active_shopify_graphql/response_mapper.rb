@@ -104,8 +104,7 @@ module ActiveShopifyGraphQL
         loader_class: @loader_class,
         defined_attributes: @defined_attributes,
         model_class: @model_class,
-        included_connections: @included_connections,
-        fragment_name_proc: @query_name_proc
+        included_connections: @included_connections
       )
       normalized_includes = fragment.normalize_includes(@included_connections)
 

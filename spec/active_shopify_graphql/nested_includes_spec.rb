@@ -61,8 +61,7 @@ RSpec.describe "Nested Includes" do
       loader_class: loader.class,
       defined_attributes: loader.defined_attributes,
       model_class: loader.instance_variable_get(:@model_class),
-      included_connections: loader.instance_variable_get(:@included_connections),
-      fragment_name_proc: ->(type) { loader.fragment_name(type) }
+      included_connections: loader.instance_variable_get(:@included_connections)
     ).connection_fields
     expect(fragment).to include("lineItems(first: 50) {")
     expect(fragment).to include("edges {")

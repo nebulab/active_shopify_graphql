@@ -369,8 +369,7 @@ RSpec.describe "Metafield attribute functionality" do
             loader_class: self.class,
             defined_attributes: defined_attributes,
             model_class: instance_variable_get(:@model_class),
-            included_connections: instance_variable_get(:@included_connections),
-            fragment_name_proc: ->(type) { "#{type}Fragment" }
+            included_connections: instance_variable_get(:@included_connections)
           ).to_s
         end
       end

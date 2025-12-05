@@ -22,8 +22,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string }, name: { path: "name", type: :string } },
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = query.nested_connection_graphql_query("orders", { first: 10 }, parent)
@@ -50,8 +49,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = query.nested_connection_graphql_query("customer", {}, parent, { type: :singular })
@@ -76,8 +74,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = query.nested_connection_graphql_query("orders", { query: "status:open", first: 5 }, parent)
@@ -99,8 +96,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = query.nested_connection_graphql_query("orders", { sort_key: "CREATED_AT", first: 5 }, parent)
@@ -122,8 +118,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = query.nested_connection_graphql_query("orders", { sort_key: "CREATED_AT" }, parent)
@@ -149,8 +144,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = query.nested_connection_graphql_query("orders", { first: 10 }, parent)
@@ -167,8 +161,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string }, name: { path: "name", type: :string } },
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = query.connection_graphql_query("orders", { first: 10, query: "status:open" })
@@ -187,8 +180,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = query.connection_graphql_query("shop", {}, { type: :singular })
@@ -205,8 +197,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = query.connection_graphql_query("orders", { first: 10, query: nil })
@@ -221,8 +212,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = query.connection_graphql_query("orders", { first: 10, reverse: true })
@@ -240,8 +230,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = query.connection_graphql_query("orders", { first: 10 })

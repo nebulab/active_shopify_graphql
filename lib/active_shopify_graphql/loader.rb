@@ -107,9 +107,9 @@ module ActiveShopifyGraphQL
 
     # Get GraphQL type for this loader instance
     def graphql_type
-      if @model_class && @model_class.respond_to?(:graphql_type_for_loader)
+      if @model_class.respond_to?(:graphql_type_for_loader)
         @model_class.graphql_type_for_loader(self.class)
-      elsif @model_class && @model_class.respond_to?(:name) && @model_class.name
+      elsif @model_class.respond_to?(:name) && @model_class.name
         # Infer from model class name if available
         @model_class.name.demodulize
       else
@@ -153,8 +153,7 @@ module ActiveShopifyGraphQL
         loader_class: self.class,
         defined_attributes: defined_attributes,
         model_class: @model_class,
-        included_connections: @included_connections,
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: @included_connections
       )
     end
 
@@ -166,8 +165,7 @@ module ActiveShopifyGraphQL
         defined_attributes: defined_attributes,
         model_class: @model_class,
         included_connections: @included_connections,
-        fragment: fragment,
-        fragment_name_proc: ->(type) { fragment_name(type) }
+        fragment: fragment
       )
     end
 
@@ -178,8 +176,7 @@ module ActiveShopifyGraphQL
         loader_class: self.class,
         defined_attributes: defined_attributes,
         model_class: @model_class,
-        included_connections: @included_connections,
-        fragment_name_proc: ->(type) { fragment_name(type) }
+        included_connections: @included_connections
       )
     end
 
@@ -244,7 +241,6 @@ module ActiveShopifyGraphQL
         graphql_type: graphql_type,
         query_builder: record_query,
         query_name_proc: ->(type) { query_name(type) },
-        fragment_name_proc: ->(type) { fragment_name(type) },
         fragment: fragment,
         map_response_proc: ->(response) { map_response_to_attributes(response) },
         client_type: self.class.client_type

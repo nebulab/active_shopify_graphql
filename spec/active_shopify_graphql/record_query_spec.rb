@@ -14,8 +14,7 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        fragment: fragment,
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        fragment: fragment
       )
 
       expect(query.graphql_type).to eq("Customer")
@@ -29,8 +28,7 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        fragment: fragment,
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        fragment: fragment
       )
 
       expect(query.loader_class).to eq(ActiveShopifyGraphQL::AdminApiLoader)
@@ -46,8 +44,7 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        fragment: fragment,
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        fragment: fragment
       )
 
       expect(query.query_name).to eq("customer")
@@ -61,8 +58,7 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        fragment: fragment,
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        fragment: fragment
       )
 
       expect(query.query_name("Order")).to eq("order")
@@ -78,8 +74,7 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        fragment: fragment,
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        fragment: fragment
       )
 
       expect(query.fragment_name).to eq("CustomerFragment")
@@ -93,8 +88,7 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        fragment: fragment,
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        fragment: fragment
       )
 
       expect(query.fragment_name("Order")).to eq("OrderFragment")
@@ -110,8 +104,7 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        fragment: fragment,
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        fragment: fragment
       )
 
       result = query.graphql_query
@@ -130,8 +123,7 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        fragment: fragment,
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        fragment: fragment
       )
 
       result = query.graphql_query("Order")
@@ -153,8 +145,7 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        fragment: fragment,
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        fragment: fragment
       )
 
       result = query.graphql_query

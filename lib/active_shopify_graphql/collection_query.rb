@@ -5,11 +5,10 @@ module ActiveShopifyGraphQL
   class CollectionQuery
     attr_reader :graphql_type
 
-    def initialize(graphql_type:, query_builder:, query_name_proc:, fragment_name_proc:, fragment:, map_response_proc:, client_type:)
+    def initialize(graphql_type:, query_builder:, query_name_proc:, fragment:, map_response_proc:, client_type:)
       @graphql_type = graphql_type
       @query_builder = query_builder
       @query_name_proc = query_name_proc
-      @fragment_name_proc = fragment_name_proc
       @fragment = fragment
       @map_response_proc = map_response_proc
       @client_type = client_type
@@ -40,10 +39,16 @@ module ActiveShopifyGraphQL
     def collection_graphql_query(model_type = nil)
       type = model_type || @graphql_type
       query_name_value = @query_name_proc.call(type).pluralize
-      fragment_name_value = @fragment_name_proc.call(type)
+
+      # Handle both Fragment objects and string fragments
+      fragment_name_value = if @fragment.respond_to?(:fragment_name)
+                              @fragment.fragment_name
+                            else
+                              "#{type}Fragment"
+                            end
+      fragment_string = @fragment.respond_to?(:to_s) ? @fragment.to_s : @fragment
 
       compact = ActiveShopifyGraphQL.configuration.compact_queries
-      fragment_string = @fragment.to_s
 
       if compact
         "#{fragment_string} query get#{type.pluralize}($query: String, $first: Int!) { #{query_name_value}(query: $query, first: $first) { nodes { ...#{fragment_name_value} } } }"

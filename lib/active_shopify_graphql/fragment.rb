@@ -5,18 +5,17 @@ module ActiveShopifyGraphQL
   class Fragment # rubocop:disable Metrics/ClassLength
     attr_reader :graphql_type, :loader_class, :defined_attributes, :model_class, :included_connections
 
-    def initialize(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:, fragment_name_proc:)
+    def initialize(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:)
       @graphql_type = graphql_type
       @loader_class = loader_class
       @defined_attributes = defined_attributes
       @model_class = model_class
       @included_connections = included_connections
-      @fragment_name_proc = fragment_name_proc
     end
 
     # Returns the complete GraphQL fragment string
     def to_s
-      fragment_name_value = @fragment_name_proc.call(@graphql_type)
+      fragment_name_value = fragment_name
 
       compact = ActiveShopifyGraphQL.configuration.compact_queries
       separator = compact ? " " : "\n"
@@ -58,8 +57,7 @@ module ActiveShopifyGraphQL
           loader_class: target_loader.class,
           defined_attributes: target_loader.defined_attributes,
           model_class: target_loader.instance_variable_get(:@model_class),
-          included_connections: target_loader.instance_variable_get(:@included_connections),
-          fragment_name_proc: ->(type) { target_loader.fragment_name(type) }
+          included_connections: target_loader.instance_variable_get(:@included_connections)
         )
         target_fragment_fields = if target_class.respond_to?(:attributes_for_loader) && target_class.attributes_for_loader(@loader_class).any?
                                    target_fragment.fields_from_attributes
@@ -230,6 +228,11 @@ module ActiveShopifyGraphQL
       end
     end
 
+    # Calculate the fragment name based on the GraphQL type
+    def fragment_name
+      "#{@graphql_type}Fragment"
+    end
+
     # Normalize includes from various formats to a consistent hash structure
     def normalize_includes(includes)
       normalized = {}
@@ -291,8 +294,6 @@ module ActiveShopifyGraphQL
         "query#{query_signature} {\n      #{field_query} {\n        edges {\n          node {\n            #{fragment_fields}\n          }\n        }\n      }\n    }"
       end
     end
-
-    private
 
     # Convert path tree to GraphQL syntax with proper indentation
     def build_graphql_from_tree(tree, indent_level)

@@ -5,14 +5,13 @@ module ActiveShopifyGraphQL
   class ConnectionQuery
     attr_reader :graphql_type, :loader_class
 
-    def initialize(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:, fragment_name_proc:)
+    def initialize(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:)
       @graphql_type = graphql_type
       @loader_class = loader_class
       # Store data needed to create Fragment instances
       @defined_attributes = defined_attributes
       @model_class = model_class
       @included_connections = included_connections
-      @fragment_name_proc = fragment_name_proc
     end
 
     # Build GraphQL query for nested connection (field on parent object)
@@ -90,8 +89,7 @@ module ActiveShopifyGraphQL
         loader_class: @loader_class,
         defined_attributes: @defined_attributes,
         model_class: @model_class,
-        included_connections: @included_connections,
-        fragment_name_proc: @fragment_name_proc
+        included_connections: @included_connections
       )
     end
 

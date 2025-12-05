@@ -12,8 +12,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       expect(fragment.graphql_type).to eq("Customer")
@@ -25,8 +24,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       expect(fragment.loader_class).to eq(ActiveShopifyGraphQL::AdminApiLoader)
@@ -39,8 +37,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       expect(fragment.defined_attributes).to eq(attributes)
@@ -53,8 +50,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: {},
         model_class: model,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       expect(fragment.model_class).to eq(model)
@@ -67,8 +63,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
-        included_connections: connections,
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: connections
       )
 
       expect(fragment.included_connections).to eq(connections)
@@ -86,8 +81,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = fragment.to_s
@@ -104,8 +98,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       expect { fragment.to_s }.to raise_error(NotImplementedError, /must define attributes/)
@@ -122,8 +115,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = fragment.to_s
@@ -144,8 +136,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = fragment.fields_from_attributes
@@ -164,8 +155,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = fragment.fields_from_attributes
@@ -186,8 +176,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = fragment.fields_from_attributes
@@ -219,8 +208,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = fragment.fields_from_attributes
@@ -246,8 +234,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = fragment.fields_from_attributes
@@ -265,8 +252,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = fragment.normalize_includes(%i[orders addresses])
@@ -280,8 +266,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = fragment.normalize_includes(["orders"])
@@ -295,8 +280,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = fragment.normalize_includes([{ orders: [:line_items] }])
@@ -310,8 +294,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = fragment.normalize_includes([
@@ -328,8 +311,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = fragment.normalize_includes([
@@ -348,8 +330,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: Class.new,
-        included_connections: [],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: []
       )
 
       result = fragment.connection_fields
@@ -364,8 +345,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
         loader_class: ActiveShopifyGraphQL::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: model,
-        included_connections: [:orders],
-        fragment_name_proc: ->(type) { "#{type}Fragment" }
+        included_connections: [:orders]
       )
 
       result = fragment.connection_fields
