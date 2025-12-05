@@ -20,26 +20,12 @@ module ActiveShopifyGraphQL
     end
 
     # Override load_attributes to handle the Customer case
-    def load_attributes(model_type_or_id = nil, id = nil)
-      # Handle both old and new signatures like the parent class
-      if id.nil? && model_type_or_id.is_a?(String) && model_type_or_id != graphql_type
-        # Old signature: load_attributes(model_type)
-        type = model_type_or_id
-        actual_id = nil
-      elsif id.nil?
-        # New signature: load_attributes() or load_attributes(id) - but for Customer, we don't need ID
-        type = graphql_type
-        actual_id = model_type_or_id
-      else
-        # Old signature: load_attributes(model_type, id)
-        type = model_type_or_id
-        actual_id = id
-      end
-
+    def load_attributes(id = nil)
+      type = graphql_type
       query = graphql_query(type)
 
       # For Customer queries, we don't need variables; for others, we need the ID
-      variables = type == 'Customer' ? {} : { id: actual_id }
+      variables = type == 'Customer' ? {} : { id: id }
 
       response_data = execute_graphql_query(query, **variables)
 

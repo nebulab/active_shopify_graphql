@@ -123,25 +123,5 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
 
       expect(result).to eq({ id: "test-id" })
     end
-
-    context 'backwards compatibility' do
-      it 'still accepts model_type parameter in load_attributes' do
-        allow(mock_client).to receive(:execute).and_return(
-          { "data" => { "testmodel" => { "id" => "test-id" } } }
-        )
-
-        loader = test_loader_class.new
-        result = loader.load_attributes("CustomType", "test-id")
-
-        expect(result).to eq({ id: "test-id" })
-      end
-
-      it 'still accepts model_type parameter in other methods' do
-        loader = test_loader_class.new
-
-        expect(loader.query_name("CustomType")).to eq("customtype")
-        expect(loader.fragment_name("CustomType")).to eq("CustomTypeFragment")
-      end
-    end
   end
 end

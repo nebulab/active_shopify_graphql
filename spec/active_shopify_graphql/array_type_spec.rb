@@ -3,19 +3,26 @@
 require 'spec_helper'
 
 RSpec.describe 'Automatic array support' do
-  let(:loader_class) do
-    Class.new(ActiveShopifyGraphQL::Loader) do
-      graphql_type 'TestType'
+  model_class = Class.new do
+    include ActiveShopifyGraphQL::Attributes
 
-      attribute :tags                                  # No type specified - arrays preserved automatically
-      attribute :single_tag, type: :string             # String type, but arrays still preserved
-      attribute :nullable_tags, null: true             # No type specified
-      attribute :non_nullable_tags, null: false        # No type specified
-      attribute :numeric_values, type: :integer        # Integer type, but arrays still preserved
+    attribute :tags                                  # No type specified - arrays preserved automatically
+    attribute :single_tag, type: :string             # String type, but arrays still preserved
+    attribute :nullable_tags, null: true             # No type specified
+    attribute :non_nullable_tags, null: false        # No type specified
+    attribute :numeric_values, type: :integer        # Integer type, but arrays still preserved
+
+    def self.name
+      'TestType'
     end
   end
 
-  let(:loader) { loader_class.new }
+  loader_class = Class.new(ActiveShopifyGraphQL::Loader) do
+    graphql_type 'TestType'
+    self.model_class = model_class
+  end
+
+  loader = loader_class.new
 
   describe 'automatic array preservation' do
     it 'preserves arrays regardless of specified type' do
@@ -81,9 +88,27 @@ RSpec.describe 'Automatic array support' do
     end
 
     it 'works with transform blocks' do
-      loader_class.class_eval do
+      transform_model_class = Class.new do
+        include ActiveShopifyGraphQL::Attributes
+
+        attribute :tags
+        attribute :single_tag, type: :string
+        attribute :nullable_tags, null: true
+        attribute :non_nullable_tags, null: false
+        attribute :numeric_values, type: :integer
         attribute :transformed_tags, type: :array, transform: ->(value) { value.map(&:upcase) }
+
+        def self.name
+          'TestType'
+        end
       end
+
+      transform_loader_class = Class.new(ActiveShopifyGraphQL::Loader) do
+        graphql_type 'TestType'
+        self.model_class = transform_model_class
+      end
+
+      transform_loader = transform_loader_class.new
 
       response_data = {
         'data' => {
@@ -98,7 +123,7 @@ RSpec.describe 'Automatic array support' do
         }
       }
 
-      attributes = loader.map_response_to_attributes(response_data)
+      attributes = transform_loader.map_response_to_attributes(response_data)
 
       expect(attributes[:transformed_tags]).to eq(%w[LOWER CASE])
     end

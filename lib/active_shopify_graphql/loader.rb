@@ -38,52 +38,6 @@ module ActiveShopifyGraphQL
       # Set the model class associated with this loader
       attr_writer :model_class
 
-      # For backward compatibility - loaders can still define attributes directly
-      def attribute(name, path: nil, type: :string, null: true, default: nil, transform: nil)
-        @attributes ||= {}
-
-        # Auto-infer GraphQL path for simple cases: display_name -> displayName
-        path ||= infer_path(name)
-
-        @attributes[name] = {
-          path: path,
-          type: type,
-          null: null,
-          default: default,
-          transform: transform
-        }
-      end
-
-      # For backward compatibility - loaders can still define metafield attributes directly
-      def metafield_attribute(name, namespace:, key:, type: :string, null: true, default: nil, transform: nil)
-        @attributes ||= {}
-        @metafields ||= {}
-
-        # Store metafield metadata for special handling
-        @metafields[name] = {
-          namespace: namespace,
-          key: key,
-          type: type
-        }
-
-        # Generate alias and path for metafield
-        alias_name = "#{name}Metafield"
-        value_field = type == :json ? 'jsonValue' : 'value'
-        path = "#{alias_name}.#{value_field}"
-
-        @attributes[name] = {
-          path: path,
-          type: type,
-          null: null,
-          default: default,
-          transform: transform,
-          is_metafield: true,
-          metafield_alias: alias_name,
-          metafield_namespace: namespace,
-          metafield_key: key
-        }
-      end
-
       # Get all defined attributes (includes both direct and model attributes)
       def attributes
         defined_attributes
@@ -96,19 +50,15 @@ module ActiveShopifyGraphQL
 
       # Get attributes from the model class for this loader
       def defined_attributes
-        return @attributes || {} unless model_class.respond_to?(:attributes_for_loader)
+        return {} unless model_class.respond_to?(:attributes_for_loader)
 
         # Get attributes defined in the model for this loader class
-        model_attrs = model_class.attributes_for_loader(self)
-        direct_attrs = @attributes || {}
-
-        # Merge direct loader attributes with model attributes (model takes precedence)
-        direct_attrs.merge(model_attrs)
+        model_class.attributes_for_loader(self)
       end
 
       # Get metafields from the model class
       def defined_metafields
-        return @metafields || {} unless model_class.respond_to?(:metafields)
+        return {} unless model_class.respond_to?(:metafields)
 
         model_class.metafields
       end
@@ -131,12 +81,6 @@ module ActiveShopifyGraphQL
       end
 
       private
-
-      # Infer GraphQL path from Ruby attribute name
-      # Only handles simple snake_case to camelCase conversion
-      def infer_path(name)
-        name.to_s.camelize(:lower)
-      end
 
       # Infer the model class from the GraphQL type
       # e.g., graphql_type "Customer" -> Customer
@@ -279,20 +223,9 @@ module ActiveShopifyGraphQL
 
     # Executes the GraphQL query and returns the mapped attributes hash
     # The model instantiation is handled by the calling code
-    def load_attributes(model_type_or_id, id = nil)
-      # Support both old signature (model_type, id) and new signature (id)
-      if id.nil?
-        # New signature: load_attributes(id)
-        actual_id = model_type_or_id
-        type = graphql_type
-      else
-        # Old signature: load_attributes(model_type, id)
-        type = model_type_or_id
-        actual_id = id
-      end
-
-      query = graphql_query(type)
-      variables = { id: actual_id }
+    def load_attributes(id)
+      query = graphql_query(graphql_type)
+      variables = { id: id }
 
       executor = Executor.new(self.class.client_type)
       response_data = executor.execute(query, **variables)
@@ -303,23 +236,10 @@ module ActiveShopifyGraphQL
     end
 
     # Executes a collection query using Shopify's search syntax and returns an array of mapped attributes
-    # @param conditions_or_model_type [Hash|String] The conditions to query or model type (for backwards compatibility)
-    # @param conditions_or_limit [Hash|Integer] The conditions or limit (for backwards compatibility)
+    # @param conditions [Hash] The conditions to query
     # @param limit [Integer] The maximum number of records to return (default: 250, max: 250)
     # @return [Array<Hash>] Array of attribute hashes or empty array if none found
-    def load_collection(conditions_or_model_type = {}, conditions_or_limit = {}, limit: 250)
-      # Handle different method signatures for backwards compatibility
-      if conditions_or_model_type.is_a?(String)
-        # Old signature: load_collection(model_type, conditions = {}, limit: 250)
-        # Deprecated but supported for now
-        conditions = conditions_or_limit
-        actual_limit = limit
-      else
-        # New signature: load_collection(conditions = {}, limit: 250)
-        conditions = conditions_or_model_type
-        actual_limit = conditions_or_limit.is_a?(Integer) ? conditions_or_limit : limit
-      end
-
+    def load_collection(conditions = {}, limit: 250)
       collection_query = CollectionQuery.new(
         graphql_type: graphql_type,
         query_builder: record_query,
@@ -329,7 +249,7 @@ module ActiveShopifyGraphQL
         map_response_proc: ->(response) { map_response_to_attributes(response) },
         client_type: self.class.client_type
       )
-      collection_query.execute(conditions, limit: actual_limit)
+      collection_query.execute(conditions, limit: limit)
     end
 
     # Load records for a connection query

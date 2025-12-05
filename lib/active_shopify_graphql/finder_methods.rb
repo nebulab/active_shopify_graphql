@@ -11,8 +11,7 @@ module ActiveShopifyGraphQL
       # @return [Object, nil] The model instance or nil if not found
       def find(id, loader: default_loader)
         gid = GidHelper.normalize_gid(id, model_name.name.demodulize)
-        model_type = name.demodulize
-        attributes = loader.load_attributes(model_type, gid)
+        attributes = loader.load_attributes(gid)
 
         return nil if attributes.nil?
 
