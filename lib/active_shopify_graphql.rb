@@ -19,6 +19,7 @@ require_relative "active_shopify_graphql/associations"
 require_relative "active_shopify_graphql/connections"
 require_relative "active_shopify_graphql/attributes"
 require_relative "active_shopify_graphql/metafield_attributes"
+require_relative "active_shopify_graphql/search_query"
 require_relative "active_shopify_graphql/base"
 
 module ActiveShopifyGraphQL
