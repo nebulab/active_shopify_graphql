@@ -5,18 +5,18 @@ module ActiveShopifyGraphQL
   class ResponseMapper
     attr_reader :graphql_type, :loader_class, :defined_attributes, :model_class, :included_connections
 
-    def initialize(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:, query_name_proc:)
+    def initialize(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:, record_query:)
       @graphql_type = graphql_type
       @loader_class = loader_class
       @defined_attributes = defined_attributes
       @model_class = model_class
       @included_connections = included_connections
-      @query_name_proc = query_name_proc
+      @record_query = record_query
     end
 
     # Map GraphQL response to attributes using declared attribute metadata
     def map_response_from_attributes(response_data)
-      query_name_value = @query_name_proc.call(@graphql_type)
+      query_name_value = @record_query.query_name(@graphql_type)
       root_data = response_data.dig("data", query_name_value)
       return {} unless root_data
 
@@ -86,7 +86,7 @@ module ActiveShopifyGraphQL
     def extract_connection_data(response_data)
       return {} if @included_connections.empty? || !@model_class.respond_to?(:connections)
 
-      query_name_value = @query_name_proc.call(@graphql_type)
+      query_name_value = @record_query.query_name(@graphql_type)
       root_data = response_data.dig("data", query_name_value)
       return {} unless root_data
 
@@ -217,7 +217,7 @@ module ActiveShopifyGraphQL
           defined_attributes: target_loader.defined_attributes,
           model_class: target_class,
           included_connections: nested_includes,
-          query_name_proc: ->(type) { target_loader.query_name(type) }
+          record_query: target_loader.record_query
         )
         nested_data = nested_mapper.extract_connection_data_from_node(node_data_item)
 

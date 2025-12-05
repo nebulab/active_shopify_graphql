@@ -1,6 +1,12 @@
 # frozen_string_literal: true
 
 RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
+  def record_query_stub
+    query_stub = instance_double(ActiveShopifyGraphQL::RecordQuery)
+    allow(query_stub).to receive(:query_name) { |type| type.downcase }
+    query_stub
+  end
+
   describe "#initialize" do
     it "stores the graphql_type" do
       mapper = described_class.new(
@@ -9,7 +15,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       expect(mapper.graphql_type).to eq("Customer")
@@ -22,7 +28,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       expect(mapper.loader_class).to eq(ActiveShopifyGraphQL::AdminApiLoader)
@@ -36,7 +42,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       expect(mapper.defined_attributes).to eq(attributes)
@@ -50,7 +56,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: {},
         model_class: model,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       expect(mapper.model_class).to eq(model)
@@ -64,7 +70,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: connections,
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       expect(mapper.included_connections).to eq(connections)
@@ -83,7 +89,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       response_data = {
@@ -114,7 +120,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       response_data = {
@@ -150,7 +156,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       response_data = {
@@ -182,7 +188,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       response_data = {
@@ -210,7 +216,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       response_data = {
@@ -237,7 +243,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       response_data = {
@@ -265,7 +271,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       response_data = {
@@ -289,7 +295,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       response_data = { "data" => { "customer" => nil } }
@@ -308,7 +314,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       result = mapper.coerce_value(123, :string, :test_attr, "path")
@@ -324,7 +330,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       result = mapper.coerce_value("42", :integer, :test_attr, "path")
@@ -340,7 +346,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       result = mapper.coerce_value("3.14", :float, :test_attr, "path")
@@ -356,7 +362,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       result_true = mapper.coerce_value("true", :boolean, :test_attr, "path")
@@ -373,7 +379,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       array_value = %w[a b c]
@@ -390,7 +396,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       result = mapper.coerce_value("not_a_number", :integer, :count, "orderCount")
@@ -405,7 +411,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       value = { "custom" => "data" }
@@ -423,7 +429,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       response_data = { "data" => { "customer" => { "id" => "123" } } }
@@ -441,7 +447,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: {},
         model_class: model,
         included_connections: [:orders],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       response_data = { "data" => { "customer" => { "id" => "123" } } }
@@ -458,7 +464,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       response_data = { "data" => { "customer" => nil } }
@@ -494,7 +500,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: attributes,
         model_class: model_class,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       response_data = {
@@ -540,7 +546,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: attributes,
         model_class: model_class,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       response_data = {
@@ -563,7 +569,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       response_data = { "data" => { "orders" => {} } }
@@ -581,7 +587,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       response_data = { "data" => { "shop" => nil } }
@@ -615,7 +621,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         defined_attributes: attributes,
         model_class: model_class,
         included_connections: [],
-        query_name_proc: lambda(&:downcase)
+        record_query: record_query_stub
       )
 
       response_data = {

@@ -5,10 +5,10 @@ module ActiveShopifyGraphQL
   class CollectionQuery
     attr_reader :graphql_type
 
-    def initialize(graphql_type:, query_builder:, query_name_proc:, fragment:, map_response_proc:, client_type:)
+    def initialize(graphql_type:, query_builder:, record_query:, fragment:, map_response_proc:, client_type:)
       @graphql_type = graphql_type
       @query_builder = query_builder
-      @query_name_proc = query_name_proc
+      @record_query = record_query
       @fragment = fragment
       @map_response_proc = map_response_proc
       @client_type = client_type
@@ -38,19 +38,19 @@ module ActiveShopifyGraphQL
     # @return [String] The GraphQL query string
     def collection_graphql_query(model_type = nil)
       type = model_type || @graphql_type
-      query_name_value = @query_name_proc.call(type).pluralize
+      query_name_value = @record_query.query_name(type).pluralize
 
-      # Handle both Fragment objects and string fragments
-      fragment_name_value = if @fragment.respond_to?(:fragment_name)
-                              @fragment.fragment_name
-                            else
-                              "#{type}Fragment"
-                            end
-      fragment_string = @fragment.respond_to?(:to_s) ? @fragment.to_s : @fragment
+      # Handle both Fragment objects and legacy string fragments
+      if @fragment.is_a?(String)
+        fragment_string = @fragment
+        # Extract fragment name from string (legacy support)
+        fragment_name_value = fragment_string[/fragment\s+(\w+)/, 1] || "#{type}Fragment"
+      else
+        fragment_string = @fragment.to_s
+        fragment_name_value = @fragment.fragment_name
+      end
 
-      compact = ActiveShopifyGraphQL.configuration.compact_queries
-
-      if compact
+      if ActiveShopifyGraphQL.configuration.compact_queries
         "#{fragment_string} query get#{type.pluralize}($query: String, $first: Int!) { #{query_name_value}(query: $query, first: $first) { nodes { ...#{fragment_name_value} } } }"
       else
         "#{fragment_string}\nquery get#{type.pluralize}($query: String, $first: Int!) {\n  #{query_name_value}(query: $query, first: $first) {\n    nodes {\n      ...#{fragment_name_value}\n    }\n  }\n}\n"
@@ -72,14 +72,14 @@ module ActiveShopifyGraphQL
 
     # Maps the collection response to an array of attribute hashes
     def map_response(response_data, type)
-      query_name_value = @query_name_proc.call(type).pluralize
+      query_name_value = @record_query.query_name(type).pluralize
       nodes = response_data.dig("data", query_name_value, "nodes")
 
       return [] unless nodes&.any?
 
       nodes.map do |node_data|
         # Create a response structure similar to single record queries
-        single_response = { "data" => { @query_name_proc.call(type) => node_data } }
+        single_response = { "data" => { @record_query.query_name(type) => node_data } }
         @map_response_proc.call(single_response)
       end.compact
     end

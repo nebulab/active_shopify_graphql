@@ -205,7 +205,7 @@ module ActiveShopifyGraphQL
         defined_attributes: defined_attributes,
         model_class: @model_class,
         included_connections: @included_connections,
-        query_name_proc: ->(type) { query_name(type) }
+        record_query: record_query
       )
       attributes = mapper.map_response_from_attributes(response_data)
 
@@ -240,7 +240,7 @@ module ActiveShopifyGraphQL
       collection_query = CollectionQuery.new(
         graphql_type: graphql_type,
         query_builder: record_query,
-        query_name_proc: ->(type) { query_name(type) },
+        record_query: record_query,
         fragment: fragment,
         map_response_proc: ->(response) { map_response_to_attributes(response) },
         client_type: self.class.client_type
@@ -266,7 +266,7 @@ module ActiveShopifyGraphQL
             defined_attributes: defined_attributes,
             model_class: @model_class,
             included_connections: @included_connections,
-            query_name_proc: ->(type) { query_name(type) }
+            record_query: record_query
           )
         }
       )

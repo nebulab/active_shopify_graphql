@@ -109,7 +109,7 @@ RSpec.describe "Nested Includes" do
       defined_attributes: loader.defined_attributes,
       model_class: loader.instance_variable_get(:@model_class),
       included_connections: loader.instance_variable_get(:@included_connections),
-      query_name_proc: ->(type) { loader.query_name(type) }
+      record_query: loader.record_query
     ).extract_connection_data(response_data)
     line_items = connection_data[:line_items]
     expect(line_items.size).to eq(1)
