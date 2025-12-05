@@ -71,15 +71,7 @@ module ActiveShopifyGraphQL
       # Strategy 2: Get the id attribute
       id_value = parent.id
 
-      # Try to parse as a GID first to check if it's already valid
-      begin
-        parsed_gid = URI::GID.parse(id_value)
-        return id_value if parsed_gid # Already a valid GID
-      rescue URI::InvalidURIError, URI::BadURIError, ArgumentError
-        # Not a valid GID, proceed to build one
-      end
-
-      # Strategy 3: Build GID from numeric ID
+      # Strategy 3: Normalize to GID format
       # Get the GraphQL type from the parent's class
       parent_type = if parent.class.respond_to?(:graphql_type_for_loader)
                       parent.class.graphql_type_for_loader(@loader.class)
@@ -89,8 +81,7 @@ module ActiveShopifyGraphQL
                       parent.class.name
                     end
 
-      # Build the GID using URI::GID
-      URI::GID.build(app: 'shopify', model_name: parent_type, model_id: id_value).to_s
+      GidHelper.normalize_gid(id_value, parent_type)
     end
   end
 end

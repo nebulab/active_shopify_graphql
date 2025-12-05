@@ -147,4 +147,106 @@ RSpec.describe "GID handling in nested connections" do
       loader.load_connection_records('orders', { first: 10 }, customer, config)
     end
   end
+
+  describe "FinderMethods#find with GID handling" do
+    let(:mock_client) { double('GraphQLClient') }
+
+    before do
+      allow(ActiveShopifyGraphQL.configuration).to receive(:admin_api_client).and_return(mock_client)
+      allow(ActiveShopifyGraphQL.configuration).to receive(:log_queries).and_return(false)
+    end
+
+    it "accepts numeric ID and builds GID" do
+      expect(mock_client).to receive(:execute) do |_query, **variables|
+        expect(variables[:id]).to eq('gid://shopify/Customer/123')
+        { "data" => { "customer" => { "id" => "gid://shopify/Customer/123", "email" => "test@example.com" } } }
+      end
+
+      customer = @customer_class.find(123)
+      expect(customer).not_to be_nil
+      expect(customer.id).to eq("gid://shopify/Customer/123")
+    end
+
+    it "accepts string numeric ID and builds GID" do
+      expect(mock_client).to receive(:execute) do |_query, **variables|
+        expect(variables[:id]).to eq('gid://shopify/Customer/456')
+        { "data" => { "customer" => { "id" => "gid://shopify/Customer/456", "email" => "test@example.com" } } }
+      end
+
+      customer = @customer_class.find("456")
+      expect(customer).not_to be_nil
+      expect(customer.id).to eq("gid://shopify/Customer/456")
+    end
+
+    it "accepts existing GID and uses it as-is" do
+      expect(mock_client).to receive(:execute) do |_query, **variables|
+        expect(variables[:id]).to eq('gid://shopify/Customer/789')
+        { "data" => { "customer" => { "id" => "gid://shopify/Customer/789", "email" => "test@example.com" } } }
+      end
+
+      customer = @customer_class.find("gid://shopify/Customer/789")
+      expect(customer).not_to be_nil
+      expect(customer.id).to eq("gid://shopify/Customer/789")
+    end
+
+    it "handles invalid GID string by building new GID" do
+      expect(mock_client).to receive(:execute) do |_query, **variables|
+        expect(variables[:id]).to eq('gid://shopify/Customer/not-a-gid')
+        { "data" => { "customer" => { "id" => "gid://shopify/Customer/not-a-gid", "email" => "test@example.com" } } }
+      end
+
+      customer = @customer_class.find("not-a-gid")
+      expect(customer).not_to be_nil
+    end
+  end
+
+  describe "LoaderSwitchable with GID handling" do
+    let(:mock_client) { double('GraphQLClient') }
+
+    before do
+      allow(ActiveShopifyGraphQL.configuration).to receive(:admin_api_client).and_return(mock_client)
+      allow(ActiveShopifyGraphQL.configuration).to receive(:log_queries).and_return(false)
+    end
+
+    it "accepts numeric ID and builds GID" do
+      loader = ActiveShopifyGraphQL::AdminApiLoader.new(@customer_class)
+      proxy = ActiveShopifyGraphQL::LoaderSwitchable::LoaderProxy.new(@customer_class, loader)
+
+      expect(mock_client).to receive(:execute) do |_query, **variables|
+        expect(variables[:id]).to eq('gid://shopify/Customer/123')
+        { "data" => { "customer" => { "id" => "gid://shopify/Customer/123", "email" => "test@example.com" } } }
+      end
+
+      customer = proxy.find(123)
+      expect(customer).not_to be_nil
+      expect(customer.id).to eq("gid://shopify/Customer/123")
+    end
+
+    it "accepts existing GID and uses it as-is" do
+      loader = ActiveShopifyGraphQL::AdminApiLoader.new(@customer_class)
+      proxy = ActiveShopifyGraphQL::LoaderSwitchable::LoaderProxy.new(@customer_class, loader)
+
+      expect(mock_client).to receive(:execute) do |_query, **variables|
+        expect(variables[:id]).to eq('gid://shopify/Customer/789')
+        { "data" => { "customer" => { "id" => "gid://shopify/Customer/789", "email" => "test@example.com" } } }
+      end
+
+      customer = proxy.find("gid://shopify/Customer/789")
+      expect(customer).not_to be_nil
+      expect(customer.id).to eq("gid://shopify/Customer/789")
+    end
+
+    it "handles invalid GID string by building new GID" do
+      loader = ActiveShopifyGraphQL::AdminApiLoader.new(@customer_class)
+      proxy = ActiveShopifyGraphQL::LoaderSwitchable::LoaderProxy.new(@customer_class, loader)
+
+      expect(mock_client).to receive(:execute) do |_query, **variables|
+        expect(variables[:id]).to eq('gid://shopify/Customer/not-a-gid')
+        { "data" => { "customer" => { "id" => "gid://shopify/Customer/not-a-gid", "email" => "test@example.com" } } }
+      end
+
+      customer = proxy.find("not-a-gid")
+      expect(customer).not_to be_nil
+    end
+  end
 end

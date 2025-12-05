@@ -10,7 +10,7 @@ module ActiveShopifyGraphQL
       # @param loader [ActiveShopifyGraphQL::Loader] The loader to use for fetching data
       # @return [Object, nil] The model instance or nil if not found
       def find(id, loader: default_loader)
-        gid = URI::GID.build(app: "shopify", model_name: model_name.name.demodulize, model_id: id)
+        gid = GidHelper.normalize_gid(id, model_name.name.demodulize)
         model_type = name.demodulize
         attributes = loader.load_attributes(model_type, gid)
 
