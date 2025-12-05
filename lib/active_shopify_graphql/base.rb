@@ -31,7 +31,11 @@ module ActiveShopifyGraphQL
 
       # Get GraphQL type for a specific loader
       def graphql_type_for_loader(loader_class)
-        @loader_graphql_types&.dig(loader_class) || @base_graphql_type || loader_class.instance_variable_get(:@graphql_type) || raise(NotImplementedError, "#{self} must define graphql_type or #{loader_class} must define graphql_type")
+        @loader_graphql_types&.dig(loader_class) ||
+          @base_graphql_type ||
+          loader_class.instance_variable_get(:@graphql_type) ||
+          (respond_to?(:name) && name ? name.demodulize : nil) ||
+          raise(NotImplementedError, "#{self} must define graphql_type or #{loader_class} must define graphql_type")
       end
 
       # @param name [Symbol] The Ruby attribute name

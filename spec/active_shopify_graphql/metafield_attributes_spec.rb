@@ -4,6 +4,28 @@ require 'spec_helper'
 require 'json'
 
 RSpec.describe "Metafield attribute functionality" do
+  let(:mock_client) { double("GraphQLClient") }
+  let(:mock_response) do
+    {
+      "data" => {
+        "product" => {
+          "id" => "gid://shopify/Product/123",
+          "title" => "Test Product",
+          "boxes_availableMetafield" => { "value" => "10" },
+          "boxes_sentMetafield" => { "jsonValue" => { "count" => 5, "dates" => ["2024-01-01"] } },
+          "descriptionMetafield" => { "value" => "SEO description" },
+          "is_featuredMetafield" => { "value" => "true" }
+        }
+      }
+    }
+  end
+
+  before do
+    ActiveShopifyGraphQL.configure do |config|
+      config.admin_api_client = mock_client
+    end
+  end
+
   let(:test_loader_class) do
     Class.new(ActiveShopifyGraphQL::Loader) do
       graphql_type "Product"
@@ -17,21 +39,6 @@ RSpec.describe "Metafield attribute functionality" do
       metafield_attribute :boxes_sent, namespace: 'custom', key: 'sent_boxes', type: :json
       metafield_attribute :description, namespace: 'seo', key: 'meta_description', type: :string
       metafield_attribute :is_featured, namespace: 'custom', key: 'featured', type: :boolean, null: false
-
-      def execute_graphql_query(_query, **_variables)
-        {
-          "data" => {
-            "product" => {
-              "id" => "gid://shopify/Product/123",
-              "title" => "Test Product",
-              "boxes_availableMetafield" => { "value" => "10" },
-              "boxes_sentMetafield" => { "jsonValue" => { "count" => 5, "dates" => ["2024-01-01"] } },
-              "descriptionMetafield" => { "value" => "SEO description" },
-              "is_featuredMetafield" => { "value" => "true" }
-            }
-          }
-        }
-      end
     end
   end
 
@@ -102,9 +109,8 @@ RSpec.describe "Metafield attribute functionality" do
   describe "#map_response_to_attributes" do
     it "correctly maps metafield responses to attributes" do
       loader = test_loader_class.new
-      response = loader.send(:execute_graphql_query, "", id: "test")
 
-      attributes = loader.map_response_to_attributes(response)
+      attributes = loader.map_response_to_attributes(mock_response)
 
       expect(attributes[:id]).to eq("gid://shopify/Product/123")
       expect(attributes[:title]).to eq("Test Product")
@@ -160,6 +166,8 @@ RSpec.describe "Metafield attribute functionality" do
 
   describe "#load_attributes integration" do
     it "successfully loads and maps metafield attributes" do
+      allow(mock_client).to receive(:execute).and_return(mock_response)
+
       loader = test_loader_class.new
       attributes = loader.load_attributes("test-id")
 
@@ -181,17 +189,17 @@ RSpec.describe "Metafield attribute functionality" do
 
         metafield_attribute :tags, namespace: 'custom', key: 'tags', type: :json,
                                    transform: ->(tags_array) { tags_array.map(&:upcase) }
+      end
 
-        def execute_graphql_query(_query, **_variables)
-          {
-            "data" => {
-              "product" => {
-                "tagsMetafield" => { "jsonValue" => %w[tag1 tag2] }
-              }
+      allow(mock_client).to receive(:execute).and_return(
+        {
+          "data" => {
+            "product" => {
+              "tagsMetafield" => { "jsonValue" => %w[tag1 tag2] }
             }
           }
-        end
-      end
+        }
+      )
 
       loader = transform_loader.new
       attributes = loader.load_attributes("test-id")
@@ -211,19 +219,19 @@ RSpec.describe "Metafield attribute functionality" do
 
         metafield_attribute :missing_integer, namespace: 'custom', key: 'missing_int', type: :integer,
                                               default: 42
+      end
 
-        def execute_graphql_query(_query, **_variables)
-          {
-            "data" => {
-              "product" => {
-                "missing_stringMetafield" => nil,
-                "missing_jsonMetafield" => nil,
-                "missing_integerMetafield" => nil
-              }
+      allow(mock_client).to receive(:execute).and_return(
+        {
+          "data" => {
+            "product" => {
+              "missing_stringMetafield" => nil,
+              "missing_jsonMetafield" => nil,
+              "missing_integerMetafield" => nil
             }
           }
-        end
-      end
+        }
+      )
 
       loader = default_loader.new
       attributes = loader.load_attributes("test-id")
@@ -242,18 +250,18 @@ RSpec.describe "Metafield attribute functionality" do
 
         metafield_attribute :missing_json, namespace: 'custom', key: 'json', type: :json,
                                            transform: ->(value) { value.nil? ? { "transform" => true } : value }
+      end
 
-        def execute_graphql_query(_query, **_variables)
-          {
-            "data" => {
-              "product" => {
-                "missing_stringMetafield" => nil,
-                "missing_jsonMetafield" => nil
-              }
+      allow(mock_client).to receive(:execute).and_return(
+        {
+          "data" => {
+            "product" => {
+              "missing_stringMetafield" => nil,
+              "missing_jsonMetafield" => nil
             }
           }
-        end
-      end
+        }
+      )
 
       loader = transform_loader.new
       attributes = loader.load_attributes("test-id")
@@ -282,18 +290,18 @@ RSpec.describe "Metafield attribute functionality" do
                                                call_count += 1
                                                "transform_called"
                                              }
+      end
 
-        def execute_graphql_query(_query, **_variables)
-          {
-            "data" => {
-              "product" => {
-                "with_defaultMetafield" => nil,
-                "with_transformMetafield" => nil
-              }
+      allow(mock_client).to receive(:execute).and_return(
+        {
+          "data" => {
+            "product" => {
+              "with_defaultMetafield" => nil,
+              "with_transformMetafield" => nil
             }
           }
-        end
-      end
+        }
+      )
 
       loader = mixed_loader.new
       attributes = loader.load_attributes("test-id")

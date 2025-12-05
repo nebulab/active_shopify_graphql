@@ -57,17 +57,18 @@ RSpec.describe "GID handling in nested connections" do
 
   describe "extract_gid_from_parent" do
     let(:loader) { ActiveShopifyGraphQL::AdminApiLoader.new(@order_class) }
+    let(:connection_loader) { ActiveShopifyGraphQL::ConnectionLoader.new(loader) }
 
     it "returns GID as-is when parent has full GID" do
       customer = @customer_class.new(id: 'gid://shopify/Customer/123')
-      gid = loader.send(:extract_gid_from_parent, customer)
+      gid = connection_loader.send(:extract_gid, customer)
 
       expect(gid).to eq('gid://shopify/Customer/123')
     end
 
     it "reconstructs GID from numeric ID" do
       customer = @customer_class.new(id: '7285147926827')
-      gid = loader.send(:extract_gid_from_parent, customer)
+      gid = connection_loader.send(:extract_gid, customer)
 
       expect(gid).to eq('gid://shopify/Customer/7285147926827')
     end
@@ -76,14 +77,14 @@ RSpec.describe "GID handling in nested connections" do
       customer = @customer_class.new(id: '123')
       allow(customer).to receive(:gid).and_return('gid://shopify/Customer/999')
 
-      gid = loader.send(:extract_gid_from_parent, customer)
+      gid = connection_loader.send(:extract_gid, customer)
 
       expect(gid).to eq('gid://shopify/Customer/999')
     end
 
     it "handles integer IDs" do
       customer = @customer_class.new(id: 7_285_147_926_827)
-      gid = loader.send(:extract_gid_from_parent, customer)
+      gid = connection_loader.send(:extract_gid, customer)
 
       expect(gid).to eq('gid://shopify/Customer/7285147926827')
     end

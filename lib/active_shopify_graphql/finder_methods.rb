@@ -110,8 +110,10 @@ module ActiveShopifyGraphQL
         loader = final_options[:loader] || default_loader
         limit = final_options[:limit] || 250
 
-        model_type = name.demodulize
-        attributes_array = loader.load_collection(model_type, conditions, limit: limit)
+        # Ensure loader has model class set - needed for graphql_type inference
+        loader.instance_variable_set(:@model_class, self) if loader.instance_variable_get(:@model_class).nil?
+
+        attributes_array = loader.load_collection(conditions, limit: limit)
 
         attributes_array.map { |attributes| new(attributes) }
       end

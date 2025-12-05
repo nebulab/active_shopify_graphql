@@ -3,6 +3,14 @@
 require 'spec_helper'
 
 RSpec.describe ActiveShopifyGraphQL::Loader do
+  let(:mock_client) { double("GraphQLClient") }
+
+  before do
+    ActiveShopifyGraphQL.configure do |config|
+      config.admin_api_client = mock_client
+    end
+  end
+
   describe '.graphql_type and .fragment' do
     let(:test_loader_class) do
       Class.new(described_class) do
@@ -14,12 +22,6 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
 
         def map_response_to_attributes(response_data)
           { id: response_data.dig("data", "testmodel", "id") }
-        end
-
-        private
-
-        def execute_graphql_query(_query, **variables)
-          { "data" => { "testmodel" => { "id" => variables[:id] } } }
         end
       end
     end
@@ -76,6 +78,10 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
     end
 
     it 'loads attributes using graphql_type' do
+      allow(mock_client).to receive(:execute).and_return(
+        { "data" => { "testmodel" => { "id" => "test-id" } } }
+      )
+
       loader = test_loader_class.new
       result = loader.load_attributes("test-id")
 
@@ -84,6 +90,10 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
 
     context 'backwards compatibility' do
       it 'still accepts model_type parameter in load_attributes' do
+        allow(mock_client).to receive(:execute).and_return(
+          { "data" => { "testmodel" => { "id" => "test-id" } } }
+        )
+
         loader = test_loader_class.new
         result = loader.load_attributes("CustomType", "test-id")
 
