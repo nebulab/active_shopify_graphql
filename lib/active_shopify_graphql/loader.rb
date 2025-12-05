@@ -203,12 +203,29 @@ module ActiveShopifyGraphQL
 
     # Returns the complete GraphQL fragment built from class-level fragment fields
     def fragment
-      Fragment.new(self).to_s
+      Fragment.new(
+        graphql_type: graphql_type,
+        loader_class: self.class,
+        defined_attributes: defined_attributes,
+        model_class: @model_class,
+        included_connections: @included_connections,
+        fragment_name_proc: ->(type) { fragment_name(type) },
+        fallback_fragment_proc: -> { self.class.fragment }
+      ).to_s
     end
 
     # Get or create a Query instance for this loader
     def query_builder
-      @query_builder ||= Query.new(self)
+      @query_builder ||= Query.new(
+        graphql_type: graphql_type,
+        loader_class: self.class,
+        defined_attributes: defined_attributes,
+        model_class: @model_class,
+        included_connections: @included_connections,
+        fragment_generator: -> { fragment },
+        fragment_name_proc: ->(type) { fragment_name(type) },
+        fallback_fragment_proc: -> { self.class.fragment }
+      )
     end
 
     # Delegate query building methods to Query class
@@ -230,7 +247,14 @@ module ActiveShopifyGraphQL
       attrs = defined_attributes
       raise NotImplementedError, "#{self.class} must implement map_response_to_attributes" unless attrs.any?
 
-      mapper = ResponseMapper.new(self)
+      mapper = ResponseMapper.new(
+        graphql_type: graphql_type,
+        loader_class: self.class,
+        defined_attributes: defined_attributes,
+        model_class: @model_class,
+        included_connections: @included_connections,
+        query_name_proc: ->(type) { query_name(type) }
+      )
       attributes = mapper.map_response_from_attributes(response_data)
 
       # If we have included connections, extract and cache them
@@ -259,7 +283,7 @@ module ActiveShopifyGraphQL
       query = graphql_query(type)
       variables = { id: actual_id }
 
-      executor = Executor.new(self)
+      executor = Executor.new(self.class.client_type)
       response_data = executor.execute(query, **variables)
 
       return nil if response_data.nil?
@@ -285,7 +309,13 @@ module ActiveShopifyGraphQL
         actual_limit = conditions_or_limit.is_a?(Integer) ? conditions_or_limit : limit
       end
 
-      collection_query = CollectionQuery.new(self)
+      collection_query = CollectionQuery.new(
+        graphql_type: graphql_type,
+        query_builder: query_builder,
+        query_name_proc: ->(type) { query_name(type) },
+        map_response_proc: ->(response) { map_response_to_attributes(response) },
+        client_type: self.class.client_type
+      )
       collection_query.execute(conditions, limit: actual_limit)
     end
 
@@ -323,7 +353,21 @@ module ActiveShopifyGraphQL
     # @param connection_config [Hash] The connection configuration (optional, used to determine if nested)
     # @return [Array<Object>] Array of model instances
     def load_connection_records(query_name, variables, parent = nil, connection_config = nil)
-      connection_loader = ConnectionLoader.new(self)
+      connection_loader = ConnectionLoader.new(
+        query_builder: query_builder,
+        loader_class: self.class,
+        client_type: self.class.client_type,
+        response_mapper_factory: lambda {
+          ResponseMapper.new(
+            graphql_type: graphql_type,
+            loader_class: self.class,
+            defined_attributes: defined_attributes,
+            model_class: @model_class,
+            included_connections: @included_connections,
+            query_name_proc: ->(type) { query_name(type) }
+          )
+        }
+      )
       connection_loader.load_records(query_name, variables, parent, connection_config)
     end
   end

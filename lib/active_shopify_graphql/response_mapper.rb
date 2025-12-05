@@ -3,19 +3,25 @@
 module ActiveShopifyGraphQL
   # Handles mapping GraphQL responses to model attributes
   class ResponseMapper
-    def initialize(loader)
-      @loader = loader
+    attr_reader :graphql_type, :loader_class, :defined_attributes, :model_class, :included_connections
+
+    def initialize(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:, query_name_proc:)
+      @graphql_type = graphql_type
+      @loader_class = loader_class
+      @defined_attributes = defined_attributes
+      @model_class = model_class
+      @included_connections = included_connections
+      @query_name_proc = query_name_proc
     end
 
     # Map GraphQL response to attributes using declared attribute metadata
     def map_response_from_attributes(response_data)
-      type = @loader.graphql_type
-      query_name_value = @loader.query_name(type)
+      query_name_value = @query_name_proc.call(@graphql_type)
       root_data = response_data.dig("data", query_name_value)
       return {} unless root_data
 
       result = {}
-      @loader.defined_attributes.each do |attr_name, config|
+      @defined_attributes.each do |attr_name, config|
         path = config[:path]
         path_parts = path.split('.')
 
@@ -78,10 +84,9 @@ module ActiveShopifyGraphQL
 
     # Extract connection data from GraphQL response for eager loading
     def extract_connection_data(response_data)
-      return {} if @loader.instance_variable_get(:@included_connections).empty? || !@loader.instance_variable_get(:@model_class).respond_to?(:connections)
+      return {} if @included_connections.empty? || !@model_class.respond_to?(:connections)
 
-      type = @loader.graphql_type
-      query_name_value = @loader.query_name(type)
+      query_name_value = @query_name_proc.call(@graphql_type)
       root_data = response_data.dig("data", query_name_value)
       return {} unless root_data
 
@@ -89,11 +94,21 @@ module ActiveShopifyGraphQL
     end
 
     def extract_connection_data_from_node(node_data)
-      return {} if @loader.instance_variable_get(:@included_connections).empty? || !@loader.instance_variable_get(:@model_class).respond_to?(:connections)
+      return {} if @included_connections.empty? || !@model_class.respond_to?(:connections)
 
       connection_cache = {}
-      connections = @loader.instance_variable_get(:@model_class).connections
-      normalized_includes = Fragment.new(@loader).normalize_includes(@loader.instance_variable_get(:@included_connections))
+      connections = @model_class.connections
+      # We just need Fragment for normalize_includes - create it directly
+      fragment = Fragment.new(
+        graphql_type: @graphql_type,
+        loader_class: @loader_class,
+        defined_attributes: @defined_attributes,
+        model_class: @model_class,
+        included_connections: @included_connections,
+        fragment_name_proc: @query_name_proc,
+        fallback_fragment_proc: nil
+      )
+      normalized_includes = fragment.normalize_includes(@included_connections)
 
       normalized_includes.each do |connection_name, nested_includes|
         connection_config = connections[connection_name]
@@ -128,7 +143,7 @@ module ActiveShopifyGraphQL
 
     # Map nested connection response to model attributes
     def map_nested_connection_response_to_attributes(response_data, connection_field_name, parent, connection_config = nil)
-      parent_type = parent.class.graphql_type_for_loader(@loader.class)
+      parent_type = parent.class.graphql_type_for_loader(@loader_class)
       parent_query_name = parent_type.downcase
 
       connection_type = connection_config&.dig(:type) || :connection
@@ -178,7 +193,7 @@ module ActiveShopifyGraphQL
     def build_model_instance_from_node(node_data_item, target_class, nested_includes)
       attributes = {}
       if target_class.respond_to?(:attributes_for_loader)
-        target_attributes = target_class.attributes_for_loader(@loader.class)
+        target_attributes = target_class.attributes_for_loader(@loader_class)
         target_attributes.each do |attr_name, config|
           path = config[:path]
           path_parts = path.split('.')
@@ -196,8 +211,17 @@ module ActiveShopifyGraphQL
 
       # Handle nested connections
       if nested_includes.any?
-        target_loader = @loader.class.new(target_class, included_connections: nested_includes)
-        nested_data = ResponseMapper.new(target_loader).extract_connection_data_from_node(node_data_item)
+        # Create a new loader to get the necessary data
+        target_loader = @loader_class.new(target_class, included_connections: nested_includes)
+        nested_mapper = ResponseMapper.new(
+          graphql_type: target_loader.graphql_type,
+          loader_class: @loader_class,
+          defined_attributes: target_loader.defined_attributes,
+          model_class: target_class,
+          included_connections: nested_includes,
+          query_name_proc: ->(type) { target_loader.query_name(type) }
+        )
+        nested_data = nested_mapper.extract_connection_data_from_node(node_data_item)
 
         nested_data.each do |nested_name, nested_records|
           instance.send("#{nested_name}=", nested_records)
@@ -209,12 +233,12 @@ module ActiveShopifyGraphQL
 
     def build_model_instance_from_attributes(node_data)
       attributes = {}
-      @loader.defined_attributes.each do |attr_name, config|
+      @defined_attributes.each do |attr_name, config|
         value = extract_value_from_response(node_data, config[:path])
         attributes[attr_name] = transform_attribute_value(value, config, attr_name)
       end
 
-      @loader.instance_variable_get(:@model_class).new(attributes)
+      @model_class.new(attributes)
     end
 
     def extract_value_from_response(data, path)

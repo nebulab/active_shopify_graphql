@@ -105,9 +105,18 @@ RSpec.describe 'Automatic array support' do
   end
 
   describe 'type coercion with arrays' do
-    it 'preserves arrays even when type coercion is specified' do
-      mapper = ActiveShopifyGraphQL::ResponseMapper.new(loader)
+    let(:mapper) do
+      ActiveShopifyGraphQL::ResponseMapper.new(
+        graphql_type: loader.graphql_type,
+        loader_class: loader.class,
+        defined_attributes: loader.defined_attributes,
+        model_class: loader.instance_variable_get(:@model_class),
+        included_connections: loader.instance_variable_get(:@included_connections),
+        query_name_proc: ->(type) { loader.query_name(type) }
+      )
+    end
 
+    it 'preserves arrays even when type coercion is specified' do
       # Test string type coercer with array input
       expect(mapper.coerce_value(%w[a b c], :string, :test, 'test')).to eq(%w[a b c])
 
@@ -119,23 +128,17 @@ RSpec.describe 'Automatic array support' do
     end
 
     it 'still performs type coercion for non-array values' do
-      mapper = ActiveShopifyGraphQL::ResponseMapper.new(loader)
-
       expect(mapper.coerce_value('42', :integer, :test, 'test')).to eq(42)
       expect(mapper.coerce_value('true', :boolean, :test, 'test')).to eq(true)
       expect(mapper.coerce_value(42, :string, :test, 'test')).to eq('42')
     end
 
     it 'handles nil values correctly' do
-      mapper = ActiveShopifyGraphQL::ResponseMapper.new(loader)
-
       expect(mapper.coerce_value(nil, :string, :test, 'test')).to be_nil
       expect(mapper.coerce_value(nil, :integer, :test, 'test')).to be_nil
     end
 
     it 'handles empty arrays' do
-      mapper = ActiveShopifyGraphQL::ResponseMapper.new(loader)
-
       expect(mapper.coerce_value([], :string, :test, 'test')).to eq([])
       expect(mapper.coerce_value([], :integer, :test, 'test')).to eq([])
     end

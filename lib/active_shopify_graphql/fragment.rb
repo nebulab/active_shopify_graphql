@@ -3,16 +3,22 @@
 module ActiveShopifyGraphQL
   # Represents a GraphQL fragment for a model with its fields and connections
   class Fragment # rubocop:disable Metrics/ClassLength
-    attr_reader :loader
+    attr_reader :graphql_type, :loader_class, :defined_attributes, :model_class, :included_connections
 
-    def initialize(loader)
-      @loader = loader
+    def initialize(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:, fragment_name_proc:, fallback_fragment_proc: nil)
+      @graphql_type = graphql_type
+      @loader_class = loader_class
+      @defined_attributes = defined_attributes
+      @model_class = model_class
+      @included_connections = included_connections
+      @fragment_name_proc = fragment_name_proc
+      @has_fallback = @defined_attributes.empty? && fallback_fragment_proc
+      @fallback_fragment_proc = fallback_fragment_proc
     end
 
     # Returns the complete GraphQL fragment string
     def to_s
-      type = loader.graphql_type
-      fragment_name_value = loader.fragment_name(type)
+      fragment_name_value = @fragment_name_proc.call(@graphql_type)
 
       compact = ActiveShopifyGraphQL.configuration.compact_queries
       separator = compact ? " " : "\n"
@@ -20,28 +26,30 @@ module ActiveShopifyGraphQL
       all_fields = [fields.strip, connection_fields].reject(&:empty?).join(separator)
 
       if compact
-        "fragment #{fragment_name_value} on #{type} { #{all_fields} }"
+        "fragment #{fragment_name_value} on #{@graphql_type} { #{all_fields} }"
       else
-        "fragment #{fragment_name_value} on #{type} {\n#{all_fields}\n}"
+        "fragment #{fragment_name_value} on #{@graphql_type} {\n#{all_fields}\n}"
       end
     end
 
     # Returns the fragment fields (attributes and metafields) as GraphQL string
     def fields
       # Use attributes-based fragment if attributes are defined, otherwise fall back to manual fragment
-      if loader.defined_attributes.any?
+      if @defined_attributes.any?
         fields_from_attributes
+      elsif @has_fallback
+        @fallback_fragment_proc.call
       else
-        loader.class.fragment
+        raise NotImplementedError, "#{@loader_class} must define fragment or attributes"
       end
     end
 
     # Returns the connection fields as GraphQL string
     def connection_fields
-      return "" if loader.instance_variable_get(:@included_connections).empty? || !loader.instance_variable_get(:@model_class).respond_to?(:connections)
+      return "" if @included_connections.empty? || !@model_class.respond_to?(:connections)
 
-      connections = loader.instance_variable_get(:@model_class).connections
-      normalized_includes = normalize_includes(loader.instance_variable_get(:@included_connections))
+      connections = @model_class.connections
+      normalized_includes = normalize_includes(@included_connections)
 
       normalized_includes.map do |connection_name, nested_includes|
         connection_config = connections[connection_name]
@@ -51,9 +59,17 @@ module ActiveShopifyGraphQL
         target_class = connection_config[:class_name].constantize
 
         # Create a loader for the target model to get its fragment fields
-        target_loader = loader.class.new(target_class, included_connections: nested_includes)
-        target_fragment = Fragment.new(target_loader)
-        target_fragment_fields = if target_class.respond_to?(:attributes_for_loader) && target_class.attributes_for_loader(loader.class).any?
+        target_loader = @loader_class.new(target_class, included_connections: nested_includes)
+        target_fragment = Fragment.new(
+          graphql_type: target_loader.graphql_type,
+          loader_class: target_loader.class,
+          defined_attributes: target_loader.defined_attributes,
+          model_class: target_loader.instance_variable_get(:@model_class),
+          included_connections: target_loader.instance_variable_get(:@included_connections),
+          fragment_name_proc: ->(type) { target_loader.fragment_name(type) },
+          fallback_fragment_proc: -> { target_loader.class.fragment }
+        )
+        target_fragment_fields = if target_class.respond_to?(:attributes_for_loader) && target_class.attributes_for_loader(@loader_class).any?
                                    target_fragment.fields_from_attributes
                                  else
                                    # Fall back to basic fields if no attributes defined
@@ -131,7 +147,7 @@ module ActiveShopifyGraphQL
       metafield_aliases = {}
 
       # Build a tree structure for nested paths
-      loader.defined_attributes.each_value do |config|
+      @defined_attributes.each_value do |config|
         if config[:is_metafield]
           # Handle metafield attributes specially
           alias_name = config[:metafield_alias]

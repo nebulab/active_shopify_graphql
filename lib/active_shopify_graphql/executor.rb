@@ -3,10 +3,10 @@
 module ActiveShopifyGraphQL
   # Handles GraphQL query execution for different client types
   class Executor
-    attr_reader :loader
+    attr_reader :client_type
 
-    def initialize(loader)
-      @loader = loader
+    def initialize(client_type)
+      @client_type = client_type
     end
 
     # Executes a GraphQL query with optional logging
@@ -37,13 +37,13 @@ module ActiveShopifyGraphQL
     # @param variables [Hash] The query variables
     # @return [Hash] The GraphQL response data
     def perform_query(query, **variables)
-      case @loader.class.client_type
+      case @client_type
       when :admin_api
         execute_admin_api_query(query, **variables)
       when :customer_account_api
         execute_customer_account_api_query(query, **variables)
       else
-        raise ArgumentError, "Unknown client type: #{@loader.class.client_type}"
+        raise ArgumentError, "Unknown client type: #{@client_type}"
       end
     end
 

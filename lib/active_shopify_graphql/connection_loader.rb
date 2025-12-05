@@ -5,10 +5,13 @@ require 'global_id'
 module ActiveShopifyGraphQL
   # Handles loading records for connections (associations)
   class ConnectionLoader
-    attr_reader :loader
+    attr_reader :query_builder, :loader_class
 
-    def initialize(loader)
-      @loader = loader
+    def initialize(query_builder:, loader_class:, client_type:, response_mapper_factory:)
+      @query_builder = query_builder
+      @loader_class = loader_class
+      @client_type = client_type
+      @response_mapper_factory = response_mapper_factory
     end
 
     # Load records for a connection query
@@ -32,32 +35,32 @@ module ActiveShopifyGraphQL
 
     # Load records for a nested connection (field on parent object)
     def load_nested_connection(query_name, variables, parent, connection_config)
-      query = @loader.query_builder.nested_connection_graphql_query(query_name, variables, parent, connection_config)
+      query = @query_builder.nested_connection_graphql_query(query_name, variables, parent, connection_config)
       # Only the parent ID is passed as a variable for nested connections
       # Ensure we use the full GID format
       parent_id = extract_gid(parent)
       query_variables = { id: parent_id }
 
-      executor = Executor.new(@loader)
+      executor = Executor.new(@client_type)
       response_data = executor.execute(query, **query_variables)
 
       return [] if response_data.nil?
 
-      ResponseMapper.new(@loader).map_nested_connection_response_to_attributes(response_data, query_name, parent, connection_config)
+      @response_mapper_factory.call.map_nested_connection_response_to_attributes(response_data, query_name, parent, connection_config)
     end
 
     # Load records for a root-level connection
     def load_root_connection(query_name, variables, connection_config)
-      query = @loader.query_builder.connection_graphql_query(query_name, variables, connection_config)
+      query = @query_builder.connection_graphql_query(query_name, variables, connection_config)
       # No variables needed for root-level connections - all args are inline
       query_variables = {}
 
-      executor = Executor.new(@loader)
+      executor = Executor.new(@client_type)
       response_data = executor.execute(query, **query_variables)
 
       return [] if response_data.nil?
 
-      ResponseMapper.new(@loader).map_connection_response_to_attributes(response_data, query_name, connection_config)
+      @response_mapper_factory.call.map_connection_response_to_attributes(response_data, query_name, connection_config)
     end
 
     # Extract GraphQL Global ID (GID) from parent object using GlobalID library
@@ -74,7 +77,7 @@ module ActiveShopifyGraphQL
       # Strategy 3: Normalize to GID format
       # Get the GraphQL type from the parent's class
       parent_type = if parent.class.respond_to?(:graphql_type_for_loader)
-                      parent.class.graphql_type_for_loader(@loader.class)
+                      parent.class.graphql_type_for_loader(@loader_class)
                     elsif parent.class.respond_to?(:graphql_type)
                       parent.class.graphql_type
                     else

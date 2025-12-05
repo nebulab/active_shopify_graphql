@@ -57,7 +57,23 @@ RSpec.describe "GID handling in nested connections" do
 
   describe "extract_gid_from_parent" do
     let(:loader) { ActiveShopifyGraphQL::AdminApiLoader.new(@order_class) }
-    let(:connection_loader) { ActiveShopifyGraphQL::ConnectionLoader.new(loader) }
+    let(:connection_loader) do
+      ActiveShopifyGraphQL::ConnectionLoader.new(
+        query_builder: loader.query_builder,
+        loader_class: loader.class,
+        client_type: loader.class.client_type,
+        response_mapper_factory: lambda do
+          ActiveShopifyGraphQL::ResponseMapper.new(
+            graphql_type: loader.graphql_type,
+            loader_class: loader.class,
+            defined_attributes: loader.defined_attributes,
+            model_class: loader.instance_variable_get(:@model_class),
+            included_connections: loader.instance_variable_get(:@included_connections),
+            query_name_proc: ->(type) { loader.query_name(type) }
+          )
+        end
+      )
+    end
 
     it "returns GID as-is when parent has full GID" do
       customer = @customer_class.new(id: 'gid://shopify/Customer/123')
