@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 require 'active_model/type'
+require 'global_id'
+require_relative 'fragment_builder'
+require_relative 'response_mapper'
 
 module ActiveShopifyGraphQL
   class Loader # rubocop:disable Metrics/ClassLength
@@ -147,9 +150,10 @@ module ActiveShopifyGraphQL
     end
 
     # Initialize loader with optional model class and selected attributes
-    def initialize(model_class = nil, selected_attributes: nil, **)
+    def initialize(model_class = nil, selected_attributes: nil, included_connections: nil, **)
       @model_class = model_class || self.class.model_class
       @selected_attributes = selected_attributes&.map(&:to_sym)
+      @included_connections = included_connections || []
     end
 
     # Get GraphQL type for this loader instance
@@ -192,7 +196,7 @@ module ActiveShopifyGraphQL
 
     # Returns the complete GraphQL fragment built from class-level fragment fields
     def fragment
-      build_fragment_from_fields
+      FragmentBuilder.new(self).build_fragment_from_fields
     end
 
     # Override this to define the query name (can accept model_type for customization)
@@ -213,14 +217,18 @@ module ActiveShopifyGraphQL
       query_name_value = query_name(type)
       fragment_name_value = fragment_name(type)
 
-      <<~GRAPHQL
-        #{fragment}
-        query get#{type}($id: ID!) {
-          #{query_name_value}(id: $id) {
-            ...#{fragment_name_value}
+      if ActiveShopifyGraphQL.configuration.compact_queries
+        "#{fragment} query get#{type}($id: ID!) { #{query_name_value}(id: $id) { ...#{fragment_name_value} } }"
+      else
+        <<~GRAPHQL
+          #{fragment}
+          query get#{type}($id: ID!) {
+            #{query_name_value}(id: $id) {
+              ...#{fragment_name_value}
+            }
           }
-        }
-      GRAPHQL
+        GRAPHQL
+      end
     end
 
     # Override this to map the GraphQL response to model attributes
@@ -229,7 +237,16 @@ module ActiveShopifyGraphQL
       attrs = defined_attributes
       raise NotImplementedError, "#{self.class} must implement map_response_to_attributes" unless attrs.any?
 
-      map_response_from_attributes(response_data)
+      mapper = ResponseMapper.new(self)
+      attributes = mapper.map_response_from_attributes(response_data)
+
+      # If we have included connections, extract and cache them
+      if @included_connections.any? && @model_class.respond_to?(:connections)
+        connection_data = mapper.extract_connection_data(response_data)
+        attributes[:_connection_cache] = connection_data unless connection_data.empty?
+      end
+
+      attributes
     end
 
     # Executes the GraphQL query and returns the mapped attributes hash
@@ -306,16 +323,20 @@ module ActiveShopifyGraphQL
       query_name_value = query_name(type).pluralize
       fragment_name_value = fragment_name(type)
 
-      <<~GRAPHQL
-        #{fragment}
-        query get#{type.pluralize}($query: String, $first: Int!) {
-          #{query_name_value}(query: $query, first: $first) {
-            nodes {
-              ...#{fragment_name_value}
+      if ActiveShopifyGraphQL.configuration.compact_queries
+        "#{fragment} query get#{type.pluralize}($query: String, $first: Int!) { #{query_name_value}(query: $query, first: $first) { nodes { ...#{fragment_name_value} } } }"
+      else
+        <<~GRAPHQL
+          #{fragment}
+          query get#{type.pluralize}($query: String, $first: Int!) {
+            #{query_name_value}(query: $query, first: $first) {
+              nodes {
+                ...#{fragment_name_value}
+              }
             }
           }
-        }
-      GRAPHQL
+        GRAPHQL
+      end
     end
 
     # Override this to map collection GraphQL responses to model attributes
@@ -336,164 +357,84 @@ module ActiveShopifyGraphQL
       end.compact
     end
 
+    # Load records for a connection query
+    # @param query_name [String] The connection field name (e.g., 'orders', 'addresses')
+    # @param variables [Hash] The GraphQL variables (first, sort_key, reverse, query)
+    # @param parent [Object] The parent object that owns this connection
+    # @param connection_config [Hash] The connection configuration (optional, used to determine if nested)
+    # @return [Array<Object>] Array of model instances
+    def load_connection_records(query_name, variables, parent = nil, connection_config = nil)
+      # Determine if this is a nested connection
+      is_nested = connection_config&.dig(:nested) || parent.respond_to?(:id)
+
+      if is_nested && parent
+        query = nested_connection_graphql_query(query_name, variables, parent, connection_config)
+        # Only the parent ID is passed as a variable for nested connections
+        # Ensure we use the full GID format
+        parent_id = extract_gid_from_parent(parent)
+        query_variables = { id: parent_id }
+      else
+        query = connection_graphql_query(query_name, variables, connection_config)
+        # No variables needed for root-level connections - all args are inline
+        query_variables = {}
+      end
+
+      response_data = execute_graphql_query(query, **query_variables)
+
+      return [] if response_data.nil?
+
+      if is_nested && parent
+        ResponseMapper.new(self).map_nested_connection_response_to_attributes(response_data, query_name, parent, connection_config)
+      else
+        ResponseMapper.new(self).map_connection_response_to_attributes(response_data, query_name, connection_config)
+      end
+    end
+
     private
 
-    # Builds the complete fragment from class-level fragment fields or declared attributes
-    def build_fragment_from_fields
-      type = graphql_type
-      fragment_name_value = fragment_name(type)
+    # Extract GraphQL Global ID (GID) from parent object using GlobalID library
+    # Handles both full GIDs and numeric IDs, converting to proper Shopify GID format
+    # @param parent [Object] The parent ActiveShopifyGraphQL model instance
+    # @return [String] The GID in format "gid://shopify/ResourceType/123"
+    def extract_gid_from_parent(parent)
+      # Strategy 1: Check if parent has a dedicated 'gid' attribute
+      return parent.gid if parent.respond_to?(:gid) && !parent.gid.nil?
 
-      # Use attributes-based fragment if attributes are defined, otherwise fall back to manual fragment
-      fragment_fields = if defined_attributes.any?
-                          build_fragment_from_attributes
-                        else
-                          self.class.fragment
-                        end
+      # Strategy 2: Get the id attribute
+      id_value = parent.id
 
-      <<~GRAPHQL
-        fragment #{fragment_name_value} on #{type} {
-          #{fragment_fields.strip}
-        }
-      GRAPHQL
-    end
-
-    # Build GraphQL fragment fields from declared attributes with path merging
-    def build_fragment_from_attributes
-      path_tree = {}
-      metafield_aliases = {}
-
-      # Build a tree structure for nested paths
-      defined_attributes.each_value do |config|
-        if config[:is_metafield]
-          # Handle metafield attributes specially
-          alias_name = config[:metafield_alias]
-          namespace = config[:metafield_namespace]
-          key = config[:metafield_key]
-          value_field = config[:type] == :json ? 'jsonValue' : 'value'
-
-          # Store metafield definition for later insertion
-          metafield_aliases[alias_name] = {
-            namespace: namespace,
-            key: key,
-            value_field: value_field
-          }
-        else
-          # Handle regular attributes
-          path_parts = config[:path].split('.')
-          current_level = path_tree
-
-          path_parts.each_with_index do |part, index|
-            if index == path_parts.length - 1
-              # Leaf node - store as string
-              current_level[part] = true
-            else
-              # Branch node - ensure it's a hash
-              current_level[part] ||= {}
-              current_level = current_level[part]
-            end
-          end
-        end
+      # Try to parse as a GID first to check if it's already valid
+      begin
+        parsed_gid = URI::GID.parse(id_value)
+        return id_value if parsed_gid # Already a valid GID
+      rescue URI::InvalidURIError, URI::BadURIError, ArgumentError
+        # Not a valid GID, proceed to build one
       end
 
-      # Build fragment from regular attributes
-      regular_fields = build_graphql_from_tree(path_tree, 0)
+      # Strategy 3: Build GID from numeric ID
+      # Get the GraphQL type from the parent's class
+      parent_type = if parent.class.respond_to?(:graphql_type_for_loader)
+                      parent.class.graphql_type_for_loader(self.class)
+                    elsif parent.class.respond_to?(:graphql_type)
+                      parent.class.graphql_type
+                    else
+                      parent.class.name
+                    end
 
-      # Build metafield fragments
-      metafield_fragments = metafield_aliases.map do |alias_name, config|
-        "  #{alias_name}: metafield(namespace: \"#{config[:namespace]}\", key: \"#{config[:key]}\") {\n    #{config[:value_field]}\n  }"
-      end
-
-      # Combine regular fields and metafield fragments
-      [regular_fields, metafield_fragments].flatten.compact.reject(&:empty?).join("\n")
-    end
-
-    # Convert path tree to GraphQL syntax with proper indentation
-    def build_graphql_from_tree(tree, indent_level)
-      indent = "  " * indent_level
-
-      tree.map do |key, value|
-        if value == true
-          # Leaf node - simple field
-          "#{indent}#{key}"
-        else
-          # Branch node - nested selection
-          nested_fields = build_graphql_from_tree(value, indent_level + 1)
-          "#{indent}#{key} {\n#{nested_fields}\n#{indent}}"
-        end
-      end.join("\n")
-    end
-
-    # Map GraphQL response to attributes using declared attribute metadata
-    def map_response_from_attributes(response_data)
-      type = graphql_type
-      query_name_value = query_name(type)
-      root_data = response_data.dig("data", query_name_value)
-      return {} unless root_data
-
-      result = {}
-      defined_attributes.each do |attr_name, config|
-        path = config[:path]
-        path_parts = path.split('.')
-
-        # Use dig to safely extract the value
-        value = root_data.dig(*path_parts)
-
-        # Handle nil values with defaults or transforms
-        if value.nil?
-          # Use default value if provided (more efficient than transform for simple defaults)
-          if !config[:default].nil?
-            value = config[:default]
-          elsif config[:transform]
-            # Only call transform if no default is provided
-            value = config[:transform].call(value)
-          end
-        elsif config[:transform]
-          # Apply transform to non-nil values
-          value = config[:transform].call(value)
-        end
-
-        # Validate null constraint after applying defaults/transforms
-        raise ArgumentError, "Attribute '#{attr_name}' (GraphQL path: '#{path}') cannot be null but received nil" if !config[:null] && value.nil?
-
-        # Apply type coercion
-        result[attr_name] = value.nil? ? nil : coerce_value(value, config[:type], attr_name, path)
-      end
-
-      result
-    end
-
-    # Coerce a value to the specified type using ActiveSupport's type system
-    def coerce_value(value, type, attr_name, path)
-      # Automatically preserve arrays regardless of specified type
-      return value if value.is_a?(Array)
-
-      type_caster = get_type_caster(type)
-      type_caster.cast(value)
-    rescue ArgumentError, TypeError => e
-      raise ArgumentError, "Type conversion failed for attribute '#{attr_name}' (GraphQL path: '#{path}') to #{type}: #{e.message}"
-    end
-
-    # Get the appropriate ActiveModel::Type caster for the given type
-    def get_type_caster(type)
-      case type
-      when :string
-        ActiveModel::Type::String.new
-      when :integer
-        ActiveModel::Type::Integer.new
-      when :float
-        ActiveModel::Type::Float.new
-      when :boolean
-        ActiveModel::Type::Boolean.new
-      when :datetime
-        ActiveModel::Type::DateTime.new
-
-      else
-        # For unknown types, use a pass-through type that returns the value as-is
-        ActiveModel::Type::Value.new
-      end
+      # Build the GID using URI::GID
+      URI::GID.build(app: 'shopify', model_name: parent_type, model_id: id_value).to_s
     end
 
     def execute_graphql_query(query, **variables)
+      if ActiveShopifyGraphQL.configuration.log_queries && ActiveShopifyGraphQL.configuration.logger
+        ActiveShopifyGraphQL.configuration.logger.info("ActiveShopifyGraphQL Query:\n#{query}")
+        ActiveShopifyGraphQL.configuration.logger.info("ActiveShopifyGraphQL Variables:\n#{variables}")
+      end
+
+      perform_graphql_query(query, **variables)
+    end
+
+    def perform_graphql_query(query, **variables)
       case self.class.client_type
       when :admin_api
         client = ActiveShopifyGraphQL.configuration.admin_api_client
@@ -575,6 +516,154 @@ module ActiveShopifyGraphQL
         range_parts.join(" ")
       else
         "#{key}:#{value}"
+      end
+    end
+
+    # Build GraphQL query for nested connection (field on parent object)
+    def nested_connection_graphql_query(connection_field_name, variables, parent, connection_config = nil)
+      # Get the parent's GraphQL type
+      parent_type = parent.class.graphql_type_for_loader(self.class)
+      parent_query_name = parent_type.downcase
+
+      # Get just the fragment fields without the fragment wrapper
+      fragment_fields = FragmentBuilder.new(self).build_fragment_from_attributes
+
+      # Only the parent ID is passed as a variable; all other arguments are inline
+      query_params = ["$id: ID!"]
+      field_params = []
+
+      # Process all variables as passthrough inline values
+      variables.each do |key, value|
+        next if value.nil?
+
+        # Convert Ruby snake_case to GraphQL camelCase
+        graphql_key = key.to_s.camelize(:lower)
+
+        # Format value for inline use in the GraphQL query
+        formatted_value = case value
+                          when Integer
+                            value.to_s
+                          when TrueClass, FalseClass
+                            value.to_s
+                          when String
+                            # The 'query' parameter needs quoted strings for search syntax
+                            if key.to_sym == :query
+                              "\"#{value}\""
+                            else
+                              # Other string values (like enum sort keys) don't need quotes
+                              value
+                            end
+                          else
+                            value.to_s
+                          end
+
+        field_params << "#{graphql_key}: #{formatted_value}"
+      end
+
+      query_signature = "(#{query_params.join(', ')})"
+      field_signature = field_params.empty? ? "" : "(#{field_params.join(', ')})"
+
+      connection_type = connection_config&.dig(:type) || :connection
+
+      if connection_type == :singular
+        if ActiveShopifyGraphQL.configuration.compact_queries
+          "query#{query_signature} { #{parent_query_name}(id: $id) { #{connection_field_name}#{field_signature} { #{fragment_fields} } } }"
+        else
+          <<~GRAPHQL
+            query#{query_signature} {
+              #{parent_query_name}(id: $id) {
+                #{connection_field_name}#{field_signature} {
+                  #{fragment_fields}
+                }
+              }
+            }
+          GRAPHQL
+        end
+      elsif ActiveShopifyGraphQL.configuration.compact_queries
+        "query#{query_signature} { #{parent_query_name}(id: $id) { #{connection_field_name}#{field_signature} { edges { node { #{fragment_fields} } } } } }"
+      else
+        <<~GRAPHQL
+          query#{query_signature} {
+            #{parent_query_name}(id: $id) {
+              #{connection_field_name}#{field_signature} {
+                edges {
+                  node {
+                    #{fragment_fields}
+                  }
+                }
+              }
+            }
+          }
+        GRAPHQL
+      end
+    end
+
+    # Build GraphQL query for connection with dynamic parameters
+    def connection_graphql_query(query_name, variables, connection_config = nil)
+      # Get just the fragment fields without the fragment wrapper
+      fragment_fields = FragmentBuilder.new(self).build_fragment_from_attributes
+
+      # All arguments are passed as inline values (no GraphQL variables needed)
+      field_params = []
+
+      # Process all variables as passthrough inline values
+      variables.each do |key, value|
+        next if value.nil?
+
+        # Convert Ruby snake_case to GraphQL camelCase
+        graphql_key = key.to_s.camelize(:lower)
+
+        # Format value for inline use in the GraphQL query
+        formatted_value = case value
+                          when Integer
+                            value.to_s
+                          when TrueClass, FalseClass
+                            value.to_s
+                          when String
+                            # The 'query' parameter needs quoted strings for search syntax
+                            if key.to_sym == :query
+                              "\"#{value}\""
+                            else
+                              # Other string values (like enum sort keys) don't need quotes
+                              value
+                            end
+                          else
+                            value.to_s
+                          end
+
+        field_params << "#{graphql_key}: #{formatted_value}"
+      end
+
+      field_signature = field_params.empty? ? "" : "(#{field_params.join(', ')})"
+
+      connection_type = connection_config&.dig(:type) || :connection
+
+      if connection_type == :singular
+        if ActiveShopifyGraphQL.configuration.compact_queries
+          "query { #{query_name}#{field_signature} { #{fragment_fields} } }"
+        else
+          <<~GRAPHQL
+            query {
+              #{query_name}#{field_signature} {
+                #{fragment_fields}
+              }
+            }
+          GRAPHQL
+        end
+      elsif ActiveShopifyGraphQL.configuration.compact_queries
+        "query { #{query_name}#{field_signature} { edges { node { #{fragment_fields} } } } }"
+      else
+        <<~GRAPHQL
+          query {
+            #{query_name}#{field_signature} {
+              edges {
+                node {
+                  #{fragment_fields}
+                }
+              }
+            }
+          }
+        GRAPHQL
       end
     end
   end

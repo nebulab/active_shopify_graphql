@@ -209,6 +209,10 @@ module ActiveShopifyGraphQL
 
     def initialize(attributes = {})
       super()
+
+      # Extract connection cache if present
+      @_connection_cache = attributes.delete(:_connection_cache) if attributes.key?(:_connection_cache)
+
       assign_attributes(attributes)
     end
   end

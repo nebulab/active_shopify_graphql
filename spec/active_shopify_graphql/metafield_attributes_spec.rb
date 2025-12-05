@@ -271,14 +271,14 @@ RSpec.describe "Metafield attribute functionality" do
         # This should use default and NOT call transform
         metafield_attribute :with_default, namespace: 'custom', key: 'def', type: :string,
                                            default: "default_used",
-                                           transform: lambda { |value|
+                                           transform: lambda { |_value|
                                              call_count += 1
                                              "transform_should_not_be_called"
                                            }
 
         # This should call transform since no default
         metafield_attribute :with_transform, namespace: 'custom', key: 'trans', type: :string,
-                                             transform: lambda { |value|
+                                             transform: lambda { |_value|
                                                call_count += 1
                                                "transform_called"
                                              }
@@ -311,7 +311,7 @@ RSpec.describe "Metafield attribute functionality" do
         metafield_attribute :weight_display, namespace: 'shipping', key: 'weight', type: :string
 
         def fragment
-          build_fragment_from_fields
+          ActiveShopifyGraphQL::FragmentBuilder.new(self).build_fragment_from_fields
         end
       end
 

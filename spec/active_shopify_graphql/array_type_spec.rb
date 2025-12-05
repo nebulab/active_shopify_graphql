@@ -106,30 +106,38 @@ RSpec.describe 'Automatic array support' do
 
   describe 'type coercion with arrays' do
     it 'preserves arrays even when type coercion is specified' do
+      mapper = ActiveShopifyGraphQL::ResponseMapper.new(loader)
+
       # Test string type coercer with array input
-      expect(loader.send(:coerce_value, %w[a b c], :string, :test, 'test')).to eq(%w[a b c])
+      expect(mapper.coerce_value(%w[a b c], :string, :test, 'test')).to eq(%w[a b c])
 
       # Test integer type coercer with array input
-      expect(loader.send(:coerce_value, [1, 2, 3], :integer, :test, 'test')).to eq([1, 2, 3])
+      expect(mapper.coerce_value([1, 2, 3], :integer, :test, 'test')).to eq([1, 2, 3])
 
       # Test boolean type coercer with array input
-      expect(loader.send(:coerce_value, [true, false], :boolean, :test, 'test')).to eq([true, false])
+      expect(mapper.coerce_value([true, false], :boolean, :test, 'test')).to eq([true, false])
     end
 
     it 'still performs type coercion for non-array values' do
-      expect(loader.send(:coerce_value, '42', :integer, :test, 'test')).to eq(42)
-      expect(loader.send(:coerce_value, 'true', :boolean, :test, 'test')).to eq(true)
-      expect(loader.send(:coerce_value, 42, :string, :test, 'test')).to eq('42')
+      mapper = ActiveShopifyGraphQL::ResponseMapper.new(loader)
+
+      expect(mapper.coerce_value('42', :integer, :test, 'test')).to eq(42)
+      expect(mapper.coerce_value('true', :boolean, :test, 'test')).to eq(true)
+      expect(mapper.coerce_value(42, :string, :test, 'test')).to eq('42')
     end
 
     it 'handles nil values correctly' do
-      expect(loader.send(:coerce_value, nil, :string, :test, 'test')).to be_nil
-      expect(loader.send(:coerce_value, nil, :integer, :test, 'test')).to be_nil
+      mapper = ActiveShopifyGraphQL::ResponseMapper.new(loader)
+
+      expect(mapper.coerce_value(nil, :string, :test, 'test')).to be_nil
+      expect(mapper.coerce_value(nil, :integer, :test, 'test')).to be_nil
     end
 
     it 'handles empty arrays' do
-      expect(loader.send(:coerce_value, [], :string, :test, 'test')).to eq([])
-      expect(loader.send(:coerce_value, [], :integer, :test, 'test')).to eq([])
+      mapper = ActiveShopifyGraphQL::ResponseMapper.new(loader)
+
+      expect(mapper.coerce_value([], :string, :test, 'test')).to eq([])
+      expect(mapper.coerce_value([], :integer, :test, 'test')).to eq([])
     end
   end
 end

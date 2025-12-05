@@ -2,8 +2,8 @@
 
 module ActiveShopifyGraphQL
   class CustomerAccountApiLoader < Loader
-    def initialize(model_class = nil, token = nil, selected_attributes: nil)
-      super(model_class, selected_attributes: selected_attributes)
+    def initialize(model_class = nil, token = nil, selected_attributes: nil, included_connections: nil)
+      super(model_class, selected_attributes: selected_attributes, included_connections: included_connections)
       @token = token
     end
 
@@ -57,7 +57,7 @@ module ActiveShopifyGraphQL
       @client ||= ActiveShopifyGraphQL.configuration.customer_account_client_class.from_config(@token)
     end
 
-    def execute_graphql_query(query, **variables)
+    def perform_graphql_query(query, **variables)
       # The customer access token is already set in the client's headers
       client.query(query, variables)
     end

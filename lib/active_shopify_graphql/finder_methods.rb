@@ -25,7 +25,16 @@ module ActiveShopifyGraphQL
         if respond_to?(:default_loader_instance)
           default_loader_instance
         else
-          @default_loader ||= default_loader_class.new(self)
+          @default_loader ||= begin
+            # Collect connections with eager_load: true
+            eagerly_loaded_connections = []
+            eagerly_loaded_connections = connections.select { |_name, config| config[:eager_load] }.keys if respond_to?(:connections)
+
+            default_loader_class.new(
+              self,
+              included_connections: eagerly_loaded_connections
+            )
+          end
         end
       end
 
@@ -52,7 +61,7 @@ module ActiveShopifyGraphQL
 
         # Override the default_loader method to return a loader with selected attributes
         selected_class.define_singleton_method(:default_loader) do
-          @selective_loader ||= superclass.default_loader.class.new(
+          @default_loader ||= superclass.default_loader.class.new(
             superclass,
             selected_attributes: attrs
           )
