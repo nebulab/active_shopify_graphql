@@ -14,6 +14,28 @@ module ActiveShopifyGraphQL
       @included_connections = included_connections
     end
 
+    # Build a complete query structure with optional parent and field wrapping
+    def build_query_structure(field_query:, query_signature: "", parent_query: nil, connection_type: :connection)
+      compact = ActiveShopifyGraphQL.configuration.compact_queries
+      fragment_fields = create_fragment.fields_from_attributes
+
+      if parent_query
+        # Nested query with parent
+        inner_query = connection_type == :singular ? build_singular_query(field_query, fragment_fields) : build_connection_query(field_query, fragment_fields)
+
+        if compact
+          "query#{query_signature} { #{parent_query} { #{inner_query} } }"
+        else
+          build_nested_multiline_query(query_signature, parent_query, inner_query)
+        end
+      elsif connection_type == :singular
+        # Root-level query
+        build_root_singular_query(query_signature, field_query, fragment_fields)
+      else
+        build_root_connection_query(query_signature, field_query, fragment_fields)
+      end
+    end
+
     # Build GraphQL query for nested connection (field on parent object)
     def nested_connection_graphql_query(connection_field_name, variables, parent, connection_config = nil)
       # Get the parent's GraphQL type
@@ -41,8 +63,8 @@ module ActiveShopifyGraphQL
       field_signature = field_params.empty? ? "" : "(#{field_params.join(', ')})"
       connection_type = connection_config&.dig(:type) || :connection
 
-      # Use Fragment's query building methods
-      create_fragment.build_query_structure(
+      # Build the complete query structure
+      build_query_structure(
         query_signature: query_signature,
         parent_query: "#{parent_query_name}(id: $id)",
         field_query: "#{connection_field_name}#{field_signature}",
@@ -71,8 +93,8 @@ module ActiveShopifyGraphQL
       field_signature = field_params.empty? ? "" : "(#{field_params.join(', ')})"
       connection_type = connection_config&.dig(:type) || :connection
 
-      # Use Fragment's query building methods
-      create_fragment.build_query_structure(
+      # Build the complete query structure
+      build_query_structure(
         query_signature: "",
         parent_query: nil,
         field_query: "#{query_name}#{field_signature}",
@@ -91,6 +113,66 @@ module ActiveShopifyGraphQL
         model_class: @model_class,
         included_connections: @included_connections
       )
+    end
+
+    # Build a query wrapping fields in connection structure (edges/node)
+    def build_connection_query(field_signature, fragment_fields)
+      compact = ActiveShopifyGraphQL.configuration.compact_queries
+
+      if compact
+        "#{field_signature} { edges { node { #{fragment_fields} } } }"
+      else
+        indent = "          "
+        build_multiline_query(field_signature, fragment_fields, indent, include_edges: true)
+      end
+    end
+
+    # Build a query wrapping fields in singular structure (no edges/node)
+    def build_singular_query(field_signature, fragment_fields)
+      compact = ActiveShopifyGraphQL.configuration.compact_queries
+
+      if compact
+        "#{field_signature} { #{fragment_fields} }"
+      else
+        indent = "          "
+        build_multiline_query(field_signature, fragment_fields, indent, include_edges: false)
+      end
+    end
+
+    # Build multiline query structure for fields
+    def build_multiline_query(field_signature, fragment_fields, indent, include_edges:)
+      if include_edges
+        "#{field_signature} {\n#{indent}edges {\n#{indent}  node {\n#{indent}    #{fragment_fields}\n#{indent}  }\n#{indent}}\n        }"
+      else
+        "#{field_signature} {\n#{indent}  #{fragment_fields}\n        }"
+      end
+    end
+
+    # Build nested multiline query with parent
+    def build_nested_multiline_query(query_signature, parent_query, inner_query)
+      "query#{query_signature} {\n      #{parent_query} {\n        #{inner_query}\n      }\n    }"
+    end
+
+    # Build root-level singular query
+    def build_root_singular_query(query_signature, field_query, fragment_fields)
+      compact = ActiveShopifyGraphQL.configuration.compact_queries
+
+      if compact
+        "query#{query_signature} { #{field_query} { #{fragment_fields} } }"
+      else
+        "query#{query_signature} {\n      #{field_query} {\n        #{fragment_fields}\n      }\n    }"
+      end
+    end
+
+    # Build root-level connection query
+    def build_root_connection_query(query_signature, field_query, fragment_fields)
+      compact = ActiveShopifyGraphQL.configuration.compact_queries
+
+      if compact
+        "query#{query_signature} { #{field_query} { edges { node { #{fragment_fields} } } } }"
+      else
+        "query#{query_signature} {\n      #{field_query} {\n        edges {\n          node {\n            #{fragment_fields}\n          }\n        }\n      }\n    }"
+      end
     end
 
     # Format value for inline use in GraphQL query
