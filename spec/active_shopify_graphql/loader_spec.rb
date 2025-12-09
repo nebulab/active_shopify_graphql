@@ -3,23 +3,48 @@
 require 'spec_helper'
 
 RSpec.describe ActiveShopifyGraphQL::Loader do
+  let(:mock_client) { double("GraphQLClient") }
+
+  before do
+    ActiveShopifyGraphQL.configure do |config|
+      config.admin_api_client = mock_client
+    end
+  end
+
   describe '.graphql_type and .fragment' do
+    let(:test_model_class) do
+      Class.new do
+        include ActiveShopifyGraphQL::Attributes
+
+        attribute :id
+        attribute :name
+
+        def self.graphql_type_for_loader(_loader_class)
+          "TestModel"
+        end
+
+        def self.name
+          "TestModel"
+        end
+      end
+    end
+
     let(:test_loader_class) do
+      model_class = test_model_class
+      mock_client_ref = mock_client
       Class.new(described_class) do
         graphql_type "TestModel"
-        fragment <<~GRAPHQL
-          id
-          name
-        GRAPHQL
+
+        define_method(:initialize) do |model_class_arg = model_class, **options|
+          super(model_class_arg, **options)
+        end
+
+        define_method(:perform_graphql_query) do |query, **variables|
+          mock_client_ref.execute(query, **variables)
+        end
 
         def map_response_to_attributes(response_data)
           { id: response_data.dig("data", "testmodel", "id") }
-        end
-
-        private
-
-        def execute_graphql_query(_query, **variables)
-          { "data" => { "testmodel" => { "id" => variables[:id] } } }
         end
       end
     end
@@ -54,7 +79,7 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
 
     it 'builds fragment automatically from class-level fragment definition' do
       loader = test_loader_class.new
-      fragment = loader.fragment
+      fragment = loader.fragment.to_s
 
       expect(fragment).to include("fragment TestModelFragment on TestModel {")
       expect(fragment).to include("id")
@@ -62,40 +87,46 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
       expect(fragment).to include("}")
     end
 
-    it 'allows getting fragment fields at class level' do
-      expect(test_loader_class.fragment).to include("id")
-      expect(test_loader_class.fragment).to include("name")
+    it 'generates fragment from attributes' do
+      loader = test_loader_class.new
+      fragment = loader.fragment.to_s
+      expect(fragment).to include("id")
+      expect(fragment).to include("name")
     end
 
     it 'raises error when fragment is not defined' do
-      loader_without_fragment = Class.new(described_class) do
-        graphql_type "NoFragment"
+      empty_model_class = Class.new do
+        include ActiveShopifyGraphQL::Attributes
+
+        def self.graphql_type_for_loader(_loader_class)
+          "NoFragment"
+        end
+
+        def self.name
+          "NoFragment"
+        end
       end
 
-      expect { loader_without_fragment.fragment }.to raise_error(NotImplementedError)
+      loader_without_fragment = Class.new(described_class) do
+        graphql_type "NoFragment"
+
+        define_method(:initialize) do |model_class_arg = empty_model_class, **options|
+          super(model_class_arg, **options)
+        end
+      end
+
+      expect { loader_without_fragment.new.fragment.to_s }.to raise_error(NotImplementedError, /must define attributes/)
     end
 
     it 'loads attributes using graphql_type' do
+      allow(mock_client).to receive(:execute).and_return(
+        { "data" => { "testmodel" => { "id" => "test-id" } } }
+      )
+
       loader = test_loader_class.new
       result = loader.load_attributes("test-id")
 
       expect(result).to eq({ id: "test-id" })
-    end
-
-    context 'backwards compatibility' do
-      it 'still accepts model_type parameter in load_attributes' do
-        loader = test_loader_class.new
-        result = loader.load_attributes("CustomType", "test-id")
-
-        expect(result).to eq({ id: "test-id" })
-      end
-
-      it 'still accepts model_type parameter in other methods' do
-        loader = test_loader_class.new
-
-        expect(loader.query_name("CustomType")).to eq("customtype")
-        expect(loader.fragment_name("CustomType")).to eq("CustomTypeFragment")
-      end
     end
   end
 end

@@ -157,13 +157,13 @@ class Customer
   attribute :id, type: :string
   attribute :name, path: "displayName", type: :string
 
-  for_loader ActiveShopifyGraphQL::AdminApiLoader do
+  for_loader ActiveShopifyGraphQL::Loaders::AdminApiLoader do
     attribute :email, path: "defaultEmailAddress.emailAddress", type: :string
     attribute :created_at, type: :datetime
   end
 
   # Customer Account API uses different field names
-  for_loader ActiveShopifyGraphQL::CustomerAccountApiLoader do
+  for_loader ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader do
     attribute :email, path: "emailAddress.emailAddress", type: :string
     attribute :created_at, path: "creationDate", type: :datetime
   end
@@ -290,13 +290,228 @@ end
 
 The associations automatically handle Shopify GID format conversion, extracting numeric IDs when needed for querying related records.
 
+## GraphQL Connections
+
+ActiveShopifyGraphQL supports GraphQL connections for loading related data from Shopify APIs. Connections provide both lazy and eager loading patterns with cursor-based pagination support.
+
+### Defining Connections
+
+Use the `connection` class method to define connections to other ActiveShopifyGraphQL models:
+
+```ruby
+class Customer
+  include ActiveShopifyGraphQL::Base
+
+  graphql_type 'Customer'
+
+  attribute :id
+  attribute :display_name, path: "displayName"
+  attribute :email
+
+  # Basic connection
+  has_many_connected :orders, default_arguments: { first: 10 }
+
+  # Connection with custom parameters
+  has_many_connected :addresses,
+    class_name: 'MailingAddress',    # Target model class (defaults to connection name)
+    query_name: 'customerAddresses', # GraphQL query field (defaults to pluralized name)
+    eager_load: true,                # Automatically eager load this connection (default: false)
+    default_arguments: {             # Default arguments for the GraphQL query
+      first: 5,                      # Number of records to fetch (default: 10)
+      sort_key: 'CREATED_AT',        # Sort key (default: 'CREATED_AT')
+      reverse: false                 # Sort direction (default: false for ascending)
+    }
+end
+
+class Order
+  include ActiveShopifyGraphQL::Base
+
+  graphql_type 'Order'
+
+  attribute :id
+  attribute :name
+  attribute :total_price, path: "totalPriceSet.shopMoney.amount"
+end
+```
+
+### Lazy Loading (Default Behavior)
+
+Connections are loaded lazily when accessed. A separate GraphQL query is fired when the connection is first accessed:
+
+```ruby
+customer = Customer.find(123456789)
+
+# This creates a connection proxy but doesn't load data yet
+orders_proxy = customer.orders
+puts orders_proxy.loaded? # => false
+
+# This triggers the GraphQL query and loads the data
+orders = customer.orders.to_a
+puts customer.orders.loaded? # => true (for this specific proxy instance)
+
+# Connection proxies implement Enumerable
+customer.orders.each do |order|
+  puts order.name
+end
+
+# Array-like access methods
+customer.orders.size        # Number of records
+customer.orders.first       # First record
+customer.orders.last        # Last record
+customer.orders[0]          # Access by index
+customer.orders.empty?      # Check if empty
+```
+
+### Runtime Parameter Overrides
+
+You can override connection parameters at runtime:
+
+```ruby
+customer = Customer.find(123456789)
+
+# Override default parameters for this call
+recent_orders = customer.orders(
+  first: 25,               # Fetch 25 records instead of default 10
+  sort_key: 'UPDATED_AT',  # Sort by update date instead of creation date
+  reverse: true            # Most recent first
+).to_a
+```
+
+### Eager Loading with `includes`
+
+Use `includes` to load connections in the same GraphQL query as the parent record, eliminating the N+1 query problem:
+
+```ruby
+# Load customer with orders and addresses in a single GraphQL query
+customer = Customer.includes(:orders, :addresses).find(123456789)
+
+# These connections are already loaded - no additional queries fired
+orders = customer.orders      # Uses cached data
+addresses = customer.addresses # Uses cached data
+
+puts customer.orders.loaded?    # => This won't be a proxy since data was eager loaded
+```
+
+### Automatic Eager Loading
+
+For connections that should always be loaded, you can use the `eager_load: true` parameter when defining the connection. This will automatically include the connection in all find and where queries without needing to explicitly use `includes`:
+
+```ruby
+class Customer
+  include ActiveShopifyGraphQL::Base
+
+  graphql_type 'Customer'
+
+  attribute :id
+  attribute :display_name, path: "displayName"
+
+  # This connection will always be eager loaded
+  connection :orders, eager_load: true
+
+  # This connection will only be loaded lazily (default behavior)
+  connection :addresses
+end
+
+# The orders connection is automatically loaded
+customer = Customer.find(123456789)
+orders = customer.orders      # Uses cached data - no additional query fired
+
+# The addresses connection is lazy loaded
+addresses = customer.addresses # This will fire a GraphQL query when first accessed
+```
+
+This feature is perfect for connections that are frequently accessed and should be included in most queries to avoid N+1 problems.
+
+The `includes` method modifies the GraphQL fragment to include connection fields:
+
+```graphql
+query customer($id: ID!) {
+  customer(id: $id) {
+    # Regular customer fields
+    id
+    displayName
+
+    # Eager-loaded connections
+    orders(first: 10, sortKey: CREATED_AT, reverse: false) {
+      edges {
+        node {
+          id
+          name
+          totalPriceSet {
+            shopMoney {
+              amount
+            }
+          }
+        }
+      }
+    }
+    addresses(first: 5, sortKey: CREATED_AT, reverse: false) {
+      edges {
+        node {
+          id
+          address1
+          city
+        }
+      }
+    }
+  }
+}
+```
+
+### Method Chaining
+
+Connection methods support chaining with other query methods:
+
+```ruby
+# Chain includes with select for optimized queries
+Customer.includes(:orders).select(:id, :display_name).find(123456789)
+
+# Chain includes with where for filtered queries
+Customer.includes(:orders).where(email: "john@example.com").first
+```
+
+### Testing Support
+
+For testing, you can manually set connection data to avoid making real API calls:
+
+```ruby
+# In your tests
+customer = Customer.new(id: 'gid://shopify/Customer/123')
+mock_orders = [
+  Order.new(id: 'gid://shopify/Order/1', name: '#1001'),
+  Order.new(id: 'gid://shopify/Order/2', name: '#1002')
+]
+
+# Set mock data
+customer.orders = mock_orders
+
+# Now customer.orders returns the mock data
+expect(customer.orders.size).to eq(2)
+expect(customer.orders.first.name).to eq('#1001')
+```
+
+### Connection Configuration
+
+Connections automatically infer sensible defaults but can be customized:
+
+- **class_name**: Target model class name (defaults to connection name singularized and classified)
+- **query_name**: GraphQL query field name (defaults to connection name pluralized)
+- **foreign_key**: Field used to filter connection records (defaults to `{model_name}_id`)
+- **loader_class**: Custom loader class (defaults to model's default loader)
+- **eager_load**: Whether to automatically eager load this connection on find/where queries (default: false)
+- **default_arguments**: Hash of default arguments to pass to the GraphQL query (e.g., `{ first: 10, sort_key: 'CREATED_AT' }`)
+
+### Error Handling
+
+Connection queries use the same error handling as regular model queries. If a connection query fails, an appropriate exception will be raised with details about the GraphQL error.
+
 ## Next steps
 
 - [x] Support `Model.where(param: value)` proxying params to the GraphQL query attribute
 - [x] Attribute-based model definition with automatic GraphQL fragment generation
 - [x] Metafield attributes for easy access to Shopify metafields
 - [x] Query optimization with `select` method
-- [ ] Eager loading of GraphQL connections via `Customer.includes(:orders).find(id)` in a single GraphQL query
+- [x] GraphQL connections with lazy and eager loading via `Customer.includes(:orders).find(id)`
 - [ ] Better error handling and retry mechanisms for GraphQL API calls
 - [ ] Caching layer for frequently accessed data
 - [ ] Support for GraphQL subscriptions

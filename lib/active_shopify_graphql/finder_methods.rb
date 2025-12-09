@@ -10,9 +10,8 @@ module ActiveShopifyGraphQL
       # @param loader [ActiveShopifyGraphQL::Loader] The loader to use for fetching data
       # @return [Object, nil] The model instance or nil if not found
       def find(id, loader: default_loader)
-        gid = URI::GID.build(app: "shopify", model_name: model_name.name.demodulize, model_id: id)
-        model_type = name.demodulize
-        attributes = loader.load_attributes(model_type, gid)
+        gid = GidHelper.normalize_gid(id, model_name.name.demodulize)
+        attributes = loader.load_attributes(gid)
 
         return nil if attributes.nil?
 
@@ -25,7 +24,16 @@ module ActiveShopifyGraphQL
         if respond_to?(:default_loader_instance)
           default_loader_instance
         else
-          @default_loader ||= default_loader_class.new(self)
+          @default_loader ||= begin
+            # Collect connections with eager_load: true
+            eagerly_loaded_connections = []
+            eagerly_loaded_connections = connections.select { |_name, config| config[:eager_load] }.keys if respond_to?(:connections)
+
+            default_loader_class.new(
+              self,
+              included_connections: eagerly_loaded_connections
+            )
+          end
         end
       end
 
@@ -52,7 +60,7 @@ module ActiveShopifyGraphQL
 
         # Override the default_loader method to return a loader with selected attributes
         selected_class.define_singleton_method(:default_loader) do
-          @selective_loader ||= superclass.default_loader.class.new(
+          @default_loader ||= superclass.default_loader.class.new(
             superclass,
             selected_attributes: attrs
           )
@@ -101,8 +109,10 @@ module ActiveShopifyGraphQL
         loader = final_options[:loader] || default_loader
         limit = final_options[:limit] || 250
 
-        model_type = name.demodulize
-        attributes_array = loader.load_collection(model_type, conditions, limit: limit)
+        # Ensure loader has model class set - needed for graphql_type inference
+        loader.instance_variable_set(:@model_class, self) if loader.instance_variable_get(:@model_class).nil?
+
+        attributes_array = loader.load_collection(conditions, limit: limit)
 
         attributes_array.map { |attributes| new(attributes) }
       end
@@ -143,21 +153,6 @@ module ActiveShopifyGraphQL
         end
 
         attrs.map(&:to_sym).uniq.sort
-      end
-
-      # Infers the loader class name from the model name
-      # e.g., Customer -> ActiveGraphQL::CustomerLoader
-      # @return [Class] The loader class
-      def default_loader_class
-        loader_class_name = "#{name}Loader"
-        loader_class_name.constantize
-      rescue NameError
-        # Fall back to the LoaderSwitchable's default_loader_class if inference fails
-        if respond_to?(:default_loader_class, true)
-          super
-        else
-          ActiveShopifyGraphQL::AdminApiLoader
-        end
       end
     end
   end

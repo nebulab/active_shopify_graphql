@@ -18,6 +18,17 @@
 - Keep loaders small: expose `fragment` and `map_response_to_attributes` for clarity.
 - Use RuboCop defaults unless explicitly relaxed in `.rubocop.yml`; respect existing disables instead of re-enabling.
 
+## GID (Global ID) Handling
+- **Always** use `URI::GID.build` to construct Shopify GIDs programmatically; never concatenate strings manually.
+- **Always** use `URI::GID.parse` to validate and parse existing GID strings.
+- GID format: `gid://shopify/ModelName/id_value` where `app: 'shopify'`, `model_name:` is the GraphQL type (e.g., `Customer`, `Order`), and `model_id:` is the numeric or string identifier.
+- When building GIDs, use `model_name.name.demodulize` to extract the model type name (e.g., `Customer` from `ActiveShopifyGraphQL::Customer`) unless it's specified via the model's `graphql_type`.
+- When checking if a value is already a GID, parse it with `URI::GID.parse` and handle exceptions (`URI::InvalidURIError`, `URI::BadURIError`, `ArgumentError`).
+- Examples:
+  - Build: `URI::GID.build(app: "shopify", model_name: "Customer", model_id: 123).to_s` → `"gid://shopify/Customer/123"`
+  - Parse: `URI::GID.parse("gid://shopify/Customer/123")` → returns a `URI::GID` object
+  - Check validity: Wrap `URI::GID.parse` in a rescue block to detect non-GID strings.
+
 ## Testing Guidelines
 - Framework: RSpec with documentation formatter (`.rspec`).
 - Place specs under `spec/` and name files `*_spec.rb` matching the class/module under test.

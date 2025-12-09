@@ -27,10 +27,6 @@ RSpec.describe "Select functionality" do
         ActiveModel::Name.new(self, nil, "Customer")
       end
 
-      def self.default_loader_class
-        ActiveShopifyGraphQL::AdminApiLoader
-      end
-
       class << self
         attr_accessor :default_loader_instance
       end
@@ -42,7 +38,7 @@ RSpec.describe "Select functionality" do
       config.admin_api_client = mock_client
     end
 
-    customer_class.default_loader_instance = ActiveShopifyGraphQL::AdminApiLoader.new(customer_class)
+    customer_class.default_loader_instance = ActiveShopifyGraphQL::Loaders::AdminApiLoader.new(customer_class)
   end
 
   describe ".select" do
@@ -76,7 +72,7 @@ RSpec.describe "Select functionality" do
     it "generates GraphQL fragments with only selected attributes" do
       selected_class = customer_class.select(:name, :email)
       loader = selected_class.default_loader
-      fragment = loader.fragment
+      fragment = loader.fragment.to_s
 
       expect(fragment).to include("id") # Always included
       expect(fragment).to include("displayName")

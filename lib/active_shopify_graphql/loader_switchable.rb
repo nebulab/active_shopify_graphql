@@ -25,13 +25,13 @@ module ActiveShopifyGraphQL
     # Executes with the admin API loader
     # @return [self]
     def with_admin_api(&block)
-      with_loader(ActiveShopifyGraphQL::AdminApiLoader, &block)
+      with_loader(ActiveShopifyGraphQL::Loaders::AdminApiLoader, &block)
     end
 
     # Executes with the customer account API loader
     # @return [self]
     def with_customer_account_api(&block)
-      with_loader(ActiveShopifyGraphQL::CustomerAccountApiLoader, &block)
+      with_loader(ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader, &block)
     end
 
     class_methods do
@@ -41,22 +41,32 @@ module ActiveShopifyGraphQL
       #   @param loader_class [Class] The loader class to use as default
       #   @example
       #     class Customer < ActiveRecord::Base
-      #       use_loader ActiveShopifyGraphQL::CustomerAccountApiLoader
+      #       use_loader ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader
       #     end
       def use_loader(loader_class)
         @default_loader_class = loader_class
       end
 
+      # Define loader-specific attribute and graphql_type overrides
+      # @param loader_class [Class] The loader class to override attributes for
+      def for_loader(loader_class, &block)
+        @current_loader_context = loader_class
+        @loader_contexts ||= {}
+        @loader_contexts[loader_class] ||= {}
+        instance_eval(&block) if block_given?
+        @current_loader_context = nil
+      end
+
       # Class-level method to execute with admin API loader
       # @return [LoaderProxy] Proxy object with find method
       def with_admin_api
-        LoaderProxy.new(self, ActiveShopifyGraphQL::AdminApiLoader.new(self))
+        LoaderProxy.new(self, ActiveShopifyGraphQL::Loaders::AdminApiLoader.new(self))
       end
 
       # Class-level method to execute with customer account API loader
       # @return [LoaderProxy] Proxy object with find method
       def with_customer_account_api(token = nil)
-        LoaderProxy.new(self, ActiveShopifyGraphQL::CustomerAccountApiLoader.new(self, token))
+        LoaderProxy.new(self, ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader.new(self, token))
       end
 
       private
@@ -64,7 +74,7 @@ module ActiveShopifyGraphQL
       # Returns the default loader class (either set via DSL or inferred)
       # @return [Class] The default loader class
       def default_loader_class
-        @default_loader_class ||= ActiveShopifyGraphQL::AdminApiLoader
+        @default_loader_class ||= ActiveShopifyGraphQL::Loaders::AdminApiLoader
       end
     end
 
@@ -77,7 +87,7 @@ module ActiveShopifyGraphQL
 
       def find(id = nil)
         # For Customer Account API, if no ID is provided, load the current customer
-        if id.nil? && @loader.is_a?(ActiveShopifyGraphQL::CustomerAccountApiLoader)
+        if id.nil? && @loader.is_a?(ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader)
           attributes = @loader.load_attributes
           return nil if attributes.nil?
 
@@ -87,11 +97,7 @@ module ActiveShopifyGraphQL
         # For other cases, require ID and use standard flow
         return nil if id.nil?
 
-        gid = if id.is_a?(String) && id.include?('gid://')
-                id
-              else
-                URI::GID.build(app: "shopify", model_name: @model_class.model_name.name.demodulize, model_id: id)
-              end
+        gid = GidHelper.normalize_gid(id, @model_class.model_name.name.demodulize)
 
         attributes = @loader.load_attributes(gid)
         return nil if attributes.nil?

@@ -39,3 +39,6 @@ Style/TrailingCommaInArrayLiteral:
 
 Metrics/ParameterLists:
   Enabled: false
+
+Metrics/ClassLength:
+  Enabled: false
