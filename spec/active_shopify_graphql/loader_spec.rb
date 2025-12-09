@@ -1,132 +1,283 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
+require "spec_helper"
 
 RSpec.describe ActiveShopifyGraphQL::Loader do
-  let(:mock_client) { double("GraphQLClient") }
+  describe ".graphql_type" do
+    it "allows setting graphql_type at class level" do
+      loader_class = Class.new(described_class) do
+        graphql_type "TestModel"
+      end
 
-  before do
-    ActiveShopifyGraphQL.configure do |config|
-      config.admin_api_client = mock_client
+      expect(loader_class.graphql_type).to eq("TestModel")
+    end
+
+    it "raises error when graphql_type is not set" do
+      loader_class = Class.new(described_class)
+
+      expect { loader_class.graphql_type }.to raise_error(NotImplementedError)
+    end
+
+    it "gets graphql_type from associated model class when available" do
+      model_class = Class.new do
+        define_singleton_method(:graphql_type_for_loader) { |_| "ModelType" }
+      end
+      loader_class = Class.new(described_class)
+      loader_class.model_class = model_class
+
+      expect(loader_class.graphql_type).to eq("ModelType")
     end
   end
 
-  describe '.graphql_type and .fragment' do
-    let(:test_model_class) do
-      Class.new do
-        include ActiveShopifyGraphQL::Attributes
+  describe ".client_type" do
+    it "defaults to :admin_api" do
+      loader_class = Class.new(described_class) do
+        graphql_type "Test"
+      end
 
-        attribute :id
-        attribute :name
+      expect(loader_class.client_type).to eq(:admin_api)
+    end
 
-        def self.graphql_type_for_loader(_loader_class)
-          "TestModel"
-        end
+    it "allows setting client_type at class level" do
+      loader_class = Class.new(described_class) do
+        graphql_type "Test"
+        client_type :customer_account_api
+      end
 
-        def self.name
-          "TestModel"
+      expect(loader_class.client_type).to eq(:customer_account_api)
+    end
+  end
+
+  describe "#initialize" do
+    it "accepts model_class parameter" do
+      model_class = Class.new do
+        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
+        define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
+      end
+      loader_class = Class.new(described_class)
+
+      loader = loader_class.new(model_class)
+
+      expect(loader.graphql_type).to eq("TestModel")
+    end
+
+    it "accepts selected_attributes parameter" do
+      model_class = Class.new do
+        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
+        define_singleton_method(:attributes_for_loader) do |_|
+          {
+            id: { path: "id", type: :string },
+            name: { path: "name", type: :string },
+            email: { path: "email", type: :string }
+          }
         end
       end
+      loader_class = Class.new(described_class)
+
+      loader = loader_class.new(model_class, selected_attributes: %i[id name])
+
+      expect(loader.defined_attributes.keys).to contain_exactly(:id, :name)
     end
 
-    let(:test_loader_class) do
-      model_class = test_model_class
-      mock_client_ref = mock_client
-      Class.new(described_class) do
-        graphql_type "TestModel"
-
-        define_method(:initialize) do |model_class_arg = model_class, **options|
-          super(model_class_arg, **options)
-        end
-
-        define_method(:perform_graphql_query) do |query, **variables|
-          mock_client_ref.execute(query, **variables)
-        end
-
-        def map_response_to_attributes(response_data)
-          { id: response_data.dig("data", "testmodel", "id") }
+    it "always includes id in selected_attributes" do
+      model_class = Class.new do
+        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
+        define_singleton_method(:attributes_for_loader) do |_|
+          {
+            id: { path: "id", type: :string },
+            name: { path: "name", type: :string }
+          }
         end
       end
-    end
+      loader_class = Class.new(described_class)
 
-    it 'allows setting graphql_type at class level' do
-      expect(test_loader_class.graphql_type).to eq("TestModel")
-    end
+      loader = loader_class.new(model_class, selected_attributes: [:name])
 
-    it 'raises error when graphql_type is not set' do
-      loader_without_type = Class.new(described_class)
-      expect { loader_without_type.graphql_type }.to raise_error(NotImplementedError)
+      expect(loader.defined_attributes.keys).to contain_exactly(:id, :name)
     end
+  end
 
-    it 'generates correct query_name from graphql_type' do
-      loader = test_loader_class.new
+  describe "#context" do
+    it "returns a LoaderContext with correct values" do
+      model_class = Class.new do
+        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
+        define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
+        define_singleton_method(:connections) { {} }
+      end
+      loader_class = Class.new(described_class)
+      loader = loader_class.new(model_class)
+
+      context = loader.context
+
+      expect(context).to be_a(ActiveShopifyGraphQL::LoaderContext)
+      expect(context.graphql_type).to eq("TestModel")
+      expect(context.model_class).to eq(model_class)
+    end
+  end
+
+  describe "#query_name" do
+    it "returns lowercase graphql_type" do
+      model_class = Class.new do
+        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
+        define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
+      end
+      loader_class = Class.new(described_class)
+      loader = loader_class.new(model_class)
+
       expect(loader.query_name).to eq("testmodel")
     end
+  end
 
-    it 'generates correct fragment_name from graphql_type' do
-      loader = test_loader_class.new
+  describe "#fragment_name" do
+    it "returns graphql_type with Fragment suffix" do
+      model_class = Class.new do
+        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
+        define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
+      end
+      loader_class = Class.new(described_class)
+      loader = loader_class.new(model_class)
+
       expect(loader.fragment_name).to eq("TestModelFragment")
     end
+  end
 
-    it 'generates correct GraphQL query using graphql_type' do
-      loader = test_loader_class.new
+  describe "#fragment" do
+    it "builds fragment from model attributes" do
+      model_class = Class.new do
+        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
+        define_singleton_method(:attributes_for_loader) do |_|
+          {
+            id: { path: "id", type: :string },
+            name: { path: "displayName", type: :string }
+          }
+        end
+        define_singleton_method(:connections) { {} }
+      end
+      loader_class = Class.new(described_class)
+      loader = loader_class.new(model_class)
+
+      fragment = loader.fragment.to_s
+
+      expect(fragment).to include("fragment TestModelFragment on TestModel")
+      expect(fragment).to include("id")
+      expect(fragment).to include("displayName")
+    end
+
+    it "raises error when attributes are empty" do
+      model_class = Class.new do
+        define_singleton_method(:graphql_type_for_loader) { |_| "NoAttrs" }
+        define_singleton_method(:attributes_for_loader) { |_| {} }
+        define_singleton_method(:connections) { {} }
+      end
+      loader_class = Class.new(described_class)
+      loader = loader_class.new(model_class)
+
+      expect { loader.fragment.to_s }.to raise_error(NotImplementedError, /must define attributes/)
+    end
+  end
+
+  describe "#graphql_query" do
+    it "generates correct GraphQL query structure" do
+      model_class = Class.new do
+        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
+        define_singleton_method(:attributes_for_loader) do |_|
+          { id: { path: "id", type: :string }, name: { path: "name", type: :string } }
+        end
+        define_singleton_method(:connections) { {} }
+      end
+      loader_class = Class.new(described_class)
+      loader = loader_class.new(model_class)
+
       query = loader.graphql_query
 
       expect(query).to include("query getTestModel($id: ID!)")
       expect(query).to include("testmodel(id: $id)")
       expect(query).to include("...TestModelFragment")
     end
+  end
 
-    it 'builds fragment automatically from class-level fragment definition' do
-      loader = test_loader_class.new
-      fragment = loader.fragment.to_s
-
-      expect(fragment).to include("fragment TestModelFragment on TestModel {")
-      expect(fragment).to include("id")
-      expect(fragment).to include("name")
-      expect(fragment).to include("}")
-    end
-
-    it 'generates fragment from attributes' do
-      loader = test_loader_class.new
-      fragment = loader.fragment.to_s
-      expect(fragment).to include("id")
-      expect(fragment).to include("name")
-    end
-
-    it 'raises error when fragment is not defined' do
-      empty_model_class = Class.new do
-        include ActiveShopifyGraphQL::Attributes
-
-        def self.graphql_type_for_loader(_loader_class)
-          "NoFragment"
+  describe "#map_response_to_attributes" do
+    it "maps GraphQL response to attribute hash" do
+      model_class = Class.new do
+        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
+        define_singleton_method(:attributes_for_loader) do |_|
+          {
+            id: { path: "id", type: :string },
+            name: { path: "name", type: :string }
+          }
         end
+        define_singleton_method(:connections) { {} }
+      end
+      loader_class = Class.new(described_class)
+      loader = loader_class.new(model_class)
+      response_data = {
+        "data" => {
+          "testmodel" => {
+            "id" => "gid://shopify/TestModel/123",
+            "name" => "Test"
+          }
+        }
+      }
 
-        def self.name
-          "NoFragment"
+      result = loader.map_response_to_attributes(response_data)
+
+      expect(result).to eq({
+                             id: "gid://shopify/TestModel/123",
+                             name: "Test"
+                           })
+    end
+  end
+
+  describe "#load_attributes" do
+    it "executes query and returns mapped attributes" do
+      model_class = Class.new do
+        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
+        define_singleton_method(:attributes_for_loader) do |_|
+          { id: { path: "id", type: :string }, name: { path: "name", type: :string } }
+        end
+        define_singleton_method(:connections) { {} }
+      end
+      loader_class = Class.new(described_class) do
+        define_method(:perform_graphql_query) do |_query, **_variables|
+          { "data" => { "testmodel" => { "id" => "test-id", "name" => "Test Name" } } }
         end
       end
+      loader = loader_class.new(model_class)
 
-      loader_without_fragment = Class.new(described_class) do
-        graphql_type "NoFragment"
-
-        define_method(:initialize) do |model_class_arg = empty_model_class, **options|
-          super(model_class_arg, **options)
-        end
-      end
-
-      expect { loader_without_fragment.new.fragment.to_s }.to raise_error(NotImplementedError, /must define attributes/)
-    end
-
-    it 'loads attributes using graphql_type' do
-      allow(mock_client).to receive(:execute).and_return(
-        { "data" => { "testmodel" => { "id" => "test-id" } } }
-      )
-
-      loader = test_loader_class.new
       result = loader.load_attributes("test-id")
 
-      expect(result).to eq({ id: "test-id" })
+      expect(result[:id]).to eq("test-id")
+      expect(result[:name]).to eq("Test Name")
+    end
+
+    it "returns nil when response is nil" do
+      model_class = Class.new do
+        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
+        define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
+        define_singleton_method(:connections) { {} }
+      end
+      loader_class = Class.new(described_class) do
+        define_method(:perform_graphql_query) { |_query, **_variables| nil }
+      end
+      loader = loader_class.new(model_class)
+
+      result = loader.load_attributes("test-id")
+
+      expect(result).to be_nil
+    end
+  end
+
+  describe "#perform_graphql_query" do
+    it "raises NotImplementedError in base class" do
+      model_class = Class.new do
+        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
+        define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
+        define_singleton_method(:connections) { {} }
+      end
+      loader_class = Class.new(described_class)
+      loader = loader_class.new(model_class)
+
+      expect { loader.perform_graphql_query("query { test }") }.to raise_error(NotImplementedError)
     end
   end
 end

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "spec_helper"
+
 RSpec.describe ActiveShopifyGraphQL::Configuration do
   describe "#initialize" do
     it "sets admin_api_client to nil by default" do
@@ -36,7 +38,7 @@ RSpec.describe ActiveShopifyGraphQL::Configuration do
   describe "attribute accessors" do
     it "allows setting and getting admin_api_client" do
       config = described_class.new
-      mock_client = instance_double("GraphQLClient")
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
 
       config.admin_api_client = mock_client
 
@@ -54,7 +56,7 @@ RSpec.describe ActiveShopifyGraphQL::Configuration do
 
     it "allows setting and getting logger" do
       config = described_class.new
-      mock_logger = instance_double("Logger")
+      mock_logger = instance_double(Logger)
 
       config.logger = mock_logger
 
@@ -96,17 +98,12 @@ RSpec.describe ActiveShopifyGraphQL do
   end
 
   describe ".configure" do
-    after do
-      # Reset configuration after each test
-      described_class.reset_configuration!
-    end
-
     it "yields the configuration instance" do
       expect { |b| described_class.configure(&b) }.to yield_with_args(ActiveShopifyGraphQL::Configuration)
     end
 
     it "allows setting configuration values via block" do
-      mock_client = instance_double("GraphQLClient")
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
 
       described_class.configure do |config|
         config.admin_api_client = mock_client
@@ -118,16 +115,11 @@ RSpec.describe ActiveShopifyGraphQL do
     end
 
     it "persists configuration across multiple configure calls" do
-      mock_client = instance_double("GraphQLClient")
-      mock_logger = instance_double("Logger")
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+      mock_logger = instance_double(Logger)
 
-      described_class.configure do |config|
-        config.admin_api_client = mock_client
-      end
-
-      described_class.configure do |config|
-        config.logger = mock_logger
-      end
+      described_class.configure { |config| config.admin_api_client = mock_client }
+      described_class.configure { |config| config.logger = mock_logger }
 
       expect(described_class.configuration.admin_api_client).to eq(mock_client)
       expect(described_class.configuration.logger).to eq(mock_logger)
@@ -137,7 +129,7 @@ RSpec.describe ActiveShopifyGraphQL do
   describe ".reset_configuration!" do
     it "creates a new Configuration instance" do
       old_config = described_class.configuration
-      mock_client = instance_double("GraphQLClient")
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
       old_config.admin_api_client = mock_client
 
       described_class.reset_configuration!
@@ -149,17 +141,14 @@ RSpec.describe ActiveShopifyGraphQL do
 
     it "resets all configuration values to defaults" do
       described_class.configure do |config|
-        config.admin_api_client = instance_double("GraphQLClient")
         config.log_queries = true
         config.compact_queries = true
       end
 
       described_class.reset_configuration!
 
-      config = described_class.configuration
-      expect(config.admin_api_client).to be_nil
-      expect(config.log_queries).to be false
-      expect(config.compact_queries).to be false
+      expect(described_class.configuration.log_queries).to be false
+      expect(described_class.configuration.compact_queries).to be false
     end
   end
 end
