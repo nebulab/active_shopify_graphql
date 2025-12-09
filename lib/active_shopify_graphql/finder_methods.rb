@@ -154,21 +154,6 @@ module ActiveShopifyGraphQL
 
         attrs.map(&:to_sym).uniq.sort
       end
-
-      # Infers the loader class name from the model name
-      # e.g., Customer -> ActiveGraphQL::CustomerLoader
-      # @return [Class] The loader class
-      def default_loader_class
-        loader_class_name = "#{name}Loader"
-        loader_class_name.constantize
-      rescue NameError
-        # Fall back to the LoaderSwitchable's default_loader_class if inference fails
-        if respond_to?(:default_loader_class, true)
-          super
-        else
-          ActiveShopifyGraphQL::Loaders::AdminApiLoader
-        end
-      end
     end
   end
 end

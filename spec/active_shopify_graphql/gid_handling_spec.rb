@@ -17,10 +17,6 @@ RSpec.describe "GID handling in nested connections" do
       def self.model_name
         ActiveModel::Name.new(self, nil, 'Customer')
       end
-
-      def self.default_loader_class
-        ActiveShopifyGraphQL::Loaders::AdminApiLoader
-      end
     end
 
     order_class = Class.new do
@@ -37,10 +33,6 @@ RSpec.describe "GID handling in nested connections" do
 
       def self.model_name
         ActiveModel::Name.new(self, nil, 'Order')
-      end
-
-      def self.default_loader_class
-        ActiveShopifyGraphQL::Loaders::AdminApiLoader
       end
     end
 

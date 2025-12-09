@@ -48,10 +48,6 @@ RSpec.describe ActiveShopifyGraphQL::Connections, "nested connections" do
       def self.model_name
         ActiveModel::Name.new(self, nil, 'Order')
       end
-
-      def self.default_loader_class
-        ActiveShopifyGraphQL::Loaders::AdminApiLoader
-      end
     end
 
     # Set up constants first

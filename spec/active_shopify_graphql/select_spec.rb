@@ -27,10 +27,6 @@ RSpec.describe "Select functionality" do
         ActiveModel::Name.new(self, nil, "Customer")
       end
 
-      def self.default_loader_class
-        ActiveShopifyGraphQL::Loaders::AdminApiLoader
-      end
-
       class << self
         attr_accessor :default_loader_instance
       end

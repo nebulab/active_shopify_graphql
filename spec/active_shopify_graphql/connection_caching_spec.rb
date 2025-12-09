@@ -19,10 +19,6 @@ RSpec.describe 'Connection caching behavior' do
       def self.model_name
         ActiveModel::Name.new(self, nil, 'Customer')
       end
-
-      def self.default_loader_class
-        ActiveShopifyGraphQL::Loaders::AdminApiLoader
-      end
     end
   end
 
