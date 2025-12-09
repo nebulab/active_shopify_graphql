@@ -11,104 +11,64 @@ module ActiveShopifyGraphQL
     # Class-level factory methods for building complete queries from loader configuration
 
     # Build a complete single-record query (find by ID)
-    # @param graphql_type [String] The GraphQL type (e.g., "Customer")
-    # @param loader_class [Class] The loader class
-    # @param defined_attributes [Hash] Attribute definitions
-    # @param model_class [Class] The model class
-    # @param included_connections [Array] Connections to include
-    # @return [String] Complete GraphQL query string
     def self.build_single_record_query(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:)
-      tree = new
-
-      # Build and add fragment
-      fragment_node = tree.build_fragment_node(
-        graphql_type: graphql_type,
-        loader_class: loader_class,
-        defined_attributes: defined_attributes,
-        model_class: model_class,
-        included_connections: included_connections
-      )
-      tree.add_fragment(fragment_node)
-
-      # Add query wrapper
-      query_name = graphql_type.downcase
-      fragment_name = "#{graphql_type}Fragment"
-      tree.add_query(graphql_type, query_name, fragment_name)
-
-      tree.to_s
+      new.tap do |tree|
+        tree.add_fragment(tree.build_fragment_node(
+                            graphql_type: graphql_type,
+                            loader_class: loader_class,
+                            defined_attributes: defined_attributes,
+                            model_class: model_class,
+                            included_connections: included_connections
+                          ))
+        tree.set_query_config(
+          type: :single_record,
+          model_type: graphql_type,
+          query_name: graphql_type.downcase,
+          fragment_name: fragment_name(graphql_type)
+        )
+      end.to_s
     end
 
     # Build a complete collection query (root-level search/where)
-    # @param graphql_type [String] The GraphQL type (e.g., "Customer")
-    # @param loader_class [Class] The loader class
-    # @param defined_attributes [Hash] Attribute definitions
-    # @param model_class [Class] The model class
-    # @param included_connections [Array] Connections to include
-    # @param query_name [String] The connection field name (e.g., "customers")
-    # @param variables [Hash] Query variables (first, query)
-    # @param connection_type [Symbol] :nodes_only (default) or :connection
-    # @return [String] Complete GraphQL query string
     def self.build_collection_query(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:, query_name:, variables:, connection_type: :nodes_only)
-      tree = new
-
-      # Build and add fragment
-      fragment_node = tree.build_fragment_node(
-        graphql_type: graphql_type,
-        loader_class: loader_class,
-        defined_attributes: defined_attributes,
-        model_class: model_class,
-        included_connections: included_connections
-      )
-      tree.add_fragment(fragment_node)
-
-      # Add collection query wrapper
-      fragment_name = "#{graphql_type}Fragment"
-      tree.add_collection_query(
-        type: graphql_type,
-        query_name: query_name,
-        fragment_name: fragment_name,
-        variables: variables,
-        connection_type: connection_type
-      )
-
-      tree.to_s
+      new.tap do |tree|
+        tree.add_fragment(tree.build_fragment_node(
+                            graphql_type: graphql_type,
+                            loader_class: loader_class,
+                            defined_attributes: defined_attributes,
+                            model_class: model_class,
+                            included_connections: included_connections
+                          ))
+        tree.set_query_config(
+          type: :collection,
+          model_type: graphql_type,
+          query_name: query_name,
+          fragment_name: fragment_name(graphql_type),
+          variables: variables,
+          connection_type: connection_type
+        )
+      end.to_s
     end
 
     # Build a complete connection query
-    # @param graphql_type [String] The GraphQL type (e.g., "Order")
-    # @param loader_class [Class] The loader class
-    # @param defined_attributes [Hash] Attribute definitions
-    # @param model_class [Class] The model class
-    # @param included_connections [Array] Connections to include
-    # @param query_name [String] The connection field name
-    # @param variables [Hash] Query variables (first, sort_key, reverse, query)
-    # @param parent_query [String] Optional parent query for nested connections
-    # @param connection_type [Symbol] :connection or :singular
-    # @return [String] Complete GraphQL query string
     def self.build_connection_query(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:, query_name:, variables:, parent_query: nil, connection_type: :connection)
-      tree = new
-
-      # Build and add fragment
-      fragment_node = tree.build_fragment_node(
-        graphql_type: graphql_type,
-        loader_class: loader_class,
-        defined_attributes: defined_attributes,
-        model_class: model_class,
-        included_connections: included_connections
-      )
-      tree.add_fragment(fragment_node)
-
-      # Add connection query wrapper
-      fragment_name = "#{graphql_type}Fragment"
-      tree.add_connection_query(
-        query_name: query_name,
-        fragment_name: fragment_name,
-        variables: variables,
-        parent_query: parent_query,
-        connection_type: connection_type
-      )
-
-      tree.to_s
+      new.tap do |tree|
+        tree.add_fragment(tree.build_fragment_node(
+                            graphql_type: graphql_type,
+                            loader_class: loader_class,
+                            defined_attributes: defined_attributes,
+                            model_class: model_class,
+                            included_connections: included_connections
+                          ))
+        tree.set_query_config(
+          type: :connection,
+          query_name: query_name,
+          fragment_name: fragment_name(graphql_type),
+          variables: variables,
+          parent_query: parent_query,
+          connection_type: connection_type
+        )
+      end.to_s
     end
 
     # Helper: Get query name for a GraphQL type
@@ -122,10 +82,8 @@ module ActiveShopifyGraphQL
     end
 
     # Build a fragment node (class method wrapper)
-    # @return [QueryNode] The fragment node
     def self.build_fragment_node(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:)
-      tree = new
-      tree.build_fragment_node(
+      new.build_fragment_node(
         graphql_type: graphql_type,
         loader_class: loader_class,
         defined_attributes: defined_attributes,
@@ -135,75 +93,46 @@ module ActiveShopifyGraphQL
     end
 
     # Normalize includes from various formats to a consistent hash structure
-    # Class method for use without instantiation
+    # Handles: [:orders], [{ orders: :line_items }], [{ orders: [:line_items] }], [{ orders: { line_items: :product } }]
     def self.normalize_includes(includes)
-      normalized = {}
-
-      includes.each do |inc|
-        if inc.is_a?(Hash)
+      includes = Array(includes)
+      includes.each_with_object({}) do |inc, normalized|
+        case inc
+        when Hash
           inc.each do |key, value|
             key = key.to_sym
             normalized[key] ||= []
-
-            values = value.is_a?(Array) ? value : [value]
-            normalized[key].concat(values)
+            # Preserve hash structure for nested includes
+            case value
+            when Hash
+              normalized[key] << value
+            when Array
+              normalized[key].concat(value)
+            else
+              normalized[key] << value
+            end
           end
-        else
-          key = inc.to_sym
-          normalized[key] ||= []
+        when Symbol, String
+          normalized[inc.to_sym] ||= []
         end
       end
-
-      normalized
     end
 
-    # Add a fragment to the tree
     def add_fragment(fragment_node)
       @fragments << fragment_node
     end
 
-    # Add a query wrapper with variables for single record queries
-    def add_query(type, query_name, fragment_name)
-      @query_config = {
-        type: :single_record,
-        model_type: type,
-        query_name: query_name,
-        fragment_name: fragment_name
-      }
+    def set_query_config(config)
+      @query_config = config
     end
 
-    # Add a collection query wrapper (for root-level connection queries with search)
-    # @param type [String] The model type (e.g., "Customer")
-    # @param query_name [String] The pluralized query name (e.g., "customers")
-    # @param fragment_name [String] The fragment name to reference
-    # @param variables [Hash] Query variables (e.g., { query: String, first: Int })
-    # @param connection_type [Symbol] :connection (uses edges/nodes) or :nodes_only (direct nodes access)
-    def add_collection_query(type:, query_name:, fragment_name:, variables: {}, connection_type: :nodes_only)
-      @query_config = {
-        type: :collection,
-        model_type: type,
-        query_name: query_name,
-        fragment_name: fragment_name,
-        variables: variables,
-        connection_type: connection_type
-      }
-    end
-
-    # Add a connection query (for root-level or nested connections)
-    # @param query_name [String] The connection field name
-    # @param fragment_name [String] The fragment name to reference
-    # @param variables [Hash] Query variables
-    # @param parent_query [String] Optional parent query (e.g., "customer(id: $id)")
-    # @param connection_type [Symbol] :connection or :singular
-    def add_connection_query(query_name:, fragment_name:, variables: {}, parent_query: nil, connection_type: :connection)
-      @query_config = {
-        type: :connection,
-        query_name: query_name,
-        fragment_name: fragment_name,
-        variables: variables,
-        parent_query: parent_query,
-        connection_type: connection_type
-      }
+    # Build a fragment node
+    def build_fragment(name:, graphql_type:)
+      QueryNode.new(
+        name: name,
+        arguments: { on: graphql_type },
+        node_type: :fragment
+      )
     end
 
     # Build a complete fragment node with all fields and connections
@@ -371,165 +300,133 @@ module ActiveShopifyGraphQL
       end
     end
 
-    # Normalize includes from various formats to a consistent hash structure
-    # Delegates to class method for consistency
+    # Normalize includes - delegates to class method
     def normalize_includes(includes)
       self.class.normalize_includes(includes)
     end
 
-    # Build a fragment node
-    def build_fragment(name:, graphql_type:)
-      QueryNode.new(
-        name: name,
-        arguments: { on: graphql_type },
-        node_type: :fragment
-      )
-    end
-
     # Convert the entire tree to a GraphQL string
     def to_s
-      compact = ActiveShopifyGraphQL.configuration.compact_queries
-
       case @query_config[:type]
-      when :single_record
-        build_single_record_query(compact)
-      when :collection
-        build_collection_query(compact)
-      when :connection
-        build_connection_query(compact)
-      else
-        ""
+      when :single_record then render_single_record_query
+      when :collection    then render_collection_query
+      when :connection    then render_connection_query
+      else ""
       end
     end
 
     private
 
-    def build_single_record_query(compact)
-      fragments_string = @fragments.map(&:to_s).join(compact ? " " : "\n\n")
+    def compact?
+      ActiveShopifyGraphQL.configuration.compact_queries
+    end
+
+    def fragments_string
+      @fragments.map(&:to_s).join(compact? ? " " : "\n\n")
+    end
+
+    def field_signature(variables)
+      params = build_field_parameters(variables.compact)
+      params.empty? ? "" : "(#{params.join(', ')})"
+    end
+
+    def render_single_record_query
       type = @query_config[:model_type]
       query_name = @query_config[:query_name]
       fragment_name = @query_config[:fragment_name]
 
-      if compact
+      if compact?
         "#{fragments_string} query get#{type}($id: ID!) { #{query_name}(id: $id) { ...#{fragment_name} } }"
       else
         "#{fragments_string}\n\nquery get#{type}($id: ID!) {\n  #{query_name}(id: $id) {\n    ...#{fragment_name}\n  }\n}\n"
       end
     end
 
-    def build_collection_query(compact)
-      fragments_string = @fragments.map(&:to_s).join(compact ? " " : "\n\n")
+    def render_collection_query
       type = @query_config[:model_type]
       query_name = @query_config[:query_name]
       fragment_name = @query_config[:fragment_name]
       variables = @query_config[:variables] || {}
       connection_type = @query_config[:connection_type] || :nodes_only
 
-      # Use inline values for all parameters (no GraphQL variables)
-      # Filter out nil values
-      field_params = build_field_parameters(variables.reject { |_k, v| v.nil? })
-      field_signature = field_params.empty? ? "" : "(#{field_params.join(', ')})"
+      field_sig = field_signature(variables)
 
-      # Build the query body based on connection type
-      if connection_type == :nodes_only
-        if compact
-          "#{fragments_string} query get#{type.pluralize} { #{query_name}#{field_signature} { nodes { ...#{fragment_name} } } }"
-        else
-          "#{fragments_string}\nquery get#{type.pluralize} {\n  #{query_name}#{field_signature} {\n    nodes {\n      ...#{fragment_name}\n    }\n  }\n}\n"
-        end
-      elsif compact
-        # Standard connection with edges/nodes
-        "#{fragments_string} query get#{type.pluralize} { #{query_name}#{field_signature} { edges { node { ...#{fragment_name} } } } }"
+      if compact?
+        body = wrap_connection_body_compact(fragment_name, connection_type)
+        "#{fragments_string} query get#{type.pluralize} { #{query_name}#{field_sig} { #{body} } }"
       else
-        "#{fragments_string}\nquery get#{type.pluralize} {\n  #{query_name}#{field_signature} {\n    edges {\n      node {\n        ...#{fragment_name}\n      }\n    }\n  }\n}\n"
+        body = wrap_connection_body_formatted(fragment_name, connection_type, 2)
+        "#{fragments_string}\nquery get#{type.pluralize} {\n  #{query_name}#{field_sig} {\n#{body}\n  }\n}\n"
       end
     end
 
-    def build_connection_query(compact)
-      fragments_string = @fragments.map(&:to_s).join(compact ? " " : "\n\n")
+    def render_connection_query
       query_name = @query_config[:query_name]
       fragment_name = @query_config[:fragment_name]
       variables = @query_config[:variables] || {}
       parent_query = @query_config[:parent_query]
       connection_type = @query_config[:connection_type] || :connection
 
-      # Build variable declarations (only for parent ID if nested)
-      var_declarations = parent_query ? ["$id: ID!"] : []
-      query_signature = var_declarations.empty? ? "" : "(#{var_declarations.join(', ')})"
+      field_sig = field_signature(variables)
 
-      # Build field parameters (inline values for connection args), filtering out nil values
-      field_params = build_field_parameters(variables.reject { |_k, v| v.nil? })
-      field_signature = field_params.empty? ? "" : "(#{field_params.join(', ')})"
-
-      # Build the query body
       if parent_query
-        # Nested query with parent
-        build_nested_connection_query(compact, fragments_string, query_signature, parent_query, query_name, field_signature, fragment_name, connection_type)
+        render_nested_connection_query(query_name, fragment_name, field_sig, parent_query, connection_type)
       else
-        # Root-level connection query
-        build_root_connection_query(compact, fragments_string, query_signature, query_name, field_signature, fragment_name, connection_type)
+        render_root_connection_query(query_name, fragment_name, field_sig, connection_type)
       end
     end
 
-    def build_nested_connection_query(compact, fragments_string, query_signature, parent_query, query_name, field_signature, fragment_name, connection_type)
-      if connection_type == :singular
-        if compact
-          "#{fragments_string} query#{query_signature} { #{parent_query} { #{query_name}#{field_signature} { ...#{fragment_name} } } }"
-        else
-          "#{fragments_string}\nquery#{query_signature} {\n  #{parent_query} {\n    #{query_name}#{field_signature} {\n      ...#{fragment_name}\n    }\n  }\n}\n"
-        end
-      elsif compact
-        "#{fragments_string} query#{query_signature} { #{parent_query} { #{query_name}#{field_signature} { edges { node { ...#{fragment_name} } } } } }"
+    def render_nested_connection_query(query_name, fragment_name, field_sig, parent_query, connection_type)
+      if compact?
+        body = wrap_connection_body_compact(fragment_name, connection_type)
+        "#{fragments_string} query($id: ID!) { #{parent_query} { #{query_name}#{field_sig} { #{body} } } }"
       else
-        "#{fragments_string}\nquery#{query_signature} {\n  #{parent_query} {\n    #{query_name}#{field_signature} {\n      edges {\n        node {\n          ...#{fragment_name}\n        }\n      }\n    }\n  }\n}\n"
+        body = wrap_connection_body_formatted(fragment_name, connection_type, 3)
+        "#{fragments_string}\nquery($id: ID!) {\n  #{parent_query} {\n    #{query_name}#{field_sig} {\n#{body}\n    }\n  }\n}\n"
       end
     end
 
-    def build_root_connection_query(compact, fragments_string, query_signature, query_name, field_signature, fragment_name, connection_type)
-      if connection_type == :singular
-        if compact
-          "#{fragments_string} query#{query_signature} { #{query_name}#{field_signature} { ...#{fragment_name} } }"
-        else
-          "#{fragments_string}\nquery#{query_signature} {\n  #{query_name}#{field_signature} {\n    ...#{fragment_name}\n  }\n}\n"
-        end
-      elsif connection_type == :nodes_only
-        # Use nodes instead of edges/node
-        if compact
-          "#{fragments_string} query#{query_signature} { #{query_name}#{field_signature} { nodes { ...#{fragment_name} } } }"
-        else
-          "#{fragments_string}\nquery#{query_signature} {\n  #{query_name}#{field_signature} {\n    nodes {\n      ...#{fragment_name}\n    }\n  }\n}\n"
-        end
-      elsif compact
-        "#{fragments_string} query#{query_signature} { #{query_name}#{field_signature} { edges { node { ...#{fragment_name} } } } }"
+    def render_root_connection_query(query_name, fragment_name, field_sig, connection_type)
+      if compact?
+        body = wrap_connection_body_compact(fragment_name, connection_type)
+        "#{fragments_string} query { #{query_name}#{field_sig} { #{body} } }"
       else
-        "#{fragments_string}\nquery#{query_signature} {\n  #{query_name}#{field_signature} {\n    edges {\n      node {\n        ...#{fragment_name}\n      }\n    }\n  }\n}\n"
+        body = wrap_connection_body_formatted(fragment_name, connection_type, 2)
+        "#{fragments_string}\nquery {\n  #{query_name}#{field_sig} {\n#{body}\n  }\n}\n"
+      end
+    end
+
+    def wrap_connection_body_compact(fragment_name, connection_type)
+      case connection_type
+      when :singular    then "...#{fragment_name}"
+      when :nodes_only  then "nodes { ...#{fragment_name} }"
+      else                   "edges { node { ...#{fragment_name} } }"
+      end
+    end
+
+    def wrap_connection_body_formatted(fragment_name, connection_type, indent_level)
+      indent = "  " * indent_level
+      case connection_type
+      when :singular
+        "#{indent}...#{fragment_name}"
+      when :nodes_only
+        "#{indent}nodes {\n#{indent}  ...#{fragment_name}\n#{indent}}"
+      else
+        "#{indent}edges {\n#{indent}  node {\n#{indent}    ...#{fragment_name}\n#{indent}  }\n#{indent}}"
       end
     end
 
     def build_field_parameters(variables)
       variables.map do |key, value|
-        graphql_key = key.to_s.camelize(:lower)
-        formatted_value = format_inline_value(key, value)
-        "#{graphql_key}: #{formatted_value}"
+        "#{key.to_s.camelize(:lower)}: #{format_inline_value(key, value)}"
       end
     end
 
     def format_inline_value(key, value)
       case value
-      when Integer
-        value.to_s
-      when TrueClass, FalseClass
-        value.to_s
-      when String
-        # The 'query' parameter needs quoted strings for search syntax
-        if key.to_sym == :query
-          "\"#{value}\""
-        else
-          # Other string values (like enum sort keys) don't need quotes
-          value
-        end
-      else
-        value.to_s
+      when Integer, TrueClass, FalseClass then value.to_s
+      when String then key.to_sym == :query ? "\"#{value}\"" : value
+      else value.to_s
       end
     end
   end
