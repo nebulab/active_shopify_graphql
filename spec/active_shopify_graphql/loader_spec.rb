@@ -31,11 +31,16 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
 
     let(:test_loader_class) do
       model_class = test_model_class
+      mock_client_ref = mock_client
       Class.new(described_class) do
         graphql_type "TestModel"
 
         define_method(:initialize) do |model_class_arg = model_class, **options|
           super(model_class_arg, **options)
+        end
+
+        define_method(:perform_graphql_query) do |query, **variables|
+          mock_client_ref.execute(query, **variables)
         end
 
         def map_response_to_attributes(response_data)

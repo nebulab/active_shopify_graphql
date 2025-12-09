@@ -7,10 +7,10 @@ module ActiveShopifyGraphQL
   class ConnectionLoader
     attr_reader :connection_query, :loader_class
 
-    def initialize(connection_query:, loader_class:, client_type:, response_mapper_factory:)
+    def initialize(connection_query:, loader_class:, loader_instance:, response_mapper_factory:)
       @connection_query = connection_query
       @loader_class = loader_class
-      @client_type = client_type
+      @loader_instance = loader_instance
       @response_mapper_factory = response_mapper_factory
     end
 
@@ -41,8 +41,7 @@ module ActiveShopifyGraphQL
       parent_id = extract_gid(parent)
       query_variables = { id: parent_id }
 
-      executor = Executor.new(@client_type)
-      response_data = executor.execute(query, **query_variables)
+      response_data = @loader_instance.perform_graphql_query(query, **query_variables)
 
       return [] if response_data.nil?
 
@@ -55,8 +54,7 @@ module ActiveShopifyGraphQL
       # No variables needed for root-level connections - all args are inline
       query_variables = {}
 
-      executor = Executor.new(@client_type)
-      response_data = executor.execute(query, **query_variables)
+      response_data = @loader_instance.perform_graphql_query(query, **query_variables)
 
       return [] if response_data.nil?
 

@@ -7,6 +7,12 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
     query_stub
   end
 
+  def mock_loader_instance
+    loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+    allow(loader).to receive(:perform_graphql_query)
+    loader
+  end
+
   after do
     ActiveShopifyGraphQL.reset_configuration!
   end
@@ -23,7 +29,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         record_query: record_query_stub,
         fragment: fragment,
         map_response_proc: map_response_proc,
-        client_type: :admin_api
+        loader_instance: mock_loader_instance
       )
 
       expect(collection_query.graphql_type).to eq("Customer")
@@ -32,10 +38,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
 
   describe "#execute" do
     it "executes collection query and returns mapped results" do
-      mock_client = instance_double("GraphQLClient")
-      ActiveShopifyGraphQL.configure do |config|
-        config.admin_api_client = mock_client
-      end
+      loader = mock_loader_instance
 
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       # record_query_stub is used instead
@@ -47,7 +50,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         record_query: record_query_stub,
         fragment: fragment,
         map_response_proc: map_response_proc,
-        client_type: :admin_api
+        loader_instance: loader
       )
 
       query_string = collection_query.collection_graphql_query
@@ -62,7 +65,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         }
       }
 
-      allow(mock_client).to receive(:execute).with(query_string, query: "", first: 250).and_return(response_data)
+      allow(loader).to receive(:perform_graphql_query).with(query_string, query: "", first: 250).and_return(response_data)
 
       result = collection_query.execute
 
@@ -70,10 +73,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
     end
 
     it "builds query string from conditions" do
-      mock_client = instance_double("GraphQLClient")
-      ActiveShopifyGraphQL.configure do |config|
-        config.admin_api_client = mock_client
-      end
+      loader = mock_loader_instance
 
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       # record_query_stub is used instead
@@ -85,24 +85,21 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         record_query: record_query_stub,
         fragment: fragment,
         map_response_proc: map_response_proc,
-        client_type: :admin_api
+        loader_instance: loader
       )
 
       query_string = collection_query.collection_graphql_query
       response_data = { "data" => { "orders" => { "nodes" => [] } } }
 
-      allow(mock_client).to receive(:execute).with(query_string, query: "status:open", first: 250).and_return(response_data)
+      allow(loader).to receive(:perform_graphql_query).with(query_string, query: "status:open", first: 250).and_return(response_data)
 
       collection_query.execute({ status: "open" })
 
-      expect(mock_client).to have_received(:execute).with(query_string, query: "status:open", first: 250)
+      expect(loader).to have_received(:perform_graphql_query).with(query_string, query: "status:open", first: 250)
     end
 
     it "accepts custom limit parameter" do
-      mock_client = instance_double("GraphQLClient")
-      ActiveShopifyGraphQL.configure do |config|
-        config.admin_api_client = mock_client
-      end
+      loader = mock_loader_instance
 
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       # record_query_stub is used instead
@@ -114,24 +111,21 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         record_query: record_query_stub,
         fragment: fragment,
         map_response_proc: map_response_proc,
-        client_type: :admin_api
+        loader_instance: loader
       )
 
       query_string = collection_query.collection_graphql_query
       response_data = { "data" => { "customers" => { "nodes" => [] } } }
 
-      allow(mock_client).to receive(:execute).with(query_string, query: "", first: 50).and_return(response_data)
+      allow(loader).to receive(:perform_graphql_query).with(query_string, query: "", first: 50).and_return(response_data)
 
       collection_query.execute({}, limit: 50)
 
-      expect(mock_client).to have_received(:execute).with(query_string, query: "", first: 50)
+      expect(loader).to have_received(:perform_graphql_query).with(query_string, query: "", first: 50)
     end
 
     it "returns empty array when no nodes found" do
-      mock_client = instance_double("GraphQLClient")
-      ActiveShopifyGraphQL.configure do |config|
-        config.admin_api_client = mock_client
-      end
+      loader = mock_loader_instance
 
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       # record_query_stub is used instead
@@ -143,13 +137,13 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         record_query: record_query_stub,
         fragment: fragment,
         map_response_proc: map_response_proc,
-        client_type: :admin_api
+        loader_instance: loader
       )
 
       collection_query.collection_graphql_query
       response_data = { "data" => { "customers" => { "nodes" => [] } } }
 
-      allow(mock_client).to receive(:execute).and_return(response_data)
+      allow(loader).to receive(:perform_graphql_query).and_return(response_data)
 
       result = collection_query.execute
 
@@ -157,10 +151,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
     end
 
     it "returns empty array when nodes is nil" do
-      mock_client = instance_double("GraphQLClient")
-      ActiveShopifyGraphQL.configure do |config|
-        config.admin_api_client = mock_client
-      end
+      loader = mock_loader_instance
 
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       # record_query_stub is used instead
@@ -172,13 +163,13 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         record_query: record_query_stub,
         fragment: fragment,
         map_response_proc: map_response_proc,
-        client_type: :admin_api
+        loader_instance: loader
       )
 
       collection_query.collection_graphql_query
       response_data = { "data" => { "customers" => {} } }
 
-      allow(mock_client).to receive(:execute).and_return(response_data)
+      allow(loader).to receive(:perform_graphql_query).and_return(response_data)
 
       result = collection_query.execute
 
@@ -186,10 +177,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
     end
 
     it "raises error on query validation warnings" do
-      mock_client = instance_double("GraphQLClient")
-      ActiveShopifyGraphQL.configure do |config|
-        config.admin_api_client = mock_client
-      end
+      loader = mock_loader_instance
 
       query_builder = instance_double(ActiveShopifyGraphQL::RecordQuery)
       # record_query_stub is used instead
@@ -201,7 +189,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         record_query: record_query_stub,
         fragment: fragment,
         map_response_proc: map_response_proc,
-        client_type: :admin_api
+        loader_instance: loader
       )
 
       collection_query.collection_graphql_query
@@ -218,7 +206,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         }
       }
 
-      allow(mock_client).to receive(:execute).and_return(response_data)
+      allow(loader).to receive(:perform_graphql_query).and_return(response_data)
 
       expect { collection_query.execute }.to raise_error(ArgumentError, /Shopify query validation failed/)
     end
@@ -236,7 +224,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         record_query: record_query_stub,
         fragment: fragment,
         map_response_proc: map_response_proc,
-        client_type: :admin_api
+        loader_instance: mock_loader_instance
       )
 
       result = collection_query.collection_graphql_query
@@ -259,7 +247,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         record_query: record_query_stub,
         fragment: fragment,
         map_response_proc: map_response_proc,
-        client_type: :admin_api
+        loader_instance: mock_loader_instance
       )
 
       result = collection_query.collection_graphql_query("Order")
@@ -283,7 +271,7 @@ RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
         record_query: record_query_stub,
         fragment: fragment,
         map_response_proc: map_response_proc,
-        client_type: :admin_api
+        loader_instance: mock_loader_instance
       )
 
       result = collection_query.collection_graphql_query

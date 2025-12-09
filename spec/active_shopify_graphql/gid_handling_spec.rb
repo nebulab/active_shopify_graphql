@@ -61,7 +61,7 @@ RSpec.describe "GID handling in nested connections" do
       ActiveShopifyGraphQL::ConnectionLoader.new(
         connection_query: loader.connection_query,
         loader_class: loader.class,
-        client_type: loader.class.client_type,
+        loader_instance: loader,
         response_mapper_factory: lambda do
           ActiveShopifyGraphQL::ResponseMapper.new(
             graphql_type: loader.graphql_type,

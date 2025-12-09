@@ -1,6 +1,12 @@
 # frozen_string_literal: true
 
 RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
+  def mock_loader_instance
+    loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+    allow(loader).to receive(:perform_graphql_query)
+    loader
+  end
+
   describe "#initialize" do
     it "stores the query_builder" do
       query_builder = instance_double(ActiveShopifyGraphQL::ConnectionQuery)
@@ -9,7 +15,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
       loader = described_class.new(
         connection_query: query_builder,
         loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-        client_type: :admin_api,
+        loader_instance: mock_loader_instance,
         response_mapper_factory: mapper_factory
       )
 
@@ -23,7 +29,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
       loader = described_class.new(
         connection_query: query_builder,
         loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-        client_type: :admin_api,
+        loader_instance: mock_loader_instance,
         response_mapper_factory: mapper_factory
       )
 
@@ -38,10 +44,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
 
     context "with root-level connection" do
       it "loads records using connection query" do
-        mock_client = instance_double("GraphQLClient")
-        ActiveShopifyGraphQL.configure do |config|
-          config.admin_api_client = mock_client
-        end
+        loader_instance = mock_loader_instance
 
         query_builder = instance_double(ActiveShopifyGraphQL::ConnectionQuery)
         response_mapper = instance_double(ActiveShopifyGraphQL::ResponseMapper)
@@ -50,7 +53,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
         loader = described_class.new(
           connection_query: query_builder,
           loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-          client_type: :admin_api,
+          loader_instance: loader_instance,
           response_mapper_factory: mapper_factory
         )
 
@@ -59,7 +62,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
         expected_records = []
 
         allow(query_builder).to receive(:connection_graphql_query).with("orders", { first: 10 }, nil).and_return(query_string)
-        allow(mock_client).to receive(:execute).with(query_string).and_return(response_data)
+        allow(loader_instance).to receive(:perform_graphql_query).with(query_string).and_return(response_data)
         allow(response_mapper).to receive(:map_connection_response_to_attributes).with(response_data, "orders", nil).and_return(expected_records)
 
         result = loader.load_records("orders", { first: 10 })
@@ -70,10 +73,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
       end
 
       it "passes connection_config to query builder and mapper" do
-        mock_client = instance_double("GraphQLClient")
-        ActiveShopifyGraphQL.configure do |config|
-          config.admin_api_client = mock_client
-        end
+        loader_instance = mock_loader_instance
 
         query_builder = instance_double(ActiveShopifyGraphQL::ConnectionQuery)
         response_mapper = instance_double(ActiveShopifyGraphQL::ResponseMapper)
@@ -82,7 +82,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
         loader = described_class.new(
           connection_query: query_builder,
           loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-          client_type: :admin_api,
+          loader_instance: loader_instance,
           response_mapper_factory: mapper_factory
         )
 
@@ -91,7 +91,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
         response_data = { "data" => { "shop" => { "id" => "123" } } }
 
         allow(query_builder).to receive(:connection_graphql_query).and_return(query_string)
-        allow(mock_client).to receive(:execute).and_return(response_data)
+        allow(loader_instance).to receive(:perform_graphql_query).and_return(response_data)
         allow(response_mapper).to receive(:map_connection_response_to_attributes).and_return(nil)
 
         loader.load_records("shop", {}, nil, connection_config)
@@ -101,10 +101,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
       end
 
       it "returns empty array when response is nil" do
-        mock_client = instance_double("GraphQLClient")
-        ActiveShopifyGraphQL.configure do |config|
-          config.admin_api_client = mock_client
-        end
+        loader_instance = mock_loader_instance
 
         query_builder = instance_double(ActiveShopifyGraphQL::ConnectionQuery)
         mapper_factory = -> { instance_double(ActiveShopifyGraphQL::ResponseMapper) }
@@ -112,12 +109,12 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
         loader = described_class.new(
           connection_query: query_builder,
           loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-          client_type: :admin_api,
+          loader_instance: loader_instance,
           response_mapper_factory: mapper_factory
         )
 
         allow(query_builder).to receive(:connection_graphql_query).and_return("query {}")
-        allow(mock_client).to receive(:execute).and_return(nil)
+        allow(loader_instance).to receive(:perform_graphql_query).and_return(nil)
 
         result = loader.load_records("orders", { first: 10 })
 
@@ -127,10 +124,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
 
     context "with nested connection" do
       it "loads records using nested connection query" do
-        mock_client = instance_double("GraphQLClient")
-        ActiveShopifyGraphQL.configure do |config|
-          config.admin_api_client = mock_client
-        end
+        loader_instance = mock_loader_instance
 
         query_builder = instance_double(ActiveShopifyGraphQL::ConnectionQuery)
         response_mapper = instance_double(ActiveShopifyGraphQL::ResponseMapper)
@@ -139,7 +133,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
         loader = described_class.new(
           connection_query: query_builder,
           loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-          client_type: :admin_api,
+          loader_instance: loader_instance,
           response_mapper_factory: mapper_factory
         )
 
@@ -163,7 +157,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
         expected_records = []
 
         allow(query_builder).to receive(:nested_connection_graphql_query).with("orders", { first: 10 }, parent, connection_config).and_return(query_string)
-        allow(mock_client).to receive(:execute).with(query_string, id: "gid://shopify/Customer/123").and_return(response_data)
+        allow(loader_instance).to receive(:perform_graphql_query).with(query_string, id: "gid://shopify/Customer/123").and_return(response_data)
         allow(response_mapper).to receive(:map_nested_connection_response_to_attributes).with(response_data, "orders", parent, connection_config).and_return(expected_records)
 
         result = loader.load_records("orders", { first: 10 }, parent, connection_config)
@@ -174,10 +168,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
       end
 
       it "detects nested connection when parent responds to id" do
-        mock_client = instance_double("GraphQLClient")
-        ActiveShopifyGraphQL.configure do |config|
-          config.admin_api_client = mock_client
-        end
+        loader_instance = mock_loader_instance
 
         query_builder = instance_double(ActiveShopifyGraphQL::ConnectionQuery)
         response_mapper = instance_double(ActiveShopifyGraphQL::ResponseMapper)
@@ -186,7 +177,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
         loader = described_class.new(
           connection_query: query_builder,
           loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-          client_type: :admin_api,
+          loader_instance: loader_instance,
           response_mapper_factory: mapper_factory
         )
 
@@ -205,7 +196,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
         parent.id = "gid://shopify/Customer/456"
 
         allow(query_builder).to receive(:nested_connection_graphql_query).and_return("query {}")
-        allow(mock_client).to receive(:execute).and_return({ "data" => {} })
+        allow(loader_instance).to receive(:perform_graphql_query).and_return({ "data" => {} })
         allow(response_mapper).to receive(:map_nested_connection_response_to_attributes).and_return([])
 
         loader.load_records("orders", {}, parent)
@@ -215,10 +206,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
       end
 
       it "normalizes numeric ID to GID format" do
-        mock_client = instance_double("GraphQLClient")
-        ActiveShopifyGraphQL.configure do |config|
-          config.admin_api_client = mock_client
-        end
+        loader_instance = mock_loader_instance
 
         query_builder = instance_double(ActiveShopifyGraphQL::ConnectionQuery)
         response_mapper = instance_double(ActiveShopifyGraphQL::ResponseMapper)
@@ -227,7 +215,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
         loader = described_class.new(
           connection_query: query_builder,
           loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-          client_type: :admin_api,
+          loader_instance: loader_instance,
           response_mapper_factory: mapper_factory
         )
 
@@ -246,19 +234,16 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
         parent.id = 789
 
         allow(query_builder).to receive(:nested_connection_graphql_query).and_return("query {}")
-        allow(mock_client).to receive(:execute).with("query {}", id: "gid://shopify/Customer/789").and_return({ "data" => {} })
+        allow(loader_instance).to receive(:perform_graphql_query).with("query {}", id: "gid://shopify/Customer/789").and_return({ "data" => {} })
         allow(response_mapper).to receive(:map_nested_connection_response_to_attributes).and_return([])
 
         loader.load_records("orders", {}, parent)
 
-        expect(mock_client).to have_received(:execute).with("query {}", id: "gid://shopify/Customer/789")
+        expect(loader_instance).to have_received(:perform_graphql_query).with("query {}", id: "gid://shopify/Customer/789")
       end
 
       it "uses gid attribute if available on parent" do
-        mock_client = instance_double("GraphQLClient")
-        ActiveShopifyGraphQL.configure do |config|
-          config.admin_api_client = mock_client
-        end
+        loader_instance = mock_loader_instance
 
         query_builder = instance_double(ActiveShopifyGraphQL::ConnectionQuery)
         response_mapper = instance_double(ActiveShopifyGraphQL::ResponseMapper)
@@ -267,7 +252,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
         loader = described_class.new(
           connection_query: query_builder,
           loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-          client_type: :admin_api,
+          loader_instance: loader_instance,
           response_mapper_factory: mapper_factory
         )
 
@@ -287,19 +272,16 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
         parent.gid = "gid://shopify/Customer/888"
 
         allow(query_builder).to receive(:nested_connection_graphql_query).and_return("query {}")
-        allow(mock_client).to receive(:execute).with("query {}", id: "gid://shopify/Customer/888").and_return({ "data" => {} })
+        allow(loader_instance).to receive(:perform_graphql_query).with("query {}", id: "gid://shopify/Customer/888").and_return({ "data" => {} })
         allow(response_mapper).to receive(:map_nested_connection_response_to_attributes).and_return([])
 
         loader.load_records("orders", {}, parent)
 
-        expect(mock_client).to have_received(:execute).with("query {}", id: "gid://shopify/Customer/888")
+        expect(loader_instance).to have_received(:perform_graphql_query).with("query {}", id: "gid://shopify/Customer/888")
       end
 
       it "returns empty array when response is nil" do
-        mock_client = instance_double("GraphQLClient")
-        ActiveShopifyGraphQL.configure do |config|
-          config.admin_api_client = mock_client
-        end
+        loader_instance = mock_loader_instance
 
         query_builder = instance_double(ActiveShopifyGraphQL::ConnectionQuery)
         mapper_factory = -> { instance_double(ActiveShopifyGraphQL::ResponseMapper) }
@@ -307,7 +289,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
         loader = described_class.new(
           connection_query: query_builder,
           loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-          client_type: :admin_api,
+          loader_instance: loader_instance,
           response_mapper_factory: mapper_factory
         )
 
@@ -326,7 +308,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
         parent.id = "gid://shopify/Customer/123"
 
         allow(query_builder).to receive(:nested_connection_graphql_query).and_return("query {}")
-        allow(mock_client).to receive(:execute).and_return(nil)
+        allow(loader_instance).to receive(:perform_graphql_query).and_return(nil)
 
         result = loader.load_records("orders", {}, parent)
 

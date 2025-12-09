@@ -44,8 +44,8 @@ RSpec.describe "CustomerAccountApiLoader graphql_type handling" do
     it "uses model's graphql_type in load_attributes method" do
       loader = ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader.new(customer_class, "fake_token")
 
-      # Mock the execute_graphql_query to avoid actual API calls
-      allow(loader).to receive(:execute_graphql_query).and_return({ "customer" => { "id" => "123", "displayName" => "Test" } })
+      # Mock the perform_graphql_query to avoid actual API calls
+      allow(loader).to receive(:perform_graphql_query).and_return({ "customer" => { "id" => "123", "displayName" => "Test" } })
       allow(loader).to receive(:map_response_to_attributes).and_return({ id: "123", name: "Test" })
 
       # This should not raise an error about graphql_type

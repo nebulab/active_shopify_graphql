@@ -5,13 +5,13 @@ module ActiveShopifyGraphQL
   class CollectionQuery
     attr_reader :graphql_type
 
-    def initialize(graphql_type:, query_builder:, record_query:, fragment:, map_response_proc:, client_type:)
+    def initialize(graphql_type:, query_builder:, record_query:, fragment:, map_response_proc:, loader_instance:)
       @graphql_type = graphql_type
       @query_builder = query_builder
       @record_query = record_query
       @fragment = fragment
       @map_response_proc = map_response_proc
-      @client_type = client_type
+      @loader_instance = loader_instance
     end
 
     # Executes a collection query using Shopify's search syntax and returns an array of mapped attributes
@@ -23,8 +23,7 @@ module ActiveShopifyGraphQL
       query = collection_graphql_query(@graphql_type)
       variables = { query: search_query.to_s, first: limit }
 
-      executor = Executor.new(@client_type)
-      response = executor.execute(query, **variables)
+      response = @loader_instance.perform_graphql_query(query, **variables)
 
       # Check for search warnings/errors in extensions
       validate_search_response(response)

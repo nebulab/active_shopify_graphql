@@ -6,7 +6,6 @@ require_relative 'fragment'
 require_relative 'response_mapper'
 require_relative 'record_query'
 require_relative 'connection_query'
-require_relative 'executor'
 require_relative 'collection_query'
 require_relative 'connection_loader'
 
@@ -224,8 +223,7 @@ module ActiveShopifyGraphQL
       query = graphql_query(graphql_type)
       variables = { id: id }
 
-      executor = Executor.new(self.class.client_type)
-      response_data = executor.execute(query, **variables)
+      response_data = perform_graphql_query(query, **variables)
 
       return nil if response_data.nil?
 
@@ -243,7 +241,7 @@ module ActiveShopifyGraphQL
         record_query: record_query,
         fragment: fragment,
         map_response_proc: ->(response) { map_response_to_attributes(response) },
-        client_type: self.class.client_type
+        loader_instance: self
       )
       collection_query.execute(conditions, limit: limit)
     end
@@ -258,7 +256,7 @@ module ActiveShopifyGraphQL
       connection_loader = ConnectionLoader.new(
         connection_query: connection_query,
         loader_class: self.class,
-        client_type: self.class.client_type,
+        loader_instance: self,
         response_mapper_factory: lambda {
           ResponseMapper.new(
             graphql_type: graphql_type,
@@ -271,6 +269,16 @@ module ActiveShopifyGraphQL
         }
       )
       connection_loader.load_records(query_name, variables, parent, connection_config)
+    end
+
+    # Abstract method for executing GraphQL queries
+    # Subclasses must implement this to handle their specific client, token, and header requirements
+    # Public so that collaborating classes (CollectionQuery, ConnectionLoader) can call it
+    # @param query [String] The GraphQL query string
+    # @param variables [Hash] The query variables
+    # @return [Hash] The GraphQL response data
+    def perform_graphql_query(query, **variables)
+      raise NotImplementedError, "#{self.class} must implement perform_graphql_query"
     end
   end
 end

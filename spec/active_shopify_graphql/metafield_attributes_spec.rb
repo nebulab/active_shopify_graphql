@@ -49,6 +49,11 @@ RSpec.describe "Metafield attribute functionality" do
   test_loader_class = Class.new(ActiveShopifyGraphQL::Loader) do
     graphql_type "Product"
     self.model_class = test_model_class
+  
+    def perform_graphql_query(query, **variables)
+      mock_client = ActiveShopifyGraphQL.configuration.admin_api_client
+      mock_client.execute(query, **variables) if mock_client
+    end
   end
 
   describe ".metafield_attribute" do
@@ -210,7 +215,12 @@ RSpec.describe "Metafield attribute functionality" do
       transform_loader = Class.new(ActiveShopifyGraphQL::Loader) do
         graphql_type "Product"
         self.model_class = transform_model
-      end
+  
+    def perform_graphql_query(query, **variables)
+      mock_client = ActiveShopifyGraphQL.configuration.admin_api_client
+      mock_client.execute(query, **variables) if mock_client
+    end
+  end
 
       allow(mock_client).to receive(:execute).and_return(
         {
@@ -244,7 +254,12 @@ RSpec.describe "Metafield attribute functionality" do
       default_loader = Class.new(ActiveShopifyGraphQL::Loader) do
         graphql_type "Product"
         self.model_class = default_model
-      end
+  
+    def perform_graphql_query(query, **variables)
+      mock_client = ActiveShopifyGraphQL.configuration.admin_api_client
+      mock_client.execute(query, **variables) if mock_client
+    end
+  end
 
       allow(mock_client).to receive(:execute).and_return(
         {
@@ -280,7 +295,12 @@ RSpec.describe "Metafield attribute functionality" do
       transform_loader = Class.new(ActiveShopifyGraphQL::Loader) do
         graphql_type "Product"
         self.model_class = transform_model
-      end
+  
+    def perform_graphql_query(query, **variables)
+      mock_client = ActiveShopifyGraphQL.configuration.admin_api_client
+      mock_client.execute(query, **variables) if mock_client
+    end
+  end
 
       allow(mock_client).to receive(:execute).and_return(
         {
@@ -329,7 +349,12 @@ RSpec.describe "Metafield attribute functionality" do
       mixed_loader = Class.new(ActiveShopifyGraphQL::Loader) do
         graphql_type "Product"
         self.model_class = mixed_model
-      end
+  
+    def perform_graphql_query(query, **variables)
+      mock_client = ActiveShopifyGraphQL.configuration.admin_api_client
+      mock_client.execute(query, **variables) if mock_client
+    end
+  end
 
       allow(mock_client).to receive(:execute).and_return(
         {

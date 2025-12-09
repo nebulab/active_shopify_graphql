@@ -28,14 +28,12 @@ module ActiveShopifyGraphQL
         # For Customer queries, we don't need variables; for others, we need the ID
         variables = type == 'Customer' ? {} : { id: id }
 
-        response_data = execute_graphql_query(query, **variables)
+        response_data = perform_graphql_query(query, **variables)
 
         return nil if response_data.nil?
 
         map_response_to_attributes(response_data)
       end
-
-      private
 
       def client
         client_class = ActiveShopifyGraphQL.configuration.customer_account_client_class
@@ -45,8 +43,22 @@ module ActiveShopifyGraphQL
       end
 
       def perform_graphql_query(query, **variables)
+        log_query(query, variables) if should_log?
+
         # The customer access token is already set in the client's headers
         client.query(query, variables)
+      end
+
+      private
+
+      def should_log?
+        ActiveShopifyGraphQL.configuration.log_queries && ActiveShopifyGraphQL.configuration.logger
+      end
+
+      def log_query(query, variables)
+        logger = ActiveShopifyGraphQL.configuration.logger
+        logger.info("ActiveShopifyGraphQL Query (Customer Account API):\n#{query}")
+        logger.info("ActiveShopifyGraphQL Variables:\n#{variables}")
       end
 
       # Builds a customer-only query (no ID parameter needed)
