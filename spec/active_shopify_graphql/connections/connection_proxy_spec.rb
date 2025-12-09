@@ -22,7 +22,7 @@ RSpec.describe ActiveShopifyGraphQL::Connections::ConnectionProxy do
       end
 
       def self.default_loader_class
-        ActiveShopifyGraphQL::AdminApiLoader
+        ActiveShopifyGraphQL::Loaders::AdminApiLoader
       end
     end
   end
@@ -59,7 +59,7 @@ RSpec.describe ActiveShopifyGraphQL::Connections::ConnectionProxy do
     }
   end
   let(:options) { {} }
-  let(:mock_loader) { instance_double(ActiveShopifyGraphQL::AdminApiLoader) }
+  let(:mock_loader) { instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader) }
   let(:mock_orders) do
     [
       order_class.new(id: 'gid://shopify/Order/1', name: '#1001', total: '100.00'),
@@ -73,8 +73,8 @@ RSpec.describe ActiveShopifyGraphQL::Connections::ConnectionProxy do
     stub_const('Order', order_class)
 
     allow(customer_class).to receive(:default_loader).and_return(mock_loader)
-    allow(mock_loader).to receive(:class).and_return(ActiveShopifyGraphQL::AdminApiLoader)
-    allow(ActiveShopifyGraphQL::AdminApiLoader).to receive(:new).and_return(mock_loader)
+    allow(mock_loader).to receive(:class).and_return(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+    allow(ActiveShopifyGraphQL::Loaders::AdminApiLoader).to receive(:new).and_return(mock_loader)
   end
 
   describe '#initialize' do
@@ -604,7 +604,7 @@ RSpec.describe ActiveShopifyGraphQL::Connections::ConnectionProxy do
 
   describe 'loading behavior' do
     it 'uses loader class from connection config if provided' do
-      custom_loader_class = Class.new(ActiveShopifyGraphQL::AdminApiLoader)
+      custom_loader_class = Class.new(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
       custom_loader_instance = instance_double(custom_loader_class)
 
       allow(custom_loader_class).to receive(:new).with(order_class).and_return(custom_loader_instance)

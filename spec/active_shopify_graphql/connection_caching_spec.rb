@@ -21,7 +21,7 @@ RSpec.describe 'Connection caching behavior' do
       end
 
       def self.default_loader_class
-        ActiveShopifyGraphQL::AdminApiLoader
+        ActiveShopifyGraphQL::Loaders::AdminApiLoader
       end
     end
   end
@@ -54,10 +54,10 @@ RSpec.describe 'Connection caching behavior' do
     customer = Customer.new(id: 'gid://shopify/Customer/123')
 
     # Mock the loader to track how many times load_connection_records is called
-    mock_loader = instance_double(ActiveShopifyGraphQL::AdminApiLoader)
+    mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
     allow(customer_class).to receive(:default_loader).and_return(mock_loader)
-    allow(mock_loader).to receive(:class).and_return(ActiveShopifyGraphQL::AdminApiLoader)
-    allow(ActiveShopifyGraphQL::AdminApiLoader).to receive(:new).and_return(mock_loader)
+    allow(mock_loader).to receive(:class).and_return(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+    allow(ActiveShopifyGraphQL::Loaders::AdminApiLoader).to receive(:new).and_return(mock_loader)
 
     mock_orders = [Order.new(id: 'gid://shopify/Order/1', name: '#1001')]
 
@@ -89,10 +89,10 @@ RSpec.describe 'Connection caching behavior' do
   it 'creates new proxy instances with different options' do
     customer = Customer.new(id: 'gid://shopify/Customer/123')
 
-    mock_loader = instance_double(ActiveShopifyGraphQL::AdminApiLoader)
+    mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
     allow(customer_class).to receive(:default_loader).and_return(mock_loader)
-    allow(mock_loader).to receive(:class).and_return(ActiveShopifyGraphQL::AdminApiLoader)
-    allow(ActiveShopifyGraphQL::AdminApiLoader).to receive(:new).and_return(mock_loader)
+    allow(mock_loader).to receive(:class).and_return(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+    allow(ActiveShopifyGraphQL::Loaders::AdminApiLoader).to receive(:new).and_return(mock_loader)
 
     # Different options should create different queries
     expect(mock_loader).to receive(:load_connection_records).twice.and_return([])

@@ -10,7 +10,7 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
       fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment TestFragment on Test { id }")
       query = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
@@ -24,14 +24,14 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
       fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment TestFragment on Test { id }")
       query = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
         fragment: fragment
       )
 
-      expect(query.loader_class).to eq(ActiveShopifyGraphQL::AdminApiLoader)
+      expect(query.loader_class).to eq(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
     end
   end
 
@@ -40,7 +40,7 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
       fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment TestFragment on Test { id }")
       query = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
@@ -54,7 +54,7 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
       fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment TestFragment on Test { id }")
       query = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
@@ -70,7 +70,7 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
       fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment TestFragment on Test { id }")
       query = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
@@ -84,7 +84,7 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
       fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment TestFragment on Test { id }")
       query = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
@@ -100,7 +100,7 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
       fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment CustomerFragment on Customer { id name }")
       query = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
@@ -119,7 +119,7 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
       fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment OrderFragment on Order { id name }")
       query = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
@@ -141,7 +141,7 @@ RSpec.describe ActiveShopifyGraphQL::RecordQuery do
       fragment = instance_double(ActiveShopifyGraphQL::Fragment, to_s: "fragment CustomerFragment on Customer { id name }")
       query = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],

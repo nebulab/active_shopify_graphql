@@ -24,7 +24,7 @@ RSpec.describe 'ActiveShopifyGraphQL Connections Integration' do
       end
 
       def self.default_loader_class
-        ActiveShopifyGraphQL::AdminApiLoader
+        ActiveShopifyGraphQL::Loaders::AdminApiLoader
       end
     end
   end

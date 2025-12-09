@@ -8,7 +8,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
 
       loader = described_class.new(
         connection_query: query_builder,
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         client_type: :admin_api,
         response_mapper_factory: mapper_factory
       )
@@ -22,12 +22,12 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
 
       loader = described_class.new(
         connection_query: query_builder,
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         client_type: :admin_api,
         response_mapper_factory: mapper_factory
       )
 
-      expect(loader.loader_class).to eq(ActiveShopifyGraphQL::AdminApiLoader)
+      expect(loader.loader_class).to eq(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
     end
   end
 
@@ -49,7 +49,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
 
         loader = described_class.new(
           connection_query: query_builder,
-          loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+          loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
           client_type: :admin_api,
           response_mapper_factory: mapper_factory
         )
@@ -81,7 +81,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
 
         loader = described_class.new(
           connection_query: query_builder,
-          loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+          loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
           client_type: :admin_api,
           response_mapper_factory: mapper_factory
         )
@@ -111,7 +111,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
 
         loader = described_class.new(
           connection_query: query_builder,
-          loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+          loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
           client_type: :admin_api,
           response_mapper_factory: mapper_factory
         )
@@ -138,7 +138,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
 
         loader = described_class.new(
           connection_query: query_builder,
-          loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+          loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
           client_type: :admin_api,
           response_mapper_factory: mapper_factory
         )
@@ -185,7 +185,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
 
         loader = described_class.new(
           connection_query: query_builder,
-          loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+          loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
           client_type: :admin_api,
           response_mapper_factory: mapper_factory
         )
@@ -226,7 +226,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
 
         loader = described_class.new(
           connection_query: query_builder,
-          loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+          loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
           client_type: :admin_api,
           response_mapper_factory: mapper_factory
         )
@@ -266,7 +266,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
 
         loader = described_class.new(
           connection_query: query_builder,
-          loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+          loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
           client_type: :admin_api,
           response_mapper_factory: mapper_factory
         )
@@ -306,7 +306,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
 
         loader = described_class.new(
           connection_query: query_builder,
-          loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+          loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
           client_type: :admin_api,
           response_mapper_factory: mapper_factory
         )

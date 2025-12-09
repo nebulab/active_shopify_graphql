@@ -157,13 +157,13 @@ class Customer
   attribute :id, type: :string
   attribute :name, path: "displayName", type: :string
 
-  for_loader ActiveShopifyGraphQL::AdminApiLoader do
+  for_loader ActiveShopifyGraphQL::Loaders::AdminApiLoader do
     attribute :email, path: "defaultEmailAddress.emailAddress", type: :string
     attribute :created_at, type: :datetime
   end
 
   # Customer Account API uses different field names
-  for_loader ActiveShopifyGraphQL::CustomerAccountApiLoader do
+  for_loader ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader do
     attribute :email, path: "emailAddress.emailAddress", type: :string
     attribute :created_at, path: "creationDate", type: :datetime
   end

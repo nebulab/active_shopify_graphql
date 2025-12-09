@@ -28,7 +28,7 @@ RSpec.describe "Select functionality" do
       end
 
       def self.default_loader_class
-        ActiveShopifyGraphQL::AdminApiLoader
+        ActiveShopifyGraphQL::Loaders::AdminApiLoader
       end
 
       class << self
@@ -42,7 +42,7 @@ RSpec.describe "Select functionality" do
       config.admin_api_client = mock_client
     end
 
-    customer_class.default_loader_instance = ActiveShopifyGraphQL::AdminApiLoader.new(customer_class)
+    customer_class.default_loader_instance = ActiveShopifyGraphQL::Loaders::AdminApiLoader.new(customer_class)
   end
 
   describe ".select" do

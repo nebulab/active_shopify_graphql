@@ -166,7 +166,7 @@ module ActiveShopifyGraphQL
         if respond_to?(:default_loader_class, true)
           super
         else
-          ActiveShopifyGraphQL::AdminApiLoader
+          ActiveShopifyGraphQL::Loaders::AdminApiLoader
         end
       end
     end

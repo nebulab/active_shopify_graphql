@@ -24,13 +24,13 @@ RSpec.describe "CustomerAccountApiLoader graphql_type handling" do
 
   describe "graphql_type integration" do
     it "gets graphql_type from model class when creating loader" do
-      loader = ActiveShopifyGraphQL::CustomerAccountApiLoader.new(customer_class, "fake_token")
+      loader = ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader.new(customer_class, "fake_token")
 
       expect(loader.graphql_type).to eq("Customer")
     end
 
     it "uses model's graphql_type in graphql_query method" do
-      loader = ActiveShopifyGraphQL::CustomerAccountApiLoader.new(customer_class, "fake_token")
+      loader = ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader.new(customer_class, "fake_token")
 
       # Mock the fragment method since we're not testing fragment generation
       allow(loader).to receive(:fragment).and_return("fragment CustomerFragment on Customer { id }")
@@ -42,7 +42,7 @@ RSpec.describe "CustomerAccountApiLoader graphql_type handling" do
     end
 
     it "uses model's graphql_type in load_attributes method" do
-      loader = ActiveShopifyGraphQL::CustomerAccountApiLoader.new(customer_class, "fake_token")
+      loader = ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader.new(customer_class, "fake_token")
 
       # Mock the execute_graphql_query to avoid actual API calls
       allow(loader).to receive(:execute_graphql_query).and_return({ "customer" => { "id" => "123", "displayName" => "Test" } })

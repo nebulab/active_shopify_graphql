@@ -19,7 +19,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
 
       query = described_class.new(
         graphql_type: "Order",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string }, name: { path: "name", type: :string } },
         model_class: Class.new,
         included_connections: []
@@ -46,7 +46,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
 
       query = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: Class.new,
         included_connections: []
@@ -71,7 +71,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
 
       query = described_class.new(
         graphql_type: "Order",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: Class.new,
         included_connections: []
@@ -93,7 +93,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
 
       query = described_class.new(
         graphql_type: "Order",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: Class.new,
         included_connections: []
@@ -115,7 +115,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
 
       query = described_class.new(
         graphql_type: "Order",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: Class.new,
         included_connections: []
@@ -141,7 +141,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
 
       query = described_class.new(
         graphql_type: "Order",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: Class.new,
         included_connections: []
@@ -158,7 +158,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
     it "builds connection query with variables as inline arguments" do
       query = described_class.new(
         graphql_type: "Order",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string }, name: { path: "name", type: :string } },
         model_class: Class.new,
         included_connections: []
@@ -177,7 +177,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
     it "builds singular connection query when connection_type is :singular" do
       query = described_class.new(
         graphql_type: "Shop",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: Class.new,
         included_connections: []
@@ -194,7 +194,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
     it "skips nil variables" do
       query = described_class.new(
         graphql_type: "Order",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: Class.new,
         included_connections: []
@@ -209,7 +209,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
     it "formats boolean values correctly" do
       query = described_class.new(
         graphql_type: "Order",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: Class.new,
         included_connections: []
@@ -227,7 +227,7 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionQuery do
 
       query = described_class.new(
         graphql_type: "Order",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: Class.new,
         included_connections: []

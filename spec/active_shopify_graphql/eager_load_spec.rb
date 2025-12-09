@@ -28,7 +28,7 @@ RSpec.describe 'Connection eager_load parameter' do
       end
 
       def self.default_loader_class
-        ActiveShopifyGraphQL::AdminApiLoader
+        ActiveShopifyGraphQL::Loaders::AdminApiLoader
       end
     end
   end
@@ -250,10 +250,10 @@ RSpec.describe 'Connection eager_load parameter' do
       customer = Customer.new(id: 'gid://shopify/Customer/123')
 
       # Mock loader for lazy connection
-      mock_loader = instance_double(ActiveShopifyGraphQL::AdminApiLoader)
+      mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
       allow(Customer).to receive(:default_loader).and_return(mock_loader)
-      allow(mock_loader).to receive(:class).and_return(ActiveShopifyGraphQL::AdminApiLoader)
-      allow(ActiveShopifyGraphQL::AdminApiLoader).to receive(:new).and_return(mock_loader)
+      allow(mock_loader).to receive(:class).and_return(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+      allow(ActiveShopifyGraphQL::Loaders::AdminApiLoader).to receive(:new).and_return(mock_loader)
 
       # The addresses connection should return a proxy (lazy loaded)
       addresses_proxy = customer.addresses

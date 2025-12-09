@@ -49,8 +49,8 @@ RSpec.describe "Empty connection consistency" do
 
     before do
       allow(customer_class).to receive(:default_loader).and_return(mock_loader)
-      allow(mock_loader).to receive(:class).and_return(ActiveShopifyGraphQL::AdminApiLoader)
-      allow(ActiveShopifyGraphQL::AdminApiLoader).to receive(:new).and_return(mock_loader)
+      allow(mock_loader).to receive(:class).and_return(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+      allow(ActiveShopifyGraphQL::Loaders::AdminApiLoader).to receive(:new).and_return(mock_loader)
     end
 
     it "returns empty array when load_connection_records returns nil" do

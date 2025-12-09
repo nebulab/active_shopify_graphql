@@ -50,7 +50,7 @@ RSpec.describe ActiveShopifyGraphQL::Connections, "nested connections" do
       end
 
       def self.default_loader_class
-        ActiveShopifyGraphQL::AdminApiLoader
+        ActiveShopifyGraphQL::Loaders::AdminApiLoader
       end
     end
 
@@ -106,8 +106,8 @@ RSpec.describe ActiveShopifyGraphQL::Connections, "nested connections" do
 
     before do
       allow(@order_class).to receive(:default_loader).and_return(mock_loader)
-      allow(mock_loader).to receive(:class).and_return(ActiveShopifyGraphQL::AdminApiLoader)
-      allow(ActiveShopifyGraphQL::AdminApiLoader).to receive(:new).and_return(mock_loader)
+      allow(mock_loader).to receive(:class).and_return(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+      allow(ActiveShopifyGraphQL::Loaders::AdminApiLoader).to receive(:new).and_return(mock_loader)
     end
 
     it "builds nested GraphQL query for line_items" do

@@ -19,7 +19,7 @@ RSpec.describe "GID handling in nested connections" do
       end
 
       def self.default_loader_class
-        ActiveShopifyGraphQL::AdminApiLoader
+        ActiveShopifyGraphQL::Loaders::AdminApiLoader
       end
     end
 
@@ -40,7 +40,7 @@ RSpec.describe "GID handling in nested connections" do
       end
 
       def self.default_loader_class
-        ActiveShopifyGraphQL::AdminApiLoader
+        ActiveShopifyGraphQL::Loaders::AdminApiLoader
       end
     end
 
@@ -56,7 +56,7 @@ RSpec.describe "GID handling in nested connections" do
   end
 
   describe "extract_gid_from_parent" do
-    let(:loader) { ActiveShopifyGraphQL::AdminApiLoader.new(@order_class) }
+    let(:loader) { ActiveShopifyGraphQL::Loaders::AdminApiLoader.new(@order_class) }
     let(:connection_loader) do
       ActiveShopifyGraphQL::ConnectionLoader.new(
         connection_query: loader.connection_query,
@@ -125,7 +125,7 @@ RSpec.describe "GID handling in nested connections" do
       end
 
       # Trigger the connection load
-      loader = ActiveShopifyGraphQL::AdminApiLoader.new(@order_class)
+      loader = ActiveShopifyGraphQL::Loaders::AdminApiLoader.new(@order_class)
       config = { nested: true, type: :connection, query_name: 'orders' }
       loader.load_connection_records('orders', { first: 10 }, customer, config)
     end
@@ -141,7 +141,7 @@ RSpec.describe "GID handling in nested connections" do
       end
 
       # Trigger the connection load
-      loader = ActiveShopifyGraphQL::AdminApiLoader.new(@order_class)
+      loader = ActiveShopifyGraphQL::Loaders::AdminApiLoader.new(@order_class)
       config = { nested: true, type: :connection, query_name: 'orders' }
       loader.load_connection_records('orders', { first: 10 }, customer, config)
     end
@@ -158,7 +158,7 @@ RSpec.describe "GID handling in nested connections" do
       end
 
       # Trigger the connection load
-      loader = ActiveShopifyGraphQL::AdminApiLoader.new(@order_class)
+      loader = ActiveShopifyGraphQL::Loaders::AdminApiLoader.new(@order_class)
       config = { nested: true, type: :connection, query_name: 'orders' }
       loader.load_connection_records('orders', { first: 10 }, customer, config)
     end
@@ -225,7 +225,7 @@ RSpec.describe "GID handling in nested connections" do
     end
 
     it "accepts numeric ID and builds GID" do
-      loader = ActiveShopifyGraphQL::AdminApiLoader.new(@customer_class)
+      loader = ActiveShopifyGraphQL::Loaders::AdminApiLoader.new(@customer_class)
       proxy = ActiveShopifyGraphQL::LoaderSwitchable::LoaderProxy.new(@customer_class, loader)
 
       expect(mock_client).to receive(:execute) do |_query, **variables|
@@ -239,7 +239,7 @@ RSpec.describe "GID handling in nested connections" do
     end
 
     it "accepts existing GID and uses it as-is" do
-      loader = ActiveShopifyGraphQL::AdminApiLoader.new(@customer_class)
+      loader = ActiveShopifyGraphQL::Loaders::AdminApiLoader.new(@customer_class)
       proxy = ActiveShopifyGraphQL::LoaderSwitchable::LoaderProxy.new(@customer_class, loader)
 
       expect(mock_client).to receive(:execute) do |_query, **variables|
@@ -253,7 +253,7 @@ RSpec.describe "GID handling in nested connections" do
     end
 
     it "handles invalid GID string by building new GID" do
-      loader = ActiveShopifyGraphQL::AdminApiLoader.new(@customer_class)
+      loader = ActiveShopifyGraphQL::Loaders::AdminApiLoader.new(@customer_class)
       proxy = ActiveShopifyGraphQL::LoaderSwitchable::LoaderProxy.new(@customer_class, loader)
 
       expect(mock_client).to receive(:execute) do |_query, **variables|

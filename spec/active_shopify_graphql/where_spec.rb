@@ -7,7 +7,7 @@ RSpec.describe "Where functionality" do
 
   let(:mock_loader) do
     client = mock_client
-    Class.new(ActiveShopifyGraphQL::AdminApiLoader) do
+    Class.new(ActiveShopifyGraphQL::Loaders::AdminApiLoader) do
       define_method :initialize do
         @client = client
       end

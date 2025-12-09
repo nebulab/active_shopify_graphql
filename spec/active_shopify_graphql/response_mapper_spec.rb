@@ -11,7 +11,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
     it "stores the graphql_type" do
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
@@ -24,21 +24,21 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
     it "stores the loader_class" do
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
         record_query: record_query_stub
       )
 
-      expect(mapper.loader_class).to eq(ActiveShopifyGraphQL::AdminApiLoader)
+      expect(mapper.loader_class).to eq(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
     end
 
     it "stores the defined_attributes" do
       attributes = { id: { path: "id", type: :string } }
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
@@ -52,7 +52,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
       model = Class.new
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: model,
         included_connections: [],
@@ -66,7 +66,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
       connections = [:orders]
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: connections,
@@ -85,7 +85,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
       }
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
@@ -116,7 +116,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
       }
       mapper = described_class.new(
         graphql_type: "Order",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
@@ -152,7 +152,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
       }
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
@@ -184,7 +184,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
       }
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
@@ -212,7 +212,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
       }
       mapper = described_class.new(
         graphql_type: "Order",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
@@ -239,7 +239,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
       }
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
@@ -267,7 +267,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
       }
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
@@ -291,7 +291,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
       }
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
@@ -310,7 +310,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
     it "coerces string type" do
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
@@ -326,7 +326,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
     it "coerces integer type" do
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
@@ -342,7 +342,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
     it "coerces float type" do
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
@@ -358,7 +358,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
     it "coerces boolean type" do
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
@@ -375,7 +375,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
     it "preserves arrays without coercion" do
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
@@ -392,7 +392,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
     it "returns 0 for invalid integer conversion" do
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
@@ -407,7 +407,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
     it "returns value as-is for unknown type" do
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
@@ -425,7 +425,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
     it "returns empty hash when no connections included" do
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
@@ -443,7 +443,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
       model = Class.new
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: model,
         included_connections: [:orders],
@@ -460,7 +460,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
     it "returns empty hash when root data is nil" do
       mapper = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: [],
@@ -496,7 +496,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
 
       mapper = described_class.new(
         graphql_type: "Order",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: model_class,
         included_connections: [],
@@ -542,7 +542,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
 
       mapper = described_class.new(
         graphql_type: "Shop",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: model_class,
         included_connections: [],
@@ -565,7 +565,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
       attributes = { id: { path: "id", type: :string, null: false } }
       mapper = described_class.new(
         graphql_type: "Order",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
@@ -583,7 +583,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
       attributes = { id: { path: "id", type: :string, null: false } }
       mapper = described_class.new(
         graphql_type: "Shop",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: [],
@@ -617,7 +617,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
 
       mapper = described_class.new(
         graphql_type: "Order",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: model_class,
         included_connections: [],

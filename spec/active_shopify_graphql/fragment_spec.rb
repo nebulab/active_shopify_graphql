@@ -9,7 +9,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
     it "stores the graphql_type" do
       fragment = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: []
@@ -21,20 +21,20 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
     it "stores the loader_class" do
       fragment = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: []
       )
 
-      expect(fragment.loader_class).to eq(ActiveShopifyGraphQL::AdminApiLoader)
+      expect(fragment.loader_class).to eq(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
     end
 
     it "stores the defined_attributes" do
       attributes = { id: { path: "id", type: :string } }
       fragment = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: []
@@ -47,7 +47,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
       model = Class.new
       fragment = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: model,
         included_connections: []
@@ -60,7 +60,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
       connections = %i[orders addresses]
       fragment = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: connections
@@ -78,7 +78,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
       }
       fragment = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: []
@@ -95,7 +95,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
     it "raises error when no attributes defined" do
       fragment = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: []
@@ -112,7 +112,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
       attributes = { id: { path: "id", type: :string } }
       fragment = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: []
@@ -133,7 +133,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
       }
       fragment = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: []
@@ -152,7 +152,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
       }
       fragment = described_class.new(
         graphql_type: "Order",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: []
@@ -173,7 +173,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
       }
       fragment = described_class.new(
         graphql_type: "Order",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: []
@@ -205,7 +205,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
       }
       fragment = described_class.new(
         graphql_type: "Product",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: []
@@ -231,7 +231,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
       }
       fragment = described_class.new(
         graphql_type: "Product",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: attributes,
         model_class: Class.new,
         included_connections: []
@@ -249,7 +249,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
     it "normalizes symbol includes to hash format" do
       fragment = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: []
@@ -263,7 +263,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
     it "normalizes string includes to hash format" do
       fragment = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: []
@@ -277,7 +277,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
     it "keeps hash includes as-is" do
       fragment = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: []
@@ -291,7 +291,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
     it "merges multiple includes for the same association" do
       fragment = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: []
@@ -308,7 +308,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
     it "handles mixed symbol and hash includes" do
       fragment = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: {},
         model_class: Class.new,
         included_connections: []
@@ -327,7 +327,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
     it "returns empty string when no connections included" do
       fragment = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: Class.new,
         included_connections: []
@@ -342,7 +342,7 @@ RSpec.describe ActiveShopifyGraphQL::Fragment do
       model = Class.new
       fragment = described_class.new(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::AdminApiLoader,
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string } },
         model_class: model,
         included_connections: [:orders]

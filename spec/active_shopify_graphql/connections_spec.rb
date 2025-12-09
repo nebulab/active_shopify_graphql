@@ -24,7 +24,7 @@ RSpec.describe ActiveShopifyGraphQL::Connections do
       end
 
       def self.default_loader_class
-        ActiveShopifyGraphQL::AdminApiLoader
+        ActiveShopifyGraphQL::Loaders::AdminApiLoader
       end
     end
   end
@@ -130,8 +130,8 @@ RSpec.describe ActiveShopifyGraphQL::Connections do
 
     before do
       allow(customer_class).to receive(:default_loader).and_return(mock_loader)
-      allow(mock_loader).to receive(:class).and_return(ActiveShopifyGraphQL::AdminApiLoader)
-      allow(ActiveShopifyGraphQL::AdminApiLoader).to receive(:new).and_return(mock_loader)
+      allow(mock_loader).to receive(:class).and_return(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+      allow(ActiveShopifyGraphQL::Loaders::AdminApiLoader).to receive(:new).and_return(mock_loader)
 
       # Allow the load_connection_records method to be called
       allow(mock_loader).to receive(:load_connection_records).and_return([])
@@ -195,7 +195,7 @@ RSpec.describe ActiveShopifyGraphQL::Connections do
   end
 
   describe '.includes' do
-    let(:mock_loader_class) { ActiveShopifyGraphQL::AdminApiLoader }
+    let(:mock_loader_class) { ActiveShopifyGraphQL::Loaders::AdminApiLoader }
     let(:mock_loader_instance) { double('MockLoader') }
 
     before do
