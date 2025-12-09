@@ -73,7 +73,7 @@ RSpec.describe "GraphQL Parameter Issues Resolution" do
       connection_proxy = order.line_items
 
       # The variables built for the nested connection should not include 'query'
-      variables = connection_proxy.send(:build_connection_variables)
+      variables = connection_proxy.send(:build_variables)
 
       expect(variables).to eq({
                                 first: 10
@@ -88,7 +88,7 @@ RSpec.describe "GraphQL Parameter Issues Resolution" do
       order = order_class.new(id: 1)
       connection_proxy = order.line_items
 
-      variables = connection_proxy.send(:build_connection_variables)
+      variables = connection_proxy.send(:build_variables)
 
       # Should not have sortKey which was causing "Field 'lineItems' doesn't accept argument 'sortKey'"
       expect(variables).not_to have_key(:sort_key)
@@ -98,7 +98,7 @@ RSpec.describe "GraphQL Parameter Issues Resolution" do
       product = product_class.new(id: 1)
       connection_proxy = product.variants
 
-      variables = connection_proxy.send(:build_connection_variables)
+      variables = connection_proxy.send(:build_variables)
 
       # Should include all user-specified parameters plus appropriate root-level parameters
       expect(variables[:first]).to eq(25)
@@ -145,7 +145,7 @@ RSpec.describe "GraphQL Parameter Issues Resolution" do
 
       # Can still override parameters at runtime
       connection_proxy = order.line_items(first: 5)
-      variables = connection_proxy.send(:build_connection_variables)
+      variables = connection_proxy.send(:build_variables)
 
       expect(variables[:first]).to eq(5) # Runtime override works
       expect(variables).not_to have_key(:query)     # Still no problematic params

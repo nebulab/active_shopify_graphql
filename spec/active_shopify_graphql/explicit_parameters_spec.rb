@@ -99,7 +99,7 @@ RSpec.describe "Explicit Connection Parameters" do
       connection_proxy = order.line_items
 
       # Access the private method to test variable building
-      variables = connection_proxy.send(:build_connection_variables)
+      variables = connection_proxy.send(:build_variables)
 
       # Should only include first (user-specified)
       expect(variables[:first]).to eq(5)
@@ -115,7 +115,7 @@ RSpec.describe "Explicit Connection Parameters" do
       connection_proxy = product.variants
 
       # Access the private method to test variable building
-      variables = connection_proxy.send(:build_connection_variables)
+      variables = connection_proxy.send(:build_variables)
 
       # Should include all user-specified parameters
       expect(variables[:first]).to eq(10)
@@ -130,7 +130,7 @@ RSpec.describe "Explicit Connection Parameters" do
 
       # Override first parameter at runtime
       connection_proxy = order.line_items(first: 20)
-      variables = connection_proxy.send(:build_connection_variables)
+      variables = connection_proxy.send(:build_variables)
 
       expect(variables[:first]).to eq(20) # Runtime override
       # Still no query or sort_key for nested connections

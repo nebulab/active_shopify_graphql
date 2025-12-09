@@ -52,7 +52,7 @@ RSpec.describe "Metafield attribute functionality" do
 
     def perform_graphql_query(query, **variables)
       mock_client = ActiveShopifyGraphQL.configuration.admin_api_client
-      mock_client.execute(query, **variables) if mock_client
+      mock_client&.execute(query, **variables)
     end
   end
 
@@ -218,7 +218,7 @@ RSpec.describe "Metafield attribute functionality" do
 
         def perform_graphql_query(query, **variables)
           mock_client = ActiveShopifyGraphQL.configuration.admin_api_client
-          mock_client.execute(query, **variables) if mock_client
+          mock_client&.execute(query, **variables)
         end
       end
 
@@ -257,7 +257,7 @@ RSpec.describe "Metafield attribute functionality" do
 
         def perform_graphql_query(query, **variables)
           mock_client = ActiveShopifyGraphQL.configuration.admin_api_client
-          mock_client.execute(query, **variables) if mock_client
+          mock_client&.execute(query, **variables)
         end
       end
 
@@ -298,7 +298,7 @@ RSpec.describe "Metafield attribute functionality" do
 
         def perform_graphql_query(query, **variables)
           mock_client = ActiveShopifyGraphQL.configuration.admin_api_client
-          mock_client.execute(query, **variables) if mock_client
+          mock_client&.execute(query, **variables)
         end
       end
 
@@ -352,7 +352,7 @@ RSpec.describe "Metafield attribute functionality" do
 
         def perform_graphql_query(query, **variables)
           mock_client = ActiveShopifyGraphQL.configuration.admin_api_client
-          mock_client.execute(query, **variables) if mock_client
+          mock_client&.execute(query, **variables)
         end
       end
 

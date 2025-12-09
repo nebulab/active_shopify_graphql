@@ -97,13 +97,7 @@ RSpec.describe "Nested Includes" do
       }
     }
 
-    connection_data = ActiveShopifyGraphQL::ResponseMapper.new(
-      graphql_type: loader.graphql_type,
-      loader_class: loader.class,
-      defined_attributes: loader.defined_attributes,
-      model_class: loader.instance_variable_get(:@model_class),
-      included_connections: loader.instance_variable_get(:@included_connections)
-    ).extract_connection_data(response_data)
+    connection_data = ActiveShopifyGraphQL::ResponseMapper.new(loader.context).extract_connection_data(response_data)
     line_items = connection_data[:line_items]
     expect(line_items.size).to eq(1)
     line_item = line_items.first

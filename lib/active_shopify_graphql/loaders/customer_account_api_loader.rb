@@ -12,10 +12,8 @@ module ActiveShopifyGraphQL
       def graphql_query(model_type = nil)
         type = model_type || graphql_type
         if type == 'Customer'
-          # Customer Account API doesn't need ID for customer queries - token identifies the customer
           customer_only_query(type)
         else
-          # For other types, use the standard query with ID
           super(type)
         end
       end
@@ -25,9 +23,7 @@ module ActiveShopifyGraphQL
         type = graphql_type
         query = graphql_query(type)
 
-        # For Customer queries, we don't need variables; for others, we need the ID
         variables = type == 'Customer' ? {} : { id: id }
-
         response_data = perform_graphql_query(query, **variables)
 
         return nil if response_data.nil?
@@ -37,15 +33,13 @@ module ActiveShopifyGraphQL
 
       def client
         client_class = ActiveShopifyGraphQL.configuration.customer_account_client_class
-        raise Error, "Customer Account API client class not configured. Please configure it using ActiveShopifyGraphQL.configure" unless client_class
+        raise Error, "Customer Account API client class not configured" unless client_class
 
-        @client ||= ActiveShopifyGraphQL.configuration.customer_account_client_class.from_config(@token)
+        @client ||= client_class.from_config(@token)
       end
 
       def perform_graphql_query(query, **variables)
         log_query(query, variables) if should_log?
-
-        # The customer access token is already set in the client's headers
         client.query(query, variables)
       end
 
@@ -61,19 +55,15 @@ module ActiveShopifyGraphQL
         logger.info("ActiveShopifyGraphQL Variables:\n#{variables}")
       end
 
-      # Builds a customer-only query (no ID parameter needed)
       def customer_only_query(model_type = nil)
         type = model_type || graphql_type
-        query_name_value = query_name(type)
-        fragment_name_value = fragment_name(type)
-
         compact = ActiveShopifyGraphQL.configuration.compact_queries
-        fragment_string = fragment
+        frag = fragment
 
         if compact
-          "#{fragment_string} query getCurrentCustomer { #{query_name_value} { ...#{fragment_name_value} } }"
+          "#{frag} query getCurrentCustomer { #{query_name(type)} { ...#{fragment_name(type)} } }"
         else
-          "#{fragment_string}\n\nquery getCurrentCustomer {\n  #{query_name_value} {\n    ...#{fragment_name_value}\n  }\n}\n"
+          "#{frag}\n\nquery getCurrentCustomer {\n  #{query_name(type)} {\n    ...#{fragment_name(type)}\n  }\n}\n"
         end
       end
     end

@@ -5,70 +5,42 @@ module ActiveShopifyGraphQL
     extend ActiveSupport::Concern
 
     class_methods do
+      # Define an attribute with automatic GraphQL path inference and type coercion.
+      #
       # @param name [Symbol] The Ruby attribute name
       # @param path [String] The GraphQL field path (auto-inferred if not provided)
-      # @param type [Symbol] The type for coercion (:string, :integer, :float, :boolean, :datetime). Arrays are preserved automatically.
+      # @param type [Symbol] The type for coercion (:string, :integer, :float, :boolean, :datetime)
       # @param null [Boolean] Whether the attribute can be null (default: true)
-      # @param default [Object] Default value to use when the GraphQL response is nil
+      # @param default [Object] Default value when GraphQL response is nil
       # @param transform [Proc] Custom transform block for the value
       def attribute(name, path: nil, type: :string, null: true, default: nil, transform: nil)
-        @base_attributes ||= {}
-
-        # Auto-infer GraphQL path for simple cases: display_name -> displayName
         path ||= infer_path(name)
+        config = { path: path, type: type, null: null, default: default, transform: transform }
 
-        @base_attributes[name] = {
-          path: path,
-          type: type,
-          null: null,
-          default: default,
-          transform: transform
-        }
+        if @current_loader_context
+          # Store in loader-specific context
+          @loader_contexts[@current_loader_context][name] = config
+        else
+          # Store in base attributes
+          @base_attributes ||= {}
+          @base_attributes[name] = config
+        end
 
-        # Create attr_accessor for the attribute
+        # Always create attr_accessor
         attr_accessor name unless method_defined?(name) || method_defined?("#{name}=")
       end
 
-      # Get attributes for a specific loader class
+      # Get attributes for a specific loader class, merging base with loader-specific overrides.
       def attributes_for_loader(loader_class)
-        base_attrs = @base_attributes || {}
-        loader_attrs = @loader_contexts&.dig(loader_class) || {}
+        base = @base_attributes || {}
+        overrides = @loader_contexts&.dig(loader_class) || {}
 
-        # Merge loader-specific overrides with base attributes
-        merged = base_attrs.dup
-        loader_attrs.each do |name, overrides|
-          merged[name] = if merged[name]
-                           merged[name].merge(overrides)
-                         else
-                           overrides
-                         end
-        end
-
-        merged
+        base.merge(overrides) { |_key, base_val, override_val| base_val.merge(override_val) }
       end
 
       private
 
-      # Override attribute method to handle loader context
-      def attribute_with_context(name, path: nil, type: :string, null: true, default: nil, transform: nil)
-        if @current_loader_context
-          # Auto-infer path if not provided
-          path ||= infer_path(name)
-          @loader_contexts[@current_loader_context][name] = { path: path, type: type, null: null, default: default, transform: transform }
-        else
-          attribute_without_context(name, path: path, type: type, null: null, default: default, transform: transform)
-        end
-
-        # Always create attr_accessor for the attribute on base model
-        attr_accessor name unless method_defined?(name) || method_defined?("#{name}=")
-      end
-
-      # Alias methods to support context handling
-      alias_method :attribute_without_context, :attribute
-      alias_method :attribute, :attribute_with_context
-
-      # Infer GraphQL path from Ruby attribute name
-      # Only handles simple snake_case to camelCase conversion
+      # Infer GraphQL path from Ruby attribute name (snake_case -> camelCase)
       def infer_path(name)
         name.to_s.gsub(/_([a-z])/) { ::Regexp.last_match(1).upcase }
       end

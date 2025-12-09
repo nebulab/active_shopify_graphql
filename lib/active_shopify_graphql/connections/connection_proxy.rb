@@ -2,7 +2,8 @@
 
 module ActiveShopifyGraphQL
   module Connections
-    # Connection proxy class for lazy loading
+    # Lazy-loading proxy for GraphQL connections.
+    # Implements Enumerable and delegates to the loaded records array.
     class ConnectionProxy
       include Enumerable
 
@@ -15,53 +16,53 @@ module ActiveShopifyGraphQL
         @records = nil
       end
 
-      # Enumerate over connection records (loads if not loaded)
+      # Core Enumerable method - all others derive from this
       def each(&block)
-        load_records unless @loaded
+        ensure_loaded
         @records.each(&block)
       end
 
-      # Return connection records as array (loads if not loaded)
+      # Array coercion (returns a copy to prevent mutation)
       def to_a
-        load_records unless @loaded
+        ensure_loaded
         @records.dup
       end
+      alias to_ary to_a
 
-      # Check if connection is loaded
       def loaded?
         @loaded
       end
 
-      # Get the count of records (loads if not loaded)
+      # Override for efficiency - avoids full iteration
       def size
-        to_a.size
+        ensure_loaded
+        @records.size
       end
       alias length size
       alias count size
 
-      # Check if connection is empty (loads if not loaded)
+      # Override for efficiency
       def empty?
-        to_a.empty?
+        ensure_loaded
+        @records.empty?
       end
 
-      # Get first record (loads if not loaded)
+      # Override first/last for efficiency (avoid iterating entire collection)
       def first(n = nil)
-        records = to_a
-        n ? records.first(n) : records.first
+        ensure_loaded
+        n ? @records.first(n) : @records.first
       end
 
-      # Get last record (loads if not loaded)
       def last(n = nil)
-        records = to_a
-        n ? records.last(n) : records.last
+        ensure_loaded
+        n ? @records.last(n) : @records.last
       end
 
-      # Enable array-like access
       def [](index)
-        to_a[index]
+        ensure_loaded
+        @records[index]
       end
 
-      # Reload the connection
       def reload
         @loaded = false
         @records = nil
@@ -70,53 +71,26 @@ module ActiveShopifyGraphQL
 
       private
 
-      def load_records
+      def ensure_loaded
         return if @loaded
 
-        # Get the loader class from connection config or parent model
         loader_class = @connection_config[:loader_class] || @parent.class.default_loader.class
-
-        # Get the target model class
         target_class = @connection_config[:class_name].constantize
-
-        # Create loader instance for the target model
         loader = loader_class.new(target_class)
 
-        # Build the GraphQL variables for the connection query
-        variables = build_connection_variables
-
-        # Execute the connection query
         @records = loader.load_connection_records(
           @connection_config[:query_name],
-          variables,
+          build_variables,
           @parent,
           @connection_config
-        )
-
-        # Ensure @records is always an array for consistency (never nil)
-        @records = [] if @records.nil?
+        ) || []
 
         @loaded = true
-        @records
       end
 
-      def build_connection_variables
-        # Merge connection default arguments with runtime options
+      def build_variables
         default_args = @connection_config[:default_arguments] || {}
-        options = default_args.merge(@options)
-
-        # Passthrough all arguments except 'query' which needs special handling
-        # Transform keys to camelCase for GraphQL
-        variables = {}
-        options.each do |key, value|
-          # Skip nil values
-          next if value.nil?
-
-          # Pass through all values directly - no special treatment
-          variables[key] = value
-        end
-
-        variables
+        default_args.merge(@options).compact
       end
     end
   end

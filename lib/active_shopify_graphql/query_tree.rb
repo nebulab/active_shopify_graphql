@@ -1,69 +1,53 @@
 # frozen_string_literal: true
 
 module ActiveShopifyGraphQL
-  # Represents the complete query tree structure
+  # Builds complete GraphQL queries from a LoaderContext.
+  # Refactored for Single Responsibility - only handles query string generation.
+  # Fragment building is delegated to FragmentBuilder.
   class QueryTree
-    def initialize
+    attr_reader :context
+
+    def initialize(context)
+      @context = context
       @fragments = []
       @query_config = {}
     end
 
-    # Class-level factory methods for building complete queries from loader configuration
+    # Class-level factory methods for building complete queries
 
-    # Build a complete single-record query (find by ID)
-    def self.build_single_record_query(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:)
-      new.tap do |tree|
-        tree.add_fragment(tree.build_fragment_node(
-                            graphql_type: graphql_type,
-                            loader_class: loader_class,
-                            defined_attributes: defined_attributes,
-                            model_class: model_class,
-                            included_connections: included_connections
-                          ))
+    def self.build_single_record_query(context)
+      new(context).tap do |tree|
+        tree.add_fragment(FragmentBuilder.new(context).build)
         tree.set_query_config(
           type: :single_record,
-          model_type: graphql_type,
-          query_name: graphql_type.downcase,
-          fragment_name: fragment_name(graphql_type)
+          model_type: context.graphql_type,
+          query_name: context.query_name,
+          fragment_name: context.fragment_name
         )
       end.to_s
     end
 
-    # Build a complete collection query (root-level search/where)
-    def self.build_collection_query(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:, query_name:, variables:, connection_type: :nodes_only)
-      new.tap do |tree|
-        tree.add_fragment(tree.build_fragment_node(
-                            graphql_type: graphql_type,
-                            loader_class: loader_class,
-                            defined_attributes: defined_attributes,
-                            model_class: model_class,
-                            included_connections: included_connections
-                          ))
+    def self.build_collection_query(context, query_name:, variables:, connection_type: :nodes_only)
+      new(context).tap do |tree|
+        tree.add_fragment(FragmentBuilder.new(context).build)
         tree.set_query_config(
           type: :collection,
-          model_type: graphql_type,
+          model_type: context.graphql_type,
           query_name: query_name,
-          fragment_name: fragment_name(graphql_type),
+          fragment_name: context.fragment_name,
           variables: variables,
           connection_type: connection_type
         )
       end.to_s
     end
 
-    # Build a complete connection query
-    def self.build_connection_query(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:, query_name:, variables:, parent_query: nil, connection_type: :connection)
-      new.tap do |tree|
-        tree.add_fragment(tree.build_fragment_node(
-                            graphql_type: graphql_type,
-                            loader_class: loader_class,
-                            defined_attributes: defined_attributes,
-                            model_class: model_class,
-                            included_connections: included_connections
-                          ))
+    def self.build_connection_query(context, query_name:, variables:, parent_query: nil, connection_type: :connection)
+      new(context).tap do |tree|
+        tree.add_fragment(FragmentBuilder.new(context).build)
         tree.set_query_config(
           type: :connection,
           query_name: query_name,
-          fragment_name: fragment_name(graphql_type),
+          fragment_name: context.fragment_name,
           variables: variables,
           parent_query: parent_query,
           connection_type: connection_type
@@ -71,51 +55,18 @@ module ActiveShopifyGraphQL
       end.to_s
     end
 
-    # Helper: Get query name for a GraphQL type
+    # Delegate normalize_includes to FragmentBuilder
+    def self.normalize_includes(includes)
+      FragmentBuilder.normalize_includes(includes)
+    end
+
+    # Helper methods (kept for backward compatibility)
     def self.query_name(graphql_type)
       graphql_type.downcase
     end
 
-    # Helper: Get fragment name for a GraphQL type
     def self.fragment_name(graphql_type)
       "#{graphql_type}Fragment"
-    end
-
-    # Build a fragment node (class method wrapper)
-    def self.build_fragment_node(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:)
-      new.build_fragment_node(
-        graphql_type: graphql_type,
-        loader_class: loader_class,
-        defined_attributes: defined_attributes,
-        model_class: model_class,
-        included_connections: included_connections
-      )
-    end
-
-    # Normalize includes from various formats to a consistent hash structure
-    # Handles: [:orders], [{ orders: :line_items }], [{ orders: [:line_items] }], [{ orders: { line_items: :product } }]
-    def self.normalize_includes(includes)
-      includes = Array(includes)
-      includes.each_with_object({}) do |inc, normalized|
-        case inc
-        when Hash
-          inc.each do |key, value|
-            key = key.to_sym
-            normalized[key] ||= []
-            # Preserve hash structure for nested includes
-            case value
-            when Hash
-              normalized[key] << value
-            when Array
-              normalized[key].concat(value)
-            else
-              normalized[key] << value
-            end
-          end
-        when Symbol, String
-          normalized[inc.to_sym] ||= []
-        end
-      end
     end
 
     def add_fragment(fragment_node)
@@ -126,186 +77,6 @@ module ActiveShopifyGraphQL
       @query_config = config
     end
 
-    # Build a fragment node
-    def build_fragment(name:, graphql_type:)
-      QueryNode.new(
-        name: name,
-        arguments: { on: graphql_type },
-        node_type: :fragment
-      )
-    end
-
-    # Build a complete fragment node with all fields and connections
-    # This is the core fragment-building logic moved from Fragment class
-    def build_fragment_node(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:)
-      raise NotImplementedError, "#{loader_class} must define attributes" if defined_attributes.empty?
-
-      fragment_name = "#{graphql_type}Fragment"
-      fragment_node = build_fragment(name: fragment_name, graphql_type: graphql_type)
-
-      # Add field nodes from attributes
-      build_field_nodes_from_attributes(defined_attributes).each { |node| fragment_node.add_child(node) }
-
-      # Add connection nodes
-      build_connection_nodes(
-        model_class: model_class,
-        included_connections: included_connections,
-        loader_class: loader_class
-      ).each { |node| fragment_node.add_child(node) }
-
-      fragment_node
-    end
-
-    # Build field nodes from attribute definitions
-    def build_field_nodes_from_attributes(attributes)
-      path_tree = {}
-      metafield_aliases = {}
-
-      # Build a tree structure for nested paths
-      attributes.each_value do |config|
-        if config[:is_metafield]
-          # Handle metafield attributes specially
-          alias_name = config[:metafield_alias]
-          namespace = config[:metafield_namespace]
-          key = config[:metafield_key]
-          value_field = config[:type] == :json ? 'jsonValue' : 'value'
-
-          # Store metafield definition for later insertion
-          metafield_aliases[alias_name] = {
-            namespace: namespace,
-            key: key,
-            value_field: value_field
-          }
-        else
-          # Handle regular attributes - build path tree
-          path_parts = config[:path].split('.')
-          current_level = path_tree
-
-          path_parts.each_with_index do |part, index|
-            if index == path_parts.length - 1
-              # Leaf node
-              current_level[part] = true
-            else
-              # Branch node
-              current_level[part] ||= {}
-              current_level = current_level[part]
-            end
-          end
-        end
-      end
-
-      # Convert tree to QueryNode objects
-      regular_nodes = build_nodes_from_tree(path_tree)
-
-      # Build metafield nodes
-      metafield_nodes = metafield_aliases.map do |alias_name, config|
-        value_node = QueryNode.new(name: config[:value_field], node_type: :field)
-        QueryNode.new(
-          name: "metafield",
-          alias_name: alias_name,
-          arguments: { namespace: config[:namespace], key: config[:key] },
-          node_type: :field,
-          children: [value_node]
-        )
-      end
-
-      regular_nodes + metafield_nodes
-    end
-
-    # Convert path tree to QueryNode objects
-    def build_nodes_from_tree(tree)
-      tree.map do |key, value|
-        if value == true
-          # Leaf node - simple field
-          QueryNode.new(name: key, node_type: :field)
-        else
-          # Branch node - nested selection
-          children = build_nodes_from_tree(value)
-          QueryNode.new(name: key, node_type: :field, children: children)
-        end
-      end
-    end
-
-    # Build QueryNode objects for all connections
-    def build_connection_nodes(model_class:, included_connections:, loader_class:)
-      return [] if included_connections.empty? || !model_class.respond_to?(:connections)
-
-      connections = model_class.connections
-      normalized_includes = normalize_includes(included_connections)
-
-      normalized_includes.map do |connection_name, nested_includes|
-        connection_config = connections[connection_name]
-        next unless connection_config
-
-        # Get the target model class to determine its fragment
-        target_class = connection_config[:class_name].constantize
-
-        # Create a loader for the target model to get its attributes
-        target_loader = loader_class.new(target_class, included_connections: nested_includes)
-
-        # Recursively build child nodes for the target model
-        child_nodes = build_target_field_nodes(
-          target_loader: target_loader,
-          target_class: target_class,
-          nested_includes: nested_includes,
-          loader_class: loader_class
-        )
-
-        # Build connection node with GraphQL connection syntax
-        query_name = connection_config[:query_name]
-        connection_type = connection_config[:type] || :connection
-        query_args = connection_config[:default_arguments] || {}
-
-        # Format arguments
-        formatted_args = query_args.transform_keys(&:to_sym)
-
-        if connection_type == :singular
-          QueryNode.new(
-            name: query_name,
-            arguments: formatted_args,
-            node_type: :singular,
-            children: child_nodes
-          )
-        else
-          QueryNode.new(
-            name: query_name,
-            arguments: formatted_args,
-            node_type: :connection,
-            children: child_nodes
-          )
-        end
-      end.compact
-    end
-
-    # Build field nodes for a target model (used in connections)
-    def build_target_field_nodes(target_loader:, target_class:, nested_includes:, loader_class:)
-      # Build attribute nodes
-      attribute_nodes = if target_class.respond_to?(:attributes_for_loader) && target_class.attributes_for_loader(loader_class).any?
-                          build_field_nodes_from_attributes(target_loader.defined_attributes)
-                        else
-                          # Fall back to basic fields if no attributes defined
-                          [QueryNode.new(name: "id", node_type: :field)]
-                        end
-
-      # Build nested connection nodes
-      if nested_includes.any?
-        nested_connection_nodes = build_connection_nodes(
-          model_class: target_class,
-          included_connections: nested_includes,
-          loader_class: target_loader.class
-        )
-        attribute_nodes + nested_connection_nodes
-      else
-        attribute_nodes
-      end
-    end
-
-    # Normalize includes - delegates to class method
-    def normalize_includes(includes)
-      self.class.normalize_includes(includes)
-    end
-
-    # Convert the entire tree to a GraphQL string
     def to_s
       case @query_config[:type]
       when :single_record then render_single_record_query
