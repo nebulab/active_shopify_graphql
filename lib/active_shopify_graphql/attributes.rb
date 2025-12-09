@@ -47,11 +47,6 @@ module ActiveShopifyGraphQL
         merged
       end
 
-      # Get all base attributes (without loader-specific overrides)
-      def base_attributes
-        @base_attributes || {}
-      end
-
       private
 
       # Override attribute method to handle loader context

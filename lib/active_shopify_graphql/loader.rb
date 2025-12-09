@@ -2,9 +2,7 @@
 
 require 'active_model/type'
 require 'global_id'
-require_relative 'query_tree'
 require_relative 'response_mapper'
-require_relative 'search_query'
 require_relative 'connection_loader'
 
 module ActiveShopifyGraphQL
@@ -35,29 +33,12 @@ module ActiveShopifyGraphQL
       # Set the model class associated with this loader
       attr_writer :model_class
 
-      # Get all defined attributes (includes both direct and model attributes)
-      def attributes
-        defined_attributes
-      end
-
-      # Get all defined metafields (includes both direct and model metafields)
-      def metafields
-        defined_metafields
-      end
-
       # Get attributes from the model class for this loader
       def defined_attributes
         return {} unless model_class.respond_to?(:attributes_for_loader)
 
         # Get attributes defined in the model for this loader class
         model_class.attributes_for_loader(self)
-      end
-
-      # Get metafields from the model class
-      def defined_metafields
-        return {} unless model_class.respond_to?(:metafields)
-
-        model_class.metafields
       end
 
       # Set or get the GraphQL fragment fields for this loader
@@ -131,15 +112,6 @@ module ActiveShopifyGraphQL
         selected_attrs
       else
         attrs
-      end
-    end
-
-    # Get defined metafields for this loader instance
-    def defined_metafields
-      if @model_class.respond_to?(:metafields)
-        @model_class.metafields
-      else
-        self.class.defined_metafields
       end
     end
 

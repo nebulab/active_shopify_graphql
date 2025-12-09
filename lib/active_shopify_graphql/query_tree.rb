@@ -25,11 +25,6 @@ module ActiveShopifyGraphQL
       node
     end
 
-    # Find a child by name
-    def find_child(name)
-      @children.find { |child| child.name == name }
-    end
-
     # Check if node has children
     def has_children?
       @children.any?
@@ -167,10 +162,7 @@ module ActiveShopifyGraphQL
 
   # Represents the complete query tree structure
   class QueryTree
-    attr_accessor :root
-
     def initialize
-      @root = nil
       @fragments = []
       @query_config = {}
     end
@@ -539,28 +531,10 @@ module ActiveShopifyGraphQL
     end
 
     # Normalize includes from various formats to a consistent hash structure
+    # Delegates to class method for consistency
     def normalize_includes(includes)
-      normalized = {}
-
-      includes.each do |inc|
-        if inc.is_a?(Hash)
-          inc.each do |key, value|
-            key = key.to_sym
-            normalized[key] ||= []
-
-            values = value.is_a?(Array) ? value : [value]
-            normalized[key].concat(values)
-          end
-        else
-          key = inc.to_sym
-          normalized[key] ||= []
-        end
-      end
-
-      normalized
+      self.class.normalize_includes(includes)
     end
-
-    # Set the root node
 
     # Build a fragment node
     def build_fragment(name:, graphql_type:)
@@ -568,35 +542,6 @@ module ActiveShopifyGraphQL
         name: name,
         arguments: { on: graphql_type },
         node_type: :fragment
-      )
-    end
-
-    # Build a field node
-    def build_field(name:, children: [])
-      QueryNode.new(
-        name: name,
-        node_type: :field,
-        children: children
-      )
-    end
-
-    # Build a connection node
-    def build_connection(name:, arguments: {}, children: [])
-      QueryNode.new(
-        name: name,
-        arguments: arguments,
-        node_type: :connection,
-        children: children
-      )
-    end
-
-    # Build a singular association node
-    def build_singular(name:, arguments: {}, children: [])
-      QueryNode.new(
-        name: name,
-        arguments: arguments,
-        node_type: :singular,
-        children: children
       )
     end
 
@@ -611,8 +556,6 @@ module ActiveShopifyGraphQL
         build_collection_query(compact)
       when :connection
         build_connection_query(compact)
-      when nil
-        @root ? @root.to_s : ""
       else
         ""
       end
@@ -722,34 +665,11 @@ module ActiveShopifyGraphQL
       end
     end
 
-    def build_variable_declarations(variables)
-      variables.map do |key, _value|
-        graphql_key = key.to_s.camelize(:lower)
-        type = infer_graphql_type(key)
-        "$#{graphql_key}: #{type}"
-      end
-    end
-
     def build_field_parameters(variables)
       variables.map do |key, value|
         graphql_key = key.to_s.camelize(:lower)
         formatted_value = format_inline_value(key, value)
         "#{graphql_key}: #{formatted_value}"
-      end
-    end
-
-    def infer_graphql_type(key)
-      case key.to_sym
-      when :first, :last
-        "Int!"
-      when :query
-        "String"
-      when :reverse
-        "Boolean"
-      when :sort_key, :sortKey
-        "String"
-      else
-        "String"
       end
     end
 
