@@ -2,7 +2,6 @@
 
 module ActiveShopifyGraphQL
   # Centralizes GraphQL type resolution logic.
-  # This eliminates scattered type resolution across Loader, Base, and ConnectionLoader.
   module GraphqlTypeResolver
     extend ActiveSupport::Concern
 

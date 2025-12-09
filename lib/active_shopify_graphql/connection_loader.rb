@@ -3,7 +3,7 @@
 require 'global_id'
 
 module ActiveShopifyGraphQL
-  # Handles loading records for connections (associations).
+  # Handles loading records for GraphQL connections.
   # Refactored to use LoaderContext for cleaner parameter passing.
   class ConnectionLoader
     attr_reader :context

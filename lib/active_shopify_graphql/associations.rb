@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 module ActiveShopifyGraphQL
+  # Handles associations between ActiveShopifyGraphQL objects and ActiveRecord objects
   module Associations
     extend ActiveSupport::Concern
 

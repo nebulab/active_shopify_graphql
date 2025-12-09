@@ -136,18 +136,6 @@ RSpec.describe ActiveShopifyGraphQL::LoaderContext do
 
       expect(context.connections).to eq({ orders: { class_name: "Order" } })
     end
-
-    it "returns empty hash when model has no connections method" do
-      model_class = Class.new
-      context = described_class.new(
-        graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-        defined_attributes: {},
-        model_class: model_class
-      )
-
-      expect(context.connections).to eq({})
-    end
   end
 
   describe "equality" do

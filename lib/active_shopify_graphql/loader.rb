@@ -13,7 +13,7 @@ module ActiveShopifyGraphQL
         return @graphql_type = type if type
 
         # Try to get GraphQL type from associated model class first
-        return model_class.graphql_type_for_loader(self) if model_class.respond_to?(:graphql_type_for_loader)
+        return model_class.graphql_type_for_loader(self) if model_class
 
         @graphql_type || raise(NotImplementedError, "#{self} must define graphql_type")
       end
@@ -34,7 +34,7 @@ module ActiveShopifyGraphQL
 
       # Get attributes from the model class for this loader
       def defined_attributes
-        return {} unless model_class.respond_to?(:attributes_for_loader)
+        return {} unless model_class
 
         model_class.attributes_for_loader(self)
       end
@@ -75,7 +75,7 @@ module ActiveShopifyGraphQL
 
     # Get defined attributes for this loader instance
     def defined_attributes
-      attrs = if @model_class.respond_to?(:attributes_for_loader)
+      attrs = if @model_class
                 @model_class.attributes_for_loader(self.class)
               else
                 self.class.defined_attributes

@@ -3,8 +3,6 @@
 module ActiveShopifyGraphQL
   # Value object that encapsulates the shared context needed across query building,
   # response mapping, and connection loading operations.
-  #
-  # This eliminates the need to pass 5-7 parameters through every method call.
   class LoaderContext
     attr_reader :graphql_type, :loader_class, :defined_attributes, :model_class, :included_connections
 
@@ -48,7 +46,7 @@ module ActiveShopifyGraphQL
     end
 
     def connections
-      return {} unless model_class.respond_to?(:connections)
+      return {} unless model_class
 
       model_class.connections
     end

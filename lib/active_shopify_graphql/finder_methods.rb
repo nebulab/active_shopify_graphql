@@ -26,8 +26,7 @@ module ActiveShopifyGraphQL
         else
           @default_loader ||= begin
             # Collect connections with eager_load: true
-            eagerly_loaded_connections = []
-            eagerly_loaded_connections = connections.select { |_name, config| config[:eager_load] }.keys if respond_to?(:connections)
+            eagerly_loaded_connections = connections.select { |_name, config| config[:eager_load] }.keys
 
             default_loader_class.new(
               self,
@@ -140,17 +139,13 @@ module ActiveShopifyGraphQL
         attrs = []
 
         # Get attributes from the model class
-        if respond_to?(:attributes_for_loader)
-          loader_class = default_loader.class
-          model_attrs = attributes_for_loader(loader_class)
-          attrs.concat(model_attrs.keys)
-        end
+        loader_class = default_loader.class
+        model_attrs = attributes_for_loader(loader_class)
+        attrs.concat(model_attrs.keys)
 
         # Get attributes from the loader class
-        if default_loader.respond_to?(:defined_attributes)
-          loader_attrs = default_loader.class.defined_attributes
-          attrs.concat(loader_attrs.keys)
-        end
+        loader_attrs = default_loader.class.defined_attributes
+        attrs.concat(loader_attrs.keys)
 
         attrs.map(&:to_sym).uniq.sort
       end

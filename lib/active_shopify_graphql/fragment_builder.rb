@@ -2,7 +2,6 @@
 
 module ActiveShopifyGraphQL
   # Builds GraphQL fragments from model attributes and connections.
-  # Extracted from QueryTree for Single Responsibility Principle.
   class FragmentBuilder
     def initialize(context)
       @context = context
