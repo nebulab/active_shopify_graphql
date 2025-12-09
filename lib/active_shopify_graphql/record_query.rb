@@ -32,28 +32,34 @@ module ActiveShopifyGraphQL
       type = model_type || @graphql_type
       query_name_value = query_name(type)
       fragment_name_value = fragment_name(type)
+      fragment_string = fragment_to_s
 
-      compact = ActiveShopifyGraphQL.configuration.compact_queries
-      fragment_string = @fragment.to_s
-
-      if compact
-        "#{fragment_string} query get#{type}($id: ID!) { #{query_name_value}(id: $id) { ...#{fragment_name_value} } }"
-      else
-        "#{fragment_string}\n\nquery get#{type}($id: ID!) {\n  #{query_name_value}(id: $id) {\n    ...#{fragment_name_value}\n  }\n}\n"
-      end
+      query_builder = Query.new
+      query_builder.wrap_fragment_in_query(
+        fragment_string: fragment_string,
+        fragment_name: fragment_name_value,
+        query_name: "#{query_name_value}(id: $id)",
+        query_signature: "get#{type}($id: ID!)"
+      )
     end
 
     private
 
-    # Create a Fragment instance with explicit parameters
-    def create_fragment
-      Fragment.new(
-        graphql_type: @graphql_type,
-        loader_class: @loader_class,
-        defined_attributes: @defined_attributes,
-        model_class: @model_class,
-        included_connections: @included_connections
-      )
+    # Convert fragment to string, handling both Fragment objects and legacy string fragments
+    def fragment_to_s
+      @fragment.is_a?(String) ? @fragment : @fragment.to_s
+    end
+
+    # Extract fragment name from Fragment object or string
+    def extract_fragment_name(type_name)
+      if @fragment.is_a?(String)
+        # Extract fragment name from string (legacy support)
+        @fragment[/fragment\s+(\w+)/, 1] || "#{type_name}Fragment"
+      elsif @fragment.respond_to?(:fragment_name)
+        @fragment.fragment_name
+      else
+        "#{type_name}Fragment"
+      end
     end
   end
 end
