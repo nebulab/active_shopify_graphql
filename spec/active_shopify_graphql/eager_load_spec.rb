@@ -197,8 +197,9 @@ RSpec.describe 'Connection eager_load parameter' do
       }
 
       # Expect the client to be called with a collection query that includes orders
+      # Note: We use inline values instead of GraphQL variables per AGENTS.md
       expect(mock_client).to receive(:execute) do |query, **variables|
-        expect(query).to include("customers(query: $query")
+        expect(query).to include('customers(query: "email:john@example.com"')
         expect(query).to include("orders(first: 10")
         expect(variables[:query]).to eq("email:john@example.com")
         mock_response

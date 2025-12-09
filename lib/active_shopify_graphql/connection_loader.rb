@@ -5,11 +5,14 @@ require 'global_id'
 module ActiveShopifyGraphQL
   # Handles loading records for connections (associations)
   class ConnectionLoader
-    attr_reader :connection_query, :loader_class
+    attr_reader :graphql_type, :loader_class
 
-    def initialize(connection_query:, loader_class:, loader_instance:, response_mapper_factory:)
-      @connection_query = connection_query
+    def initialize(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:, loader_instance:, response_mapper_factory:)
+      @graphql_type = graphql_type
       @loader_class = loader_class
+      @defined_attributes = defined_attributes
+      @model_class = model_class
+      @included_connections = included_connections
       @loader_instance = loader_instance
       @response_mapper_factory = response_mapper_factory
     end
@@ -35,7 +38,23 @@ module ActiveShopifyGraphQL
 
     # Load records for a nested connection (field on parent object)
     def load_nested_connection(query_name, variables, parent, connection_config)
-      query = @connection_query.nested_connection_graphql_query(query_name, variables, parent, connection_config)
+      # Get the parent's GraphQL type
+      parent_type = parent.class.graphql_type_for_loader(@loader_class)
+      parent_query_name = parent_type.downcase
+      connection_type = connection_config&.dig(:type) || :connection
+
+      query = QueryTree.build_connection_query(
+        graphql_type: @graphql_type,
+        loader_class: @loader_class,
+        defined_attributes: @defined_attributes,
+        model_class: @model_class,
+        included_connections: @included_connections,
+        query_name: query_name,
+        variables: variables,
+        parent_query: "#{parent_query_name}(id: $id)",
+        connection_type: connection_type
+      )
+
       # Only the parent ID is passed as a variable for nested connections
       # Ensure we use the full GID format
       parent_id = extract_gid(parent)
@@ -50,7 +69,20 @@ module ActiveShopifyGraphQL
 
     # Load records for a root-level connection
     def load_root_connection(query_name, variables, connection_config)
-      query = @connection_query.connection_graphql_query(query_name, variables, connection_config)
+      connection_type = connection_config&.dig(:type) || :connection
+
+      query = QueryTree.build_connection_query(
+        graphql_type: @graphql_type,
+        loader_class: @loader_class,
+        defined_attributes: @defined_attributes,
+        model_class: @model_class,
+        included_connections: @included_connections,
+        query_name: query_name,
+        variables: variables,
+        parent_query: nil,
+        connection_type: connection_type
+      )
+
       # No variables needed for root-level connections - all args are inline
       query_variables = {}
 

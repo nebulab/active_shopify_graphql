@@ -1,9 +1,13 @@
 # frozen_string_literal: true
 
 module ActiveShopifyGraphQL
-  # Provides low-level GraphQL query structure building primitives
-  # Does not know about specific query types (record/collection/connection)
-  # Just provides tools to wrap fields in various GraphQL structures
+  # LEGACY: Low-level GraphQL query string building utilities
+  #
+  # This class is primarily used by ConnectionQuery for building connection queries.
+  # For new code, prefer using QueryTree and QueryNode which provide a tree-based
+  # approach to building queries before converting to strings.
+  #
+  # @deprecated Use QueryTree and QueryNode for new query building logic
   class Query
     def initialize
       @compact = ActiveShopifyGraphQL.configuration.compact_queries

@@ -49,7 +49,7 @@ RSpec.describe "Metafield attribute functionality" do
   test_loader_class = Class.new(ActiveShopifyGraphQL::Loader) do
     graphql_type "Product"
     self.model_class = test_model_class
-  
+
     def perform_graphql_query(query, **variables)
       mock_client = ActiveShopifyGraphQL.configuration.admin_api_client
       mock_client.execute(query, **variables) if mock_client
@@ -215,12 +215,12 @@ RSpec.describe "Metafield attribute functionality" do
       transform_loader = Class.new(ActiveShopifyGraphQL::Loader) do
         graphql_type "Product"
         self.model_class = transform_model
-  
-    def perform_graphql_query(query, **variables)
-      mock_client = ActiveShopifyGraphQL.configuration.admin_api_client
-      mock_client.execute(query, **variables) if mock_client
-    end
-  end
+
+        def perform_graphql_query(query, **variables)
+          mock_client = ActiveShopifyGraphQL.configuration.admin_api_client
+          mock_client.execute(query, **variables) if mock_client
+        end
+      end
 
       allow(mock_client).to receive(:execute).and_return(
         {
@@ -254,12 +254,12 @@ RSpec.describe "Metafield attribute functionality" do
       default_loader = Class.new(ActiveShopifyGraphQL::Loader) do
         graphql_type "Product"
         self.model_class = default_model
-  
-    def perform_graphql_query(query, **variables)
-      mock_client = ActiveShopifyGraphQL.configuration.admin_api_client
-      mock_client.execute(query, **variables) if mock_client
-    end
-  end
+
+        def perform_graphql_query(query, **variables)
+          mock_client = ActiveShopifyGraphQL.configuration.admin_api_client
+          mock_client.execute(query, **variables) if mock_client
+        end
+      end
 
       allow(mock_client).to receive(:execute).and_return(
         {
@@ -295,12 +295,12 @@ RSpec.describe "Metafield attribute functionality" do
       transform_loader = Class.new(ActiveShopifyGraphQL::Loader) do
         graphql_type "Product"
         self.model_class = transform_model
-  
-    def perform_graphql_query(query, **variables)
-      mock_client = ActiveShopifyGraphQL.configuration.admin_api_client
-      mock_client.execute(query, **variables) if mock_client
-    end
-  end
+
+        def perform_graphql_query(query, **variables)
+          mock_client = ActiveShopifyGraphQL.configuration.admin_api_client
+          mock_client.execute(query, **variables) if mock_client
+        end
+      end
 
       allow(mock_client).to receive(:execute).and_return(
         {
@@ -349,12 +349,12 @@ RSpec.describe "Metafield attribute functionality" do
       mixed_loader = Class.new(ActiveShopifyGraphQL::Loader) do
         graphql_type "Product"
         self.model_class = mixed_model
-  
-    def perform_graphql_query(query, **variables)
-      mock_client = ActiveShopifyGraphQL.configuration.admin_api_client
-      mock_client.execute(query, **variables) if mock_client
-    end
-  end
+
+        def perform_graphql_query(query, **variables)
+          mock_client = ActiveShopifyGraphQL.configuration.admin_api_client
+          mock_client.execute(query, **variables) if mock_client
+        end
+      end
 
       allow(mock_client).to receive(:execute).and_return(
         {
@@ -387,23 +387,14 @@ RSpec.describe "Metafield attribute functionality" do
       multi_loader = Class.new(ActiveShopifyGraphQL::Loader) do
         graphql_type "Product"
         self.model_class = multi_model
-
-        def fragment
-          ActiveShopifyGraphQL::Fragment.new(
-            graphql_type: graphql_type,
-            loader_class: self.class,
-            defined_attributes: defined_attributes,
-            model_class: instance_variable_get(:@model_class),
-            included_connections: instance_variable_get(:@included_connections)
-          ).to_s
-        end
       end
 
       loader = multi_loader.new
-      fragment = loader.fragment
+      # Use graphql_query which includes the fragment
+      query = loader.graphql_query
 
-      expect(fragment).to include('weightKgMetafield: metafield(namespace: "shipping", key: "weight")')
-      expect(fragment).to include('weightDisplayMetafield: metafield(namespace: "shipping", key: "weight")')
+      expect(query).to include('weightKgMetafield: metafield(namespace: "shipping", key: "weight")')
+      expect(query).to include('weightDisplayMetafield: metafield(namespace: "shipping", key: "weight")')
     end
   end
 end

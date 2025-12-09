@@ -47,3 +47,7 @@
 ## Security & Configuration Tips
 - Verify Admin vs Customer Account API client selection when adding loaders; avoid leaking tokens between contexts.
 - If introducing new configuration knobs, document defaults and required environment variables in `README.md` and add minimal validation in configuration objects.
+
+## Implementation details
+- ALWAYS use inline argument values instead of arguments in the root query signature. This makes orders of magnitude easier working with enums, we move the burden on the developer instead of the gem.
+- Instead of passing down arguments in deep method chains, PREFER orthogonally using configurations. If you notice doing this in your work, consider extracting that to a config.

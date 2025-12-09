@@ -68,17 +68,18 @@ RSpec.describe "Where functionality" do
 
   describe ".where" do
     it "builds correct Shopify query syntax for simple conditions" do
+      # NOTE: We use inline values instead of GraphQL variables per AGENTS.md
       expected_query = <<~GRAPHQL
         fragment CustomerFragment on Customer {
         id
-          displayName
-          defaultEmailAddress {
-            emailAddress
-          }
-          createdAt
+        displayName
+        defaultEmailAddress {
+          emailAddress
         }
-        query getCustomers($query: String, $first: Int!) {
-          customers(query: $query, first: $first) {
+        createdAt
+        }
+        query getCustomers {
+          customers(query: "email:john@example.com AND first_name:John", first: 250) {
             nodes {
               ...CustomerFragment
             }

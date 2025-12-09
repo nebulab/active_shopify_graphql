@@ -5,18 +5,17 @@ module ActiveShopifyGraphQL
   class ResponseMapper
     attr_reader :graphql_type, :loader_class, :defined_attributes, :model_class, :included_connections
 
-    def initialize(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:, record_query:)
+    def initialize(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:)
       @graphql_type = graphql_type
       @loader_class = loader_class
       @defined_attributes = defined_attributes
       @model_class = model_class
       @included_connections = included_connections
-      @record_query = record_query
     end
 
     # Map GraphQL response to attributes using declared attribute metadata
     def map_response_from_attributes(response_data)
-      query_name_value = @record_query.query_name(@graphql_type)
+      query_name_value = QueryTree.query_name(@graphql_type)
       root_data = response_data.dig("data", query_name_value)
       return {} unless root_data
 
@@ -86,7 +85,7 @@ module ActiveShopifyGraphQL
     def extract_connection_data(response_data)
       return {} if @included_connections.empty? || !@model_class.respond_to?(:connections)
 
-      query_name_value = @record_query.query_name(@graphql_type)
+      query_name_value = QueryTree.query_name(@graphql_type)
       root_data = response_data.dig("data", query_name_value)
       return {} unless root_data
 
@@ -98,15 +97,7 @@ module ActiveShopifyGraphQL
 
       connection_cache = {}
       connections = @model_class.connections
-      # We just need Fragment for normalize_includes - create it directly
-      fragment = Fragment.new(
-        graphql_type: @graphql_type,
-        loader_class: @loader_class,
-        defined_attributes: @defined_attributes,
-        model_class: @model_class,
-        included_connections: @included_connections
-      )
-      normalized_includes = fragment.normalize_includes(@included_connections)
+      normalized_includes = QueryTree.normalize_includes(@included_connections)
 
       normalized_includes.each do |connection_name, nested_includes|
         connection_config = connections[connection_name]
@@ -216,8 +207,7 @@ module ActiveShopifyGraphQL
           loader_class: @loader_class,
           defined_attributes: target_loader.defined_attributes,
           model_class: target_class,
-          included_connections: nested_includes,
-          record_query: target_loader.record_query
+          included_connections: nested_includes
         )
         nested_data = nested_mapper.extract_connection_data_from_node(node_data_item)
 

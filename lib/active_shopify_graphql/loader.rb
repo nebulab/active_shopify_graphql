@@ -2,11 +2,9 @@
 
 require 'active_model/type'
 require 'global_id'
-require_relative 'fragment'
+require_relative 'query_tree'
 require_relative 'response_mapper'
-require_relative 'record_query'
-require_relative 'connection_query'
-require_relative 'collection_query'
+require_relative 'search_query'
 require_relative 'connection_loader'
 
 module ActiveShopifyGraphQL
@@ -147,7 +145,7 @@ module ActiveShopifyGraphQL
 
     # Returns the complete GraphQL fragment built from class-level fragment fields
     def fragment
-      @fragment ||= Fragment.new(
+      QueryTree.build_fragment_node(
         graphql_type: graphql_type,
         loader_class: self.class,
         defined_attributes: defined_attributes,
@@ -156,40 +154,26 @@ module ActiveShopifyGraphQL
       )
     end
 
-    # Get or create a RecordQuery instance for this loader
-    def record_query
-      @record_query ||= RecordQuery.new(
-        graphql_type: graphql_type,
-        loader_class: self.class,
-        defined_attributes: defined_attributes,
-        model_class: @model_class,
-        included_connections: @included_connections,
-        fragment: fragment
-      )
-    end
-
-    # Get or create a ConnectionQuery instance for this loader
-    def connection_query
-      @connection_query ||= ConnectionQuery.new(
-        graphql_type: graphql_type,
-        loader_class: self.class,
-        defined_attributes: defined_attributes,
-        model_class: @model_class,
-        included_connections: @included_connections
-      )
-    end
-
-    # Delegate query building methods to RecordQuery class
+    # Delegate query building methods to QueryTree class
     def query_name(model_type = nil)
-      record_query.query_name(model_type)
+      type = model_type || graphql_type
+      QueryTree.query_name(type)
     end
 
     def fragment_name(model_type = nil)
-      record_query.fragment_name(model_type)
+      type = model_type || graphql_type
+      QueryTree.fragment_name(type)
     end
 
     def graphql_query(model_type = nil)
-      record_query.graphql_query(model_type)
+      type = model_type || graphql_type
+      QueryTree.build_single_record_query(
+        graphql_type: type,
+        loader_class: self.class,
+        defined_attributes: defined_attributes,
+        model_class: @model_class,
+        included_connections: @included_connections
+      )
     end
 
     # Override this to map the GraphQL response to model attributes
@@ -203,8 +187,7 @@ module ActiveShopifyGraphQL
         loader_class: self.class,
         defined_attributes: defined_attributes,
         model_class: @model_class,
-        included_connections: @included_connections,
-        record_query: record_query
+        included_connections: @included_connections
       )
       attributes = mapper.map_response_from_attributes(response_data)
 
@@ -235,15 +218,31 @@ module ActiveShopifyGraphQL
     # @param limit [Integer] The maximum number of records to return (default: 250, max: 250)
     # @return [Array<Hash>] Array of attribute hashes or empty array if none found
     def load_collection(conditions = {}, limit: 250)
-      collection_query = CollectionQuery.new(
+      # Build search query from conditions
+      search_query = SearchQuery.new(conditions)
+      query_name = QueryTree.query_name(graphql_type).pluralize
+
+      # Build GraphQL query using QueryTree
+      variables = { query: search_query.to_s, first: limit }
+      query = QueryTree.build_collection_query(
         graphql_type: graphql_type,
-        query_builder: record_query,
-        record_query: record_query,
-        fragment: fragment,
-        map_response_proc: ->(response) { map_response_to_attributes(response) },
-        loader_instance: self
+        loader_class: self.class,
+        defined_attributes: defined_attributes,
+        model_class: @model_class,
+        included_connections: @included_connections,
+        query_name: query_name,
+        variables: variables,
+        connection_type: :nodes_only
       )
-      collection_query.execute(conditions, limit: limit)
+
+      # Execute query
+      response = perform_graphql_query(query, **variables)
+
+      # Validate search response
+      validate_search_response(response)
+
+      # Map response to attributes
+      map_collection_response(response, query_name)
     end
 
     # Load records for a connection query
@@ -254,8 +253,11 @@ module ActiveShopifyGraphQL
     # @return [Array<Object>] Array of model instances
     def load_connection_records(query_name, variables, parent = nil, connection_config = nil)
       connection_loader = ConnectionLoader.new(
-        connection_query: connection_query,
+        graphql_type: graphql_type,
         loader_class: self.class,
+        defined_attributes: defined_attributes,
+        model_class: @model_class,
+        included_connections: @included_connections,
         loader_instance: self,
         response_mapper_factory: lambda {
           ResponseMapper.new(
@@ -263,8 +265,7 @@ module ActiveShopifyGraphQL
             loader_class: self.class,
             defined_attributes: defined_attributes,
             model_class: @model_class,
-            included_connections: @included_connections,
-            record_query: record_query
+            included_connections: @included_connections
           )
         }
       )
@@ -279,6 +280,33 @@ module ActiveShopifyGraphQL
     # @return [Hash] The GraphQL response data
     def perform_graphql_query(query, **variables)
       raise NotImplementedError, "#{self.class} must implement perform_graphql_query"
+    end
+
+    private
+
+    # Validates the search response for warnings or errors
+    def validate_search_response(response)
+      return unless response.dig("extensions", "search")
+
+      warnings = response["extensions"]["search"].flat_map { |search| search["warnings"] || [] }
+      return if warnings.empty?
+
+      warning_messages = warnings.map { |w| "#{w['field']}: #{w['message']}" }
+      raise ArgumentError, "Shopify query validation failed: #{warning_messages.join(', ')}"
+    end
+
+    # Maps the collection response to an array of attribute hashes
+    def map_collection_response(response_data, query_name)
+      nodes = response_data.dig("data", query_name, "nodes")
+
+      return [] unless nodes&.any?
+
+      single_query_name = QueryTree.query_name(graphql_type)
+      nodes.map do |node_data|
+        # Create a response structure similar to single record queries
+        single_response = { "data" => { single_query_name => node_data } }
+        map_response_to_attributes(single_response)
+      end.compact
     end
   end
 end
