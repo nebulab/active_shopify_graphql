@@ -3,7 +3,7 @@
 RSpec.describe ActiveShopifyGraphQL::CollectionQuery do
   def record_query_stub
     query_stub = instance_double(ActiveShopifyGraphQL::RecordQuery)
-    allow(query_stub).to receive(:query_name) { |type| type.downcase }
+    allow(query_stub).to receive(:query_name, &:downcase)
     query_stub
   end
 

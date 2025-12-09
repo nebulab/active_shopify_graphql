@@ -11,7 +11,7 @@ require_relative 'collection_query'
 require_relative 'connection_loader'
 
 module ActiveShopifyGraphQL
-  class Loader # rubocop:disable Metrics/ClassLength
+  class Loader
     class << self
       # Set or get the GraphQL type for this loader
       def graphql_type(type = nil)

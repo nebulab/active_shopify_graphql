@@ -2,7 +2,7 @@
 
 module ActiveShopifyGraphQL
   # Represents a GraphQL fragment for a model with its fields and connections
-  class Fragment # rubocop:disable Metrics/ClassLength
+  class Fragment
     attr_reader :graphql_type, :loader_class, :defined_attributes, :model_class, :included_connections
 
     def initialize(graphql_type:, loader_class:, defined_attributes:, model_class:, included_connections:)
