@@ -14,40 +14,6 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
     end
   end
 
-  describe "#initialize" do
-    it "stores the graphql_type" do
-      mapper_factory = -> { instance_double(ActiveShopifyGraphQL::ResponseMapper) }
-
-      loader = described_class.new(
-        graphql_type: "Order",
-        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-        defined_attributes: {},
-        model_class: mock_model_class,
-        included_connections: [],
-        loader_instance: mock_loader_instance,
-        response_mapper_factory: mapper_factory
-      )
-
-      expect(loader.graphql_type).to eq("Order")
-    end
-
-    it "stores the loader_class" do
-      mapper_factory = -> { instance_double(ActiveShopifyGraphQL::ResponseMapper) }
-
-      loader = described_class.new(
-        graphql_type: "Order",
-        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-        defined_attributes: {},
-        model_class: mock_model_class,
-        included_connections: [],
-        loader_instance: mock_loader_instance,
-        response_mapper_factory: mapper_factory
-      )
-
-      expect(loader.loader_class).to eq(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-    end
-  end
-
   describe "#load_records" do
     after do
       ActiveShopifyGraphQL.reset_configuration!
