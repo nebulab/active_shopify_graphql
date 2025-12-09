@@ -8,32 +8,19 @@ RSpec.describe "Where functionality" do
   let(:mock_loader) do
     client = mock_client
     Class.new(ActiveShopifyGraphQL::Loaders::AdminApiLoader) do
+      graphql_type "Customer"
+
       define_method :initialize do
         @client = client
+        super()
       end
 
-      def fragment
-        <<~GRAPHQL
-          fragment CustomerFragment on Customer {
-            id
-            displayName
-            defaultEmailAddress {
-              emailAddress
-            }
-            createdAt
-          }
-        GRAPHQL
-      end
-
-      def map_response_to_attributes(response_data)
-        customer_data = response_data.dig("data", "customer")
-        return nil unless customer_data
-
+      def self.defined_attributes
         {
-          id: customer_data["id"],
-          name: customer_data["displayName"],
-          email: customer_data.dig("defaultEmailAddress", "emailAddress"),
-          created_at: customer_data["createdAt"]
+          id: { path: "id", type: :string },
+          name: { path: "displayName", type: :string },
+          email: { path: "defaultEmailAddress.emailAddress", type: :string },
+          created_at: { path: "createdAt", type: :string }
         }
       end
 
@@ -46,8 +33,12 @@ RSpec.describe "Where functionality" do
   let(:customer_class) do
     Class.new do
       include ActiveShopifyGraphQL::Base
+      include ActiveShopifyGraphQL::Attributes
 
-      attr_accessor :id, :name, :email, :created_at
+      attribute :id, path: "id"
+      attribute :name, path: "displayName"
+      attribute :email, path: "defaultEmailAddress.emailAddress"
+      attribute :created_at, path: "createdAt"
 
       def self.name
         "Customer"
@@ -79,14 +70,13 @@ RSpec.describe "Where functionality" do
     it "builds correct Shopify query syntax for simple conditions" do
       expected_query = <<~GRAPHQL
         fragment CustomerFragment on Customer {
-          id
+        id
           displayName
           defaultEmailAddress {
             emailAddress
           }
           createdAt
         }
-
         query getCustomers($query: String, $first: Int!) {
           customers(query: $query, first: $first) {
             nodes {
