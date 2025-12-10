@@ -118,8 +118,7 @@ module ActiveShopifyGraphQL
         validate_includes_connections!(connection_names)
 
         # Collect connections with eager_load: true
-        auto_included_connections = []
-        auto_included_connections = connections.select { |_name, config| config[:eager_load] }.keys if respond_to?(:connections)
+        auto_included_connections = connections.select { |_name, config| config[:eager_load] }.keys
 
         # Merge manual and automatic connections
         all_included_connections = (connection_names + auto_included_connections).uniq

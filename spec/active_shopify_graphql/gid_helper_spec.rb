@@ -1,9 +1,12 @@
 # frozen_string_literal: true
 
+require "spec_helper"
+
 RSpec.describe ActiveShopifyGraphQL::GidHelper do
   describe ".normalize_gid" do
     it "returns existing valid GID as-is" do
       gid = "gid://shopify/Customer/123"
+
       result = described_class.normalize_gid(gid, "Customer")
 
       expect(result).to eq(gid)
@@ -34,11 +37,10 @@ RSpec.describe ActiveShopifyGraphQL::GidHelper do
     end
 
     it "preserves GID with different app" do
-      # This is a non-Shopify GID, but still valid URI::GID format
       gid = "gid://other-app/Customer/123"
+
       result = described_class.normalize_gid(gid, "Customer")
 
-      # It should be preserved as-is because it's a valid GID
       expect(result).to eq(gid)
     end
 

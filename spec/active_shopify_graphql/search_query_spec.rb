@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
+require "spec_helper"
 
 RSpec.describe ActiveShopifyGraphQL::SearchQuery do
   describe "#to_s" do
@@ -44,6 +44,7 @@ RSpec.describe ActiveShopifyGraphQL::SearchQuery do
       search_query = described_class.new(created_at: { gte: "2024-01-01", lte: "2024-12-31" })
 
       result = search_query.to_s
+
       expect(result).to include("created_at:>=2024-01-01")
       expect(result).to include("created_at:<=2024-12-31")
     end
@@ -57,8 +58,7 @@ RSpec.describe ActiveShopifyGraphQL::SearchQuery do
     it "combines multiple conditions with AND" do
       search_query = described_class.new(status: "open", fulfillment_status: "unfulfilled")
 
-      result = search_query.to_s
-      expect(result).to eq("status:open AND fulfillment_status:unfulfilled")
+      expect(search_query.to_s).to eq("status:open AND fulfillment_status:unfulfilled")
     end
 
     it "returns empty string for empty conditions" do
@@ -68,10 +68,9 @@ RSpec.describe ActiveShopifyGraphQL::SearchQuery do
     end
 
     it "raises error for unsupported range operators" do
-      expect do
-        search_query = described_class.new(created_at: { invalid: "2024-01-01" })
-        search_query.to_s
-      end.to raise_error(ArgumentError, /Unsupported range operator/)
+      search_query = described_class.new(created_at: { invalid: "2024-01-01" })
+
+      expect { search_query.to_s }.to raise_error(ArgumentError, /Unsupported range operator/)
     end
   end
 end
