@@ -29,8 +29,8 @@ Gem::Specification.new do |spec|
   spec.require_paths = ['lib']
 
   # Runtime dependencies
-  spec.add_dependency 'activemodel', '~> 7.0'
-  spec.add_dependency 'activesupport', '~> 7.0'
+  spec.add_dependency 'activemodel', '>= 7.0'
+  spec.add_dependency 'activesupport', '>= 7.0'
   spec.add_dependency 'globalid', '~> 1.3'
 
   # Development dependencies
