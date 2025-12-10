@@ -29,25 +29,6 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
     end
   end
 
-  describe ".client_type" do
-    it "defaults to :admin_api" do
-      loader_class = Class.new(described_class) do
-        graphql_type "Test"
-      end
-
-      expect(loader_class.client_type).to eq(:admin_api)
-    end
-
-    it "allows setting client_type at class level" do
-      loader_class = Class.new(described_class) do
-        graphql_type "Test"
-        client_type :customer_account_api
-      end
-
-      expect(loader_class.client_type).to eq(:customer_account_api)
-    end
-  end
-
   describe "#initialize" do
     it "accepts model_class parameter" do
       model_class = Class.new do

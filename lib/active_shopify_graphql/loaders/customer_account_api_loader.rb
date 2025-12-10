@@ -3,8 +3,6 @@
 module ActiveShopifyGraphQL
   module Loaders
     class CustomerAccountApiLoader < Loader
-      client_type :customer_account_api
-
       def initialize(model_class = nil, token = nil, selected_attributes: nil, included_connections: nil)
         super(model_class, selected_attributes: selected_attributes, included_connections: included_connections)
         @token = token

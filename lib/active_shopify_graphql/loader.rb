@@ -18,13 +18,6 @@ module ActiveShopifyGraphQL
         @graphql_type || raise(NotImplementedError, "#{self} must define graphql_type")
       end
 
-      # Set or get the client type for this loader (:admin_api or :customer_account_api)
-      def client_type(type = nil)
-        return @client_type = type if type
-
-        @client_type || :admin_api
-      end
-
       # Get the model class associated with this loader
       def model_class
         @model_class ||= infer_model_class

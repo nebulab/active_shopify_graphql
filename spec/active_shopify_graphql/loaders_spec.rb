@@ -35,12 +35,6 @@ RSpec.describe ActiveShopifyGraphQL::Loaders::AdminApiLoader do
       loader.perform_graphql_query("query { customer(id: $id) }", id: "123")
     end
   end
-
-  describe ".client_type" do
-    it "returns :admin_api" do
-      expect(described_class.client_type).to eq(:admin_api)
-    end
-  end
 end
 
 RSpec.describe ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader do
@@ -69,12 +63,6 @@ RSpec.describe ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader do
       loader = described_class.new(model_class, "fake_token")
 
       expect(loader.graphql_type).to eq("Customer")
-    end
-  end
-
-  describe ".client_type" do
-    it "returns :customer_account_api" do
-      expect(described_class.client_type).to eq(:customer_account_api)
     end
   end
 end
