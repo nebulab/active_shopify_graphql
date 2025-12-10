@@ -80,9 +80,56 @@ module ActiveShopifyGraphQL
 
     # Simple proxy class to handle loader delegation
     class LoaderProxy
-      def initialize(model_class, loader)
+      def initialize(model_class, loader, included_connections: [], selected_attributes: nil)
         @model_class = model_class
         @loader = loader
+        @included_connections = included_connections
+        @selected_attributes = selected_attributes
+      end
+
+      def includes(*connection_names)
+        # Validate connections exist
+        @model_class.send(:validate_includes_connections!, connection_names) if @model_class.respond_to?(:validate_includes_connections!, true)
+
+        # Collect connections with eager_load: true
+        auto_included_connections = @model_class.connections.select { |_name, config| config[:eager_load] }.keys
+
+        # Merge manual and automatic connections
+        all_included_connections = (@included_connections + connection_names + auto_included_connections).uniq
+
+        # Create a new loader with the included connections
+        new_loader = @loader.class.new(
+          @model_class,
+          *loader_extra_args,
+          selected_attributes: @selected_attributes,
+          included_connections: all_included_connections
+        )
+
+        LoaderProxy.new(
+          @model_class,
+          new_loader,
+          included_connections: all_included_connections,
+          selected_attributes: @selected_attributes
+        )
+      end
+
+      def select(*attribute_names)
+        new_selected = attribute_names.map(&:to_sym)
+
+        # Create a new loader with the selected attributes
+        new_loader = @loader.class.new(
+          @model_class,
+          *loader_extra_args,
+          selected_attributes: new_selected,
+          included_connections: @included_connections
+        )
+
+        LoaderProxy.new(
+          @model_class,
+          new_loader,
+          included_connections: @included_connections,
+          selected_attributes: new_selected
+        )
       end
 
       def find(id = nil)
@@ -116,6 +163,18 @@ module ActiveShopifyGraphQL
         "#{@model_class.name}(with_#{@loader.class.name.demodulize})"
       end
       alias to_s inspect
+
+      private
+
+      # Returns extra arguments needed when creating a new loader of the same type
+      # For CustomerAccountApiLoader, this includes the token
+      def loader_extra_args
+        if @loader.is_a?(ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader)
+          [@loader.instance_variable_get(:@token)]
+        else
+          []
+        end
+      end
     end
   end
 end

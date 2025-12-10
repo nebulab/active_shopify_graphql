@@ -27,6 +27,19 @@ module ActiveShopifyGraphQL
       end.to_s
     end
 
+    # Build a query that doesn't require an ID parameter (e.g., Customer Account API's current customer)
+    def self.build_current_customer_query(context, query_name: nil)
+      new(context).tap do |tree|
+        tree.add_fragment(FragmentBuilder.new(context).build)
+        tree.set_query_config(
+          type: :current_customer,
+          model_type: context.graphql_type,
+          query_name: query_name || context.query_name,
+          fragment_name: context.fragment_name
+        )
+      end.to_s
+    end
+
     def self.build_collection_query(context, query_name:, variables:, connection_type: :nodes_only)
       new(context).tap do |tree|
         tree.add_fragment(FragmentBuilder.new(context).build)
@@ -80,6 +93,7 @@ module ActiveShopifyGraphQL
     def to_s
       case @query_config[:type]
       when :single_record then render_single_record_query
+      when :current_customer then render_current_customer_query
       when :collection    then render_collection_query
       when :connection    then render_connection_query
       else ""
@@ -110,6 +124,18 @@ module ActiveShopifyGraphQL
         "#{fragments_string} query get#{type}($id: ID!) { #{query_name}(id: $id) { ...#{fragment_name} } }"
       else
         "#{fragments_string}\n\nquery get#{type}($id: ID!) {\n  #{query_name}(id: $id) {\n    ...#{fragment_name}\n  }\n}\n"
+      end
+    end
+
+    def render_current_customer_query
+      type = @query_config[:model_type]
+      query_name = @query_config[:query_name]
+      fragment_name = @query_config[:fragment_name]
+
+      if compact?
+        "#{fragments_string} query getCurrent#{type} { #{query_name} { ...#{fragment_name} } }"
+      else
+        "#{fragments_string}\n\nquery getCurrent#{type} {\n  #{query_name} {\n    ...#{fragment_name}\n  }\n}\n"
       end
     end
 
