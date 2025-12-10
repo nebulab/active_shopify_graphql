@@ -231,4 +231,55 @@ RSpec.describe ActiveShopifyGraphQL::Connections::ConnectionProxy do
       expect(ids).to eq(["gid://shopify/Order/1", "gid://shopify/Order/2"])
     end
   end
+
+  describe "#inspect" do
+    it "loads the records and returns their inspection string" do
+      customer_class = build_customer_class(with_orders: true)
+      order_class = build_order_class
+      stub_const("Customer", customer_class)
+      stub_const("Order", order_class)
+      mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader, class: ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+      allow(customer_class).to receive(:default_loader).and_return(mock_loader)
+      allow(ActiveShopifyGraphQL::Loaders::AdminApiLoader).to receive(:new).and_return(mock_loader)
+      mock_orders = [
+        order_class.new(id: "gid://shopify/Order/1"),
+        order_class.new(id: "gid://shopify/Order/2")
+      ]
+      allow(mock_loader).to receive(:load_connection_records).and_return(mock_orders)
+      parent = customer_class.new(id: "gid://shopify/Customer/123")
+      proxy = parent.orders
+
+      expect(proxy.inspect).to eq(mock_orders.inspect)
+      expect(proxy.loaded?).to be true
+    end
+  end
+
+  describe "#pretty_print" do
+    it "delegates to records" do
+      customer_class = build_customer_class(with_orders: true)
+      order_class = build_order_class
+      stub_const("Customer", customer_class)
+      stub_const("Order", order_class)
+      mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader, class: ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+      allow(customer_class).to receive(:default_loader).and_return(mock_loader)
+      allow(ActiveShopifyGraphQL::Loaders::AdminApiLoader).to receive(:new).and_return(mock_loader)
+      mock_orders = [
+        order_class.new(id: "gid://shopify/Order/1"),
+        order_class.new(id: "gid://shopify/Order/2")
+      ]
+      allow(mock_loader).to receive(:load_connection_records).and_return(mock_orders)
+      parent = customer_class.new(id: "gid://shopify/Customer/123")
+      proxy = parent.orders
+
+      # Ensure loaded
+      proxy.load
+      records = proxy.instance_variable_get(:@records)
+      allow(records).to receive(:pretty_print)
+
+      q = double("q")
+      proxy.pretty_print(q)
+
+      expect(records).to have_received(:pretty_print).with(q)
+    end
+  end
 end

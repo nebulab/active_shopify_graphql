@@ -74,6 +74,16 @@ module ActiveShopifyGraphQL
         self
       end
 
+      def inspect
+        ensure_loaded
+        @records.inspect
+      end
+
+      def pretty_print(q)
+        ensure_loaded
+        @records.pretty_print(q)
+      end
+
       private
 
       def ensure_loaded
