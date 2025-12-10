@@ -33,6 +33,11 @@ module ActiveShopifyGraphQL
         @loaded
       end
 
+      def load
+        ensure_loaded
+        self
+      end
+
       # Override for efficiency - avoids full iteration
       def size
         ensure_loaded

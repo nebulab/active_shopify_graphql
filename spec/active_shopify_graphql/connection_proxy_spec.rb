@@ -83,6 +83,32 @@ RSpec.describe ActiveShopifyGraphQL::Connections::ConnectionProxy do
     end
   end
 
+  describe "#load" do
+    it "loads the connection records and returns the proxy" do
+      customer_class = build_customer_class(with_orders: true)
+      order_class = build_order_class
+      stub_const("Customer", customer_class)
+      stub_const("Order", order_class)
+      mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader, class: ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+      allow(customer_class).to receive(:default_loader).and_return(mock_loader)
+      allow(ActiveShopifyGraphQL::Loaders::AdminApiLoader).to receive(:new).and_return(mock_loader)
+      mock_orders = [
+        order_class.new(id: "gid://shopify/Order/1"),
+        order_class.new(id: "gid://shopify/Order/2")
+      ]
+      allow(mock_loader).to receive(:load_connection_records).and_return(mock_orders)
+      parent = customer_class.new(id: "gid://shopify/Customer/123")
+
+      proxy = parent.orders
+      expect(proxy.loaded?).to be false
+
+      result = proxy.load
+      expect(result).to eq(proxy)
+      expect(proxy.loaded?).to be true
+      expect(proxy.to_a).to eq(mock_orders)
+    end
+  end
+
   describe "Enumerable methods" do
     it "delegates size to loaded records" do
       customer_class = build_customer_class(with_orders: true)
