@@ -104,6 +104,90 @@ RSpec.describe ActiveShopifyGraphQL::QueryTree do
     end
   end
 
+  describe ".build_current_customer_query" do
+    it "generates query without ID parameter" do
+      context = build_context(
+        graphql_type: "Customer",
+        attributes: { id: { path: "id", type: :string }, email: { path: "email", type: :string } }
+      )
+
+      query = described_class.build_current_customer_query(context)
+
+      expect(query).to include("query getCurrentCustomer")
+      expect(query).not_to include("$id")
+      expect(query).to include("customer {")
+      expect(query).to include("...CustomerFragment")
+    end
+
+    it "includes fragment definition" do
+      context = build_context(
+        graphql_type: "Customer",
+        attributes: { id: { path: "id", type: :string } }
+      )
+
+      query = described_class.build_current_customer_query(context)
+
+      expect(query).to include("fragment CustomerFragment on Customer")
+    end
+
+    it "includes connection fields when included_connections is set" do
+      order_class = Class.new do
+        define_singleton_method(:graphql_type_for_loader) { |_| "Order" }
+        define_singleton_method(:attributes_for_loader) do |_|
+          {
+            id: { path: "id", type: :string },
+            name: { path: "name", type: :string }
+          }
+        end
+        define_singleton_method(:connections) { {} }
+      end
+      stub_const("Order", order_class)
+      model_class = Class.new do
+        define_singleton_method(:graphql_type_for_loader) { |_| "Customer" }
+        define_singleton_method(:attributes_for_loader) do |_|
+          {
+            id: { path: "id", type: :string },
+            email: { path: "email", type: :string }
+          }
+        end
+        define_singleton_method(:connections) do
+          {
+            orders: {
+              class_name: "Order",
+              query_name: "orders",
+              type: :connection,
+              default_arguments: { first: 10, sort_key: "CREATED_AT" }
+            }
+          }
+        end
+      end
+      context = build_context(
+        graphql_type: "Customer",
+        attributes: { id: { path: "id", type: :string }, email: { path: "email", type: :string } },
+        model_class: model_class,
+        included_connections: [:orders]
+      )
+
+      query = described_class.build_current_customer_query(context)
+
+      expect(query).to include("query getCurrentCustomer")
+      expect(query).to include("orders(")
+      expect(query).to include("edges {")
+      expect(query).to include("node {")
+    end
+
+    it "allows custom query_name override" do
+      context = build_context(
+        graphql_type: "Customer",
+        attributes: { id: { path: "id", type: :string } }
+      )
+
+      query = described_class.build_current_customer_query(context, query_name: "me")
+
+      expect(query).to include("me {")
+    end
+  end
+
   describe ".query_name" do
     it "returns lowercase graphql_type" do
       expect(described_class.query_name("Customer")).to eq("customer")

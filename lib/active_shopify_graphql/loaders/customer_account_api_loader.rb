@@ -12,7 +12,7 @@ module ActiveShopifyGraphQL
       def graphql_query(model_type = nil)
         type = model_type || graphql_type
         if type == 'Customer'
-          customer_only_query(type)
+          QueryTree.build_current_customer_query(context)
         else
           super(type)
         end
@@ -53,18 +53,6 @@ module ActiveShopifyGraphQL
         logger = ActiveShopifyGraphQL.configuration.logger
         logger.info("ActiveShopifyGraphQL Query (Customer Account API):\n#{query}")
         logger.info("ActiveShopifyGraphQL Variables:\n#{variables}")
-      end
-
-      def customer_only_query(model_type = nil)
-        type = model_type || graphql_type
-        compact = ActiveShopifyGraphQL.configuration.compact_queries
-        frag = fragment
-
-        if compact
-          "#{frag} query getCurrentCustomer { #{query_name(type)} { ...#{fragment_name(type)} } }"
-        else
-          "#{frag}\n\nquery getCurrentCustomer {\n  #{query_name(type)} {\n    ...#{fragment_name(type)}\n  }\n}\n"
-        end
       end
     end
   end
