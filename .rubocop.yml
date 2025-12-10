@@ -42,3 +42,9 @@ Metrics/ParameterLists:
 
 Metrics/ClassLength:
   Enabled: false
+
+Naming/MethodParameterName:
+  Enabled: false
+
+Naming/AccessorMethodName:
+  Enabled: false
