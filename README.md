@@ -19,7 +19,7 @@ This library brings a Convention over Configuration approach to organize your cu
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'active_shopify_graphql', git: "git://github.com/nebulab/active_shopify_graphql.git", branch: "main"
+gem 'active_shopify_graphql'
 ```
 
 And then execute:
@@ -197,6 +197,9 @@ customer = Customer.with_customer_account_api(token).find
 
 # Use Admin API explicitly
 customer = Customer.with_admin_api.find(id)
+
+# Use you own custom Loader
+customer = Customer.with_loader(MyCustomLoader).find(id)
 ```
 
 ### Querying Records
@@ -240,7 +243,7 @@ The `select` method validates that the specified attributes exist and automatica
 
 ## Associations
 
-ActiveShopifyGraphQL provides ActiveRecord-like associations to define relationships between the Shopify native models and your own custom ones.
+ActiveShopifyGraphQL provides ActiveRecord-like associations to define relationships between the your own Shopify GraphQL backed ones and ActiveRecord objects.
 
 ### Has Many Associations
 
@@ -253,6 +256,7 @@ class Customer
   graphql_type "Customer"
 
   attribute :id, type: :string
+  attribute :plain_id, path: "id", type: :string, transform: ->(id) { id.split("/").last }
   attribute :display_name, type: :string
   attribute :email, path: "defaultEmailAddress.emailAddress", type: :string
   attribute :created_at, type: :datetime
@@ -260,6 +264,8 @@ class Customer
   # Define an association to one of your own ActiveRecord models
   # foreign_key maps the id of the GraphQL powered model to the rewards.shopify_customer_id table
   has_many :rewards, foreign_key: :shopify_customer_id
+  # primary_key specifies which attribute use as the value for matching the ActiveRecord ID
+  has_many :referrals, primary_key: :plain_id, foreign_key: :shopify_id
 
   validates :id, presence: true
 end
@@ -320,6 +326,15 @@ class Customer
       first: 5,                      # Number of records to fetch (default: 10)
       sort_key: 'CREATED_AT',        # Sort key (default: 'CREATED_AT')
       reverse: false                 # Sort direction (default: false for ascending)
+    }
+
+  # Example of a "scoped" connection
+  has_many_connected :recent_orders,
+    query_name: "orders",           # The query would be inferred to recentOrders() without this
+    class_name: "Shopify::Order",   # The class would be inferred to RecentOrder without this
+    default_arguments: {            # The arguments passed in the connection query
+      first: 2,
+      reverse: true
     }
 end
 
@@ -507,14 +522,14 @@ Connection queries use the same error handling as regular model queries. If a co
 
 ## Next steps
 
-- [x] Support `Model.where(param: value)` proxying params to the GraphQL query attribute
 - [x] Attribute-based model definition with automatic GraphQL fragment generation
 - [x] Metafield attributes for easy access to Shopify metafields
+- [x] Support `Model.where(param: value)` proxying params to the GraphQL query attribute
 - [x] Query optimization with `select` method
 - [x] GraphQL connections with lazy and eager loading via `Customer.includes(:orders).find(id)`
+- [ ] Support for paginating query results
 - [ ] Better error handling and retry mechanisms for GraphQL API calls
 - [ ] Caching layer for frequently accessed data
-- [ ] Support for GraphQL subscriptions
 
 ## Development
 
