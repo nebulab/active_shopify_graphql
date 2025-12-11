@@ -13,9 +13,10 @@ module ActiveShopifyGraphQL
       # @param null [Boolean] Whether the attribute can be null (default: true)
       # @param default [Object] Default value when GraphQL response is nil
       # @param transform [Proc] Custom transform block for the value
-      def attribute(name, path: nil, type: :string, null: true, default: nil, transform: nil)
+      # @param raw_graphql [String] Raw GraphQL string to inject directly (escape hatch for unsupported features)
+      def attribute(name, path: nil, type: :string, null: true, default: nil, transform: nil, raw_graphql: nil)
         path ||= infer_path(name)
-        config = { path: path, type: type, null: null, default: default, transform: transform }
+        config = { path: path, type: type, null: null, default: default, transform: transform, raw_graphql: raw_graphql }
 
         if @current_loader_context
           # Store in loader-specific context

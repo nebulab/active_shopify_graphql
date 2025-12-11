@@ -30,18 +30,29 @@ module ActiveShopifyGraphQL
     def build_field_nodes
       path_tree = {}
       metafield_aliases = {}
+      raw_graphql_nodes = []
+      aliased_field_nodes = []
 
       # Build a tree structure for nested paths
-      @context.defined_attributes.each_value do |config|
-        if config[:is_metafield]
+      @context.defined_attributes.each do |attr_name, config|
+        if config[:raw_graphql]
+          raw_graphql_nodes << build_raw_graphql_node(attr_name, config[:raw_graphql])
+        elsif config[:is_metafield]
           store_metafield_config(metafield_aliases, config)
         else
-          build_path_tree(path_tree, config[:path])
+          path = config[:path]
+          if path.include?('.')
+            # Nested path - use tree structure (shared prefixes)
+            build_path_tree(path_tree, path)
+          else
+            # Simple path - add aliased field node
+            aliased_field_nodes << build_aliased_field_node(attr_name, path)
+          end
         end
       end
 
       # Convert tree to QueryNode objects
-      nodes_from_tree(path_tree) + metafield_nodes(metafield_aliases)
+      nodes_from_tree(path_tree) + aliased_field_nodes + metafield_nodes(metafield_aliases) + raw_graphql_nodes
     end
 
     # Build QueryNode objects for all connections (protected for recursive calls)
@@ -72,6 +83,23 @@ module ActiveShopifyGraphQL
         key: config[:metafield_key],
         value_field: value_field
       }
+    end
+
+    def build_raw_graphql_node(attr_name, raw_graphql)
+      # Prepend alias to raw GraphQL for predictable response mapping
+      aliased_raw_graphql = "#{attr_name}: #{raw_graphql}"
+      QueryNode.new(
+        name: "raw",
+        arguments: { raw_graphql: aliased_raw_graphql },
+        node_type: :raw
+      )
+    end
+
+    def build_aliased_field_node(attr_name, path)
+      alias_name = attr_name.to_s
+      # Only add alias if the attr_name differs from the GraphQL field name
+      alias_name = nil if alias_name == path
+      QueryNode.new(name: path, alias_name: alias_name, node_type: :field)
     end
 
     def build_path_tree(path_tree, path)
@@ -120,12 +148,17 @@ module ActiveShopifyGraphQL
       child_nodes = build_target_field_nodes(target_context, nested_includes)
 
       query_name = connection_config[:query_name]
+      original_name = connection_config[:original_name]
       connection_type = connection_config[:type] || :connection
       formatted_args = (connection_config[:default_arguments] || {}).transform_keys(&:to_sym)
+
+      # Add alias if the connection name differs from the query name
+      alias_name = original_name.to_s != query_name ? original_name.to_s : nil
 
       node_type = connection_type == :singular ? :singular : :connection
       QueryNode.new(
         name: query_name,
+        alias_name: alias_name,
         arguments: formatted_args,
         node_type: node_type,
         children: child_nodes

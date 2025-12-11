@@ -109,6 +109,20 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
       expect(attrs[:name][:transform]).to eq(transform_fn)
     end
 
+    it "stores raw_graphql option" do
+      raw_gql = 'metafield(namespace: "custom", key: "roaster") { reference { ... on MetaObject { id } } }'
+      model_class = Class.new do
+        include ActiveShopifyGraphQL::Attributes
+        define_singleton_method(:name) { "TestModel" }
+      end
+      model_class.attribute :roaster, raw_graphql: raw_gql
+      loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
+
+      attrs = model_class.attributes_for_loader(loader_class)
+
+      expect(attrs[:roaster][:raw_graphql]).to eq(raw_gql)
+    end
+
     it "creates attr_accessor for the attribute" do
       model_class = Class.new do
         include ActiveShopifyGraphQL::Attributes

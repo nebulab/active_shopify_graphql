@@ -143,6 +143,33 @@ end
 
 The metafield attributes automatically generate the correct GraphQL syntax and handle value extraction from either `value` or `jsonValue` fields based on the type.
 
+#### Raw GraphQL Attributes
+
+For advanced GraphQL features not yet fully supported by the gem (like union types with `... on` syntax), you can inject raw GraphQL directly into the query using the `raw_graphql` option:
+
+```ruby
+class Product
+  include ActiveShopifyGraphQL::Base
+
+  graphql_type "Product"
+
+  attribute :id, type: :string
+  attribute :title, type: :string
+
+  # Raw GraphQL for accessing metaobject references with union types
+  attribute :provider_id,
+    path: "roaster.reference.id",  # Path to extract from the response
+    type: :string,
+    raw_graphql: 'metafield(namespace: "custom", key: "provider") { reference { ... on Metaobject { id } } }'
+
+  # Another example with complex nested queries not warranting full blown models
+  attribute :product_bundle,
+    path: "bundle",  # The alias will be used as the response key
+    type: :json,
+    raw_graphql: 'metafield(namespace: "bundles", key: "items") { references(first: 10) { edges { node { ... on Product { id title } } } } }'
+end
+```
+
 #### API-Specific Attributes
 
 For models that need different attributes depending on the API being used, you can define loader-specific overrides:
@@ -329,12 +356,14 @@ class Customer
     }
 
   # Example of a "scoped" connection
+  # Multiple connections can use the same query_name with different arguments
   has_many_connected :recent_orders,
-    query_name: "orders",           # The query would be inferred to recentOrders() without this
-    class_name: "Shopify::Order",   # The class would be inferred to RecentOrder without this
-    default_arguments: {            # The arguments passed in the connection query
-      first: 2,
-      reverse: true
+    query_name: "orders",           # Uses the same GraphQL field as :orders
+    class_name: "Order",            # The class would be inferred to RecentOrder without this
+    default_arguments: {            # Different arguments for filtering
+      first: 5,
+      reverse: true,
+      sort_key: 'CREATED_AT'
     }
 end
 
@@ -348,6 +377,23 @@ class Order
   attribute :total_price, path: "totalPriceSet.shopMoney.amount"
 end
 ```
+
+**Connection Aliasing:** When multiple connections use the same `query_name` (like `orders` and `recent_orders` both using the "orders" field), the gem automatically generates GraphQL aliases to prevent conflicts:
+
+```graphql
+fragment CustomerFragment on Customer {
+  id
+  displayName
+  orders(first: 2) {
+    edges { node { id name } }
+  }
+  recent_orders: orders(first: 5, reverse: true, sortKey: CREATED_AT) {
+    edges { node { id name } }
+  }
+}
+```
+
+This allows you to have multiple "views" of the same connection with different filtering or sorting parameters, all in a single query.
 
 ### Lazy Loading (Default Behavior)
 

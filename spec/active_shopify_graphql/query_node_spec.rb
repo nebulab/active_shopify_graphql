@@ -110,5 +110,14 @@ RSpec.describe QueryNode do
       expect(result).to include("fragment CustomerFragment on Customer")
       expect(result).to include("id")
     end
+
+    it "renders raw GraphQL string directly" do
+      raw_gql = 'metafield(namespace: "custom", key: "roaster") { reference { ... on MetaObject { id } } }'
+      node = described_class.new(name: "raw", arguments: { raw_graphql: raw_gql }, node_type: :raw)
+
+      result = node.to_s
+
+      expect(result).to eq(raw_gql)
+    end
   end
 end
