@@ -42,7 +42,7 @@ Rails.configuration.to_prepare do
     config.admin_api_client = ShopifyGraphQL::Client
 
     # Configure the Customer Account API client class (must have .from_config(token) class method)
-    # and reponsd to #execute(query, **variables)
+    # and respond to #execute(query, **variables)
     config.customer_account_client_class = Shopify::Account::Client
   end
 end
@@ -198,7 +198,7 @@ customer = Customer.with_customer_account_api(token).find
 # Use Admin API explicitly
 customer = Customer.with_admin_api.find(id)
 
-# Use you own custom Loader
+# Use your own custom Loader
 customer = Customer.with_loader(MyCustomLoader).find(id)
 ```
 
@@ -264,7 +264,7 @@ class Customer
   # Define an association to one of your own ActiveRecord models
   # foreign_key maps the id of the GraphQL powered model to the rewards.shopify_customer_id table
   has_many :rewards, foreign_key: :shopify_customer_id
-  # primary_key specifies which attribute use as the value for matching the ActiveRecord ID
+  # primary_key specifies which attribute to use as the value for matching the ActiveRecord ID
   has_many :referrals, primary_key: :plain_id, foreign_key: :shopify_id
 
   validates :id, presence: true
@@ -298,7 +298,7 @@ The associations automatically handle Shopify GID format conversion, extracting 
 
 ## GraphQL Connections
 
-ActiveShopifyGraphQL supports GraphQL connections for loading related data from Shopify APIs. Connections provide both lazy and eager loading patterns with cursor-based pagination support.
+ActiveShopifyGraphQL supports GraphQL connections for loading related data from Shopify APIs. Connections provide both lazy and eager loading patterns.
 
 ### Defining Connections
 
@@ -527,7 +527,7 @@ Connection queries use the same error handling as regular model queries. If a co
 - [x] Support `Model.where(param: value)` proxying params to the GraphQL query attribute
 - [x] Query optimization with `select` method
 - [x] GraphQL connections with lazy and eager loading via `Customer.includes(:orders).find(id)`
-- [ ] Support for paginating query results
+- [ ] Support for paginating query results with cursors
 - [ ] Better error handling and retry mechanisms for GraphQL API calls
 - [ ] Caching layer for frequently accessed data
 
