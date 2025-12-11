@@ -46,6 +46,36 @@ RSpec.describe ActiveShopifyGraphQL::FragmentBuilder do
       expect(fragment).to include("email")
     end
 
+    it "generates aliased fields for simple paths where attr_name differs from path" do
+      context = build_context(
+        graphql_type: "Customer",
+        attributes: {
+          id: { path: "id", type: :string },
+          first_name: { path: "firstName", type: :string }
+        }
+      )
+      builder = described_class.new(context)
+
+      fragment = builder.build.to_s
+
+      expect(fragment).to include("first_name: firstName")
+    end
+
+    it "does not generate alias when attr_name matches path" do
+      context = build_context(
+        graphql_type: "Customer",
+        attributes: {
+          id: { path: "id", type: :string }
+        }
+      )
+      builder = described_class.new(context)
+
+      fragment = builder.build.to_s
+
+      expect(fragment).to include("id")
+      expect(fragment).not_to include("id: id")
+    end
+
     it "includes nested field nodes from dotted paths" do
       context = build_context(
         graphql_type: "Order",
@@ -131,7 +161,7 @@ RSpec.describe ActiveShopifyGraphQL::FragmentBuilder do
       expect(fragment).to include("jsonValue")
     end
 
-    it "includes raw GraphQL string directly in fragment" do
+    it "includes raw GraphQL string with alias in fragment" do
       raw_gql = 'metafield(namespace: "custom", key: "roaster") { reference { ... on MetaObject { id } } }'
       context = build_context(
         graphql_type: "Product",
@@ -144,10 +174,11 @@ RSpec.describe ActiveShopifyGraphQL::FragmentBuilder do
 
       fragment = builder.build.to_s
 
-      expect(fragment).to include(raw_gql)
+      # Raw GraphQL should be prefixed with alias (attr_name)
+      expect(fragment).to include("roaster: #{raw_gql}")
     end
 
-    it "handles multiple raw GraphQL attributes" do
+    it "handles multiple raw GraphQL attributes with aliases" do
       raw_gql1 = 'metafield(namespace: "custom", key: "roaster") { reference { ... on MetaObject { id } } }'
       raw_gql2 = 'metafield(namespace: "custom", key: "origin") { value }'
       context = build_context(
@@ -162,8 +193,8 @@ RSpec.describe ActiveShopifyGraphQL::FragmentBuilder do
 
       fragment = builder.build.to_s
 
-      expect(fragment).to include(raw_gql1)
-      expect(fragment).to include(raw_gql2)
+      expect(fragment).to include("roaster: #{raw_gql1}")
+      expect(fragment).to include("origin: #{raw_gql2}")
     end
   end
 
@@ -179,6 +210,117 @@ RSpec.describe ActiveShopifyGraphQL::FragmentBuilder do
       nodes = builder.build_connection_nodes
 
       expect(nodes).to eq([])
+    end
+
+    it "generates alias when connection original_name differs from query_name" do
+      order_class = Class.new do
+        define_singleton_method(:name) { "Order" }
+        define_singleton_method(:connections) { {} }
+      end
+      stub_const("Order", order_class)
+      order_class.define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
+
+      model_class = Class.new do
+        define_singleton_method(:connections) do
+          {
+            recent_orders: {
+              class_name: "Order",
+              query_name: "orders",
+              original_name: :recent_orders,
+              type: :connection,
+              default_arguments: { first: 5, reverse: true }
+            }
+          }
+        end
+      end
+      context = build_context(
+        graphql_type: "Customer",
+        attributes: { id: { path: "id", type: :string } },
+        model_class: model_class,
+        included_connections: [:recent_orders]
+      )
+      builder = described_class.new(context)
+
+      fragment = builder.build.to_s
+
+      expect(fragment).to include("recent_orders: orders")
+    end
+
+    it "does not generate alias when original_name matches query_name" do
+      order_class = Class.new do
+        define_singleton_method(:name) { "Order" }
+        define_singleton_method(:connections) { {} }
+      end
+      stub_const("Order", order_class)
+      order_class.define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
+
+      model_class = Class.new do
+        define_singleton_method(:connections) do
+          {
+            orders: {
+              class_name: "Order",
+              query_name: "orders",
+              original_name: :orders,
+              type: :connection,
+              default_arguments: { first: 10 }
+            }
+          }
+        end
+      end
+      context = build_context(
+        graphql_type: "Customer",
+        attributes: { id: { path: "id", type: :string } },
+        model_class: model_class,
+        included_connections: [:orders]
+      )
+      builder = described_class.new(context)
+
+      fragment = builder.build.to_s
+
+      expect(fragment).to include("orders(first: 10)")
+      expect(fragment).not_to include("orders: orders")
+    end
+
+    it "handles multiple connections with same query_name but different aliases" do
+      order_class = Class.new do
+        define_singleton_method(:name) { "Order" }
+        define_singleton_method(:connections) { {} }
+      end
+      stub_const("Order", order_class)
+      order_class.define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
+
+      model_class = Class.new do
+        define_singleton_method(:connections) do
+          {
+            orders: {
+              class_name: "Order",
+              query_name: "orders",
+              original_name: :orders,
+              type: :connection,
+              default_arguments: { first: 2 }
+            },
+            recent_orders: {
+              class_name: "Order",
+              query_name: "orders",
+              original_name: :recent_orders,
+              type: :connection,
+              default_arguments: { first: 5, reverse: true, sort_key: "CREATED_AT" }
+            }
+          }
+        end
+      end
+      context = build_context(
+        graphql_type: "Customer",
+        attributes: { id: { path: "id", type: :string } },
+        model_class: model_class,
+        included_connections: %i[orders recent_orders]
+      )
+      builder = described_class.new(context)
+
+      fragment = builder.build.to_s
+
+      expect(fragment).to include("orders(first: 2)")
+      expect(fragment).to include("recent_orders: orders(first: 5")
     end
   end
 end

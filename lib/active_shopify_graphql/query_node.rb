@@ -85,11 +85,14 @@ class QueryNode
     nested_fields = @children.map { |child| child.to_s(indent_level: indent_level + 2) }
     fields_string = nested_fields.join(compact? ? " " : "\n#{nested_indent}  ")
 
+    # Include alias if present
+    field_name = @alias_name ? "#{@alias_name}: #{@name}" : @name
+
     if compact?
-      "#{@name}#{args_string} { edges { node { #{fields_string} } } }"
+      "#{field_name}#{args_string} { edges { node { #{fields_string} } } }"
     else
       <<~GRAPHQL.strip
-        #{@name}#{args_string} {
+        #{field_name}#{args_string} {
         #{nested_indent}edges {
         #{nested_indent}  node {
         #{nested_indent}    #{fields_string}
@@ -110,10 +113,13 @@ class QueryNode
     nested_fields = @children.map { |child| child.to_s(indent_level: indent_level + 1) }
     fields_string = nested_fields.join(compact? ? " " : "\n#{nested_indent}")
 
+    # Include alias if present
+    field_name = @alias_name ? "#{@alias_name}: #{@name}" : @name
+
     if compact?
-      "#{@name}#{args_string} { #{fields_string} }"
+      "#{field_name}#{args_string} { #{fields_string} }"
     else
-      "#{@name}#{args_string} {\n#{nested_indent}#{fields_string}\n#{indent}}"
+      "#{field_name}#{args_string} {\n#{nested_indent}#{fields_string}\n#{indent}}"
     end
   end
 

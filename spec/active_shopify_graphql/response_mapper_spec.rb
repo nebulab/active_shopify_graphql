@@ -75,11 +75,12 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
       }
       context = build_context(attributes: attributes)
       mapper = described_class.new(context)
+      # Response uses aliased key 'count' (attr_name) since query generates: count: orderCount
       response_data = {
         "data" => {
           "customer" => {
             "id" => "123",
-            "orderCount" => "42"
+            "count" => "42"
           }
         }
       }
@@ -212,9 +213,10 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
       }
       context = build_context(attributes: attributes)
       mapper = described_class.new(context)
+      # Response uses aliased key 'name' (attr_name) since query generates: name: displayName
       node_data = {
         "id" => "gid://shopify/Customer/123",
-        "displayName" => "John Doe"
+        "name" => "John Doe"
       }
 
       result = mapper.map_node_to_attributes(node_data)
@@ -235,6 +237,186 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
       result = mapper.map_node_to_attributes(nil)
 
       expect(result).to eq({})
+    end
+  end
+
+  describe "#extract_connection_data" do
+    it "extracts connection data using original_name as response key" do
+      order_class = Class.new do
+        include ActiveShopifyGraphQL::Base
+        attribute :id
+
+        define_singleton_method(:name) { "Order" }
+        define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, "Order") }
+      end
+      order_class.graphql_type("Order")
+      stub_const("Order", order_class)
+
+      model_class = Class.new do
+        define_singleton_method(:connections) do
+          {
+            recent_orders: {
+              class_name: "Order",
+              query_name: "orders",
+              original_name: :recent_orders,
+              type: :connection,
+              default_arguments: { first: 5 }
+            }
+          }
+        end
+      end
+      context = ActiveShopifyGraphQL::LoaderContext.new(
+        graphql_type: "Customer",
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
+        defined_attributes: { id: { path: "id", type: :string } },
+        model_class: model_class,
+        included_connections: [:recent_orders]
+      )
+      mapper = described_class.new(context)
+      # Response uses aliased key "recent_orders" not "orders"
+      response_data = {
+        "data" => {
+          "customer" => {
+            "id" => "gid://shopify/Customer/123",
+            "recent_orders" => {
+              "edges" => [
+                { "node" => { "id" => "gid://shopify/Order/1" } },
+                { "node" => { "id" => "gid://shopify/Order/2" } }
+              ]
+            }
+          }
+        }
+      }
+
+      result = mapper.extract_connection_data(response_data)
+
+      expect(result).to have_key(:recent_orders)
+      expect(result[:recent_orders].length).to eq(2)
+    end
+
+    it "handles multiple connections with same query_name using different aliases" do
+      order_class = Class.new do
+        include ActiveShopifyGraphQL::Base
+        attribute :id
+
+        define_singleton_method(:name) { "Order" }
+        define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, "Order") }
+      end
+      order_class.graphql_type("Order")
+      stub_const("Order", order_class)
+
+      model_class = Class.new do
+        define_singleton_method(:connections) do
+          {
+            orders: {
+              class_name: "Order",
+              query_name: "orders",
+              original_name: :orders,
+              type: :connection,
+              default_arguments: { first: 2 }
+            },
+            recent_orders: {
+              class_name: "Order",
+              query_name: "orders",
+              original_name: :recent_orders,
+              type: :connection,
+              default_arguments: { first: 5, reverse: true }
+            }
+          }
+        end
+      end
+      context = ActiveShopifyGraphQL::LoaderContext.new(
+        graphql_type: "Customer",
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
+        defined_attributes: { id: { path: "id", type: :string } },
+        model_class: model_class,
+        included_connections: %i[orders recent_orders]
+      )
+      mapper = described_class.new(context)
+      # Each connection has its own aliased response key
+      response_data = {
+        "data" => {
+          "customer" => {
+            "id" => "gid://shopify/Customer/123",
+            "orders" => {
+              "edges" => [
+                { "node" => { "id" => "gid://shopify/Order/old1" } },
+                { "node" => { "id" => "gid://shopify/Order/old2" } }
+              ]
+            },
+            "recent_orders" => {
+              "edges" => [
+                { "node" => { "id" => "gid://shopify/Order/new1" } },
+                { "node" => { "id" => "gid://shopify/Order/new2" } },
+                { "node" => { "id" => "gid://shopify/Order/new3" } }
+              ]
+            }
+          }
+        }
+      }
+
+      result = mapper.extract_connection_data(response_data)
+
+      expect(result[:orders].length).to eq(2)
+      expect(result[:recent_orders].length).to eq(3)
+      expect(result[:orders].first.id).to eq("gid://shopify/Order/old1")
+      expect(result[:recent_orders].first.id).to eq("gid://shopify/Order/new1")
+    end
+  end
+
+  describe "raw_graphql attribute mapping" do
+    it "extracts raw_graphql attribute value using attr_name as response key" do
+      raw_gql = 'metafield(namespace: "custom", key: "roaster") { value }'
+      attributes = {
+        id: { path: "id", type: :string },
+        # Use path to dig into the value field
+        roaster: { path: "roaster.value", type: :string, raw_graphql: raw_gql }
+      }
+      context = build_context(attributes: attributes)
+      mapper = described_class.new(context)
+      # Response has aliased key "roaster" (from "roaster: metafield(...)")
+      response_data = {
+        "data" => {
+          "customer" => {
+            "id" => "gid://shopify/Customer/123",
+            "roaster" => {
+              "value" => "Acme Coffee Roasters"
+            }
+          }
+        }
+      }
+
+      result = mapper.map_response(response_data)
+
+      # Path "roaster.value" digs into the response
+      expect(result[:roaster]).to eq("Acme Coffee Roasters")
+    end
+
+    it "digs into nested path for raw_graphql attributes" do
+      raw_gql = 'metafield(namespace: "custom", key: "roaster") { reference { ... on MetaObject { id } } }'
+      attributes = {
+        id: { path: "id", type: :string },
+        roaster_id: { path: "roaster_id.reference.id", type: :string, raw_graphql: raw_gql }
+      }
+      context = build_context(attributes: attributes)
+      mapper = described_class.new(context)
+      # Response has aliased key "roaster_id"
+      response_data = {
+        "data" => {
+          "customer" => {
+            "id" => "gid://shopify/Customer/123",
+            "roaster_id" => {
+              "reference" => {
+                "id" => "gid://shopify/Metaobject/456"
+              }
+            }
+          }
+        }
+      }
+
+      result = mapper.map_response(response_data)
+
+      expect(result[:roaster_id]).to eq("gid://shopify/Metaobject/456")
     end
   end
 end

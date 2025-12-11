@@ -111,8 +111,26 @@ module ActiveShopifyGraphQL
     private
 
     def extract_and_transform_value(node_data, config, attr_name)
-      path_parts = config[:path].split('.')
-      value = node_data.dig(*path_parts)
+      path = config[:path]
+
+      value = if config[:raw_graphql]
+                # For raw_graphql, the alias is the attr_name, then dig using path if nested
+                raw_data = node_data[attr_name.to_s]
+                if path.include?('.')
+                  # Path is relative to the aliased root
+                  path_parts = path.split('.')[1..] # Skip the first part (attr_name itself)
+                  path_parts.any? ? raw_data&.dig(*path_parts) : raw_data
+                else
+                  raw_data
+                end
+              elsif path.include?('.')
+                # Nested path - dig using the full path
+                path_parts = path.split('.')
+                node_data.dig(*path_parts)
+              else
+                # Simple path - use attr_name as key (matches the alias in the query)
+                node_data[attr_name.to_s]
+              end
 
       value = apply_defaults_and_transforms(value, config)
       validate_null_constraint!(value, config, attr_name)
@@ -154,17 +172,18 @@ module ActiveShopifyGraphQL
     end
 
     def extract_connection_records(node_data, connection_config, nested_includes)
-      query_name = connection_config[:query_name]
+      # Use original_name (Ruby attr name) as the response key since we alias connections
+      response_key = connection_config[:original_name].to_s
       connection_type = connection_config[:type] || :connection
       target_class = connection_config[:class_name].constantize
 
       if connection_type == :singular
-        item_data = node_data[query_name]
+        item_data = node_data[response_key]
         return nil unless item_data
 
         build_nested_model_instance(item_data, target_class, nested_includes)
       else
-        edges = node_data.dig(query_name, "edges")
+        edges = node_data.dig(response_key, "edges")
         return nil unless edges
 
         edges.filter_map do |edge|
