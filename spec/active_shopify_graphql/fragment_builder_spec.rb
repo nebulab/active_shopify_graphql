@@ -130,6 +130,41 @@ RSpec.describe ActiveShopifyGraphQL::FragmentBuilder do
 
       expect(fragment).to include("jsonValue")
     end
+
+    it "includes raw GraphQL string directly in fragment" do
+      raw_gql = 'metafield(namespace: "custom", key: "roaster") { reference { ... on MetaObject { id } } }'
+      context = build_context(
+        graphql_type: "Product",
+        attributes: {
+          id: { path: "id", type: :string },
+          roaster: { path: "roaster", type: :string, raw_graphql: raw_gql }
+        }
+      )
+      builder = described_class.new(context)
+
+      fragment = builder.build.to_s
+
+      expect(fragment).to include(raw_gql)
+    end
+
+    it "handles multiple raw GraphQL attributes" do
+      raw_gql1 = 'metafield(namespace: "custom", key: "roaster") { reference { ... on MetaObject { id } } }'
+      raw_gql2 = 'metafield(namespace: "custom", key: "origin") { value }'
+      context = build_context(
+        graphql_type: "Product",
+        attributes: {
+          id: { path: "id", type: :string },
+          roaster: { path: "roaster", type: :string, raw_graphql: raw_gql1 },
+          origin: { path: "origin", type: :string, raw_graphql: raw_gql2 }
+        }
+      )
+      builder = described_class.new(context)
+
+      fragment = builder.build.to_s
+
+      expect(fragment).to include(raw_gql1)
+      expect(fragment).to include(raw_gql2)
+    end
   end
 
   describe "#build_connection_nodes" do

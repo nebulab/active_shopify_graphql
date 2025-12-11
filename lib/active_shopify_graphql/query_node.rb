@@ -40,6 +40,8 @@ class QueryNode
       render_singular(indent_level: indent_level)
     when :fragment
       render_fragment
+    when :raw
+      render_raw
     else
       raise ArgumentError, "Unknown node type: #{@node_type}"
     end
@@ -125,6 +127,11 @@ class QueryNode
     else
       "fragment #{@name} on #{@arguments[:on]} {\n#{all_fields}\n}"
     end
+  end
+
+  def render_raw
+    # Raw GraphQL string stored in arguments[:raw_graphql]
+    @arguments[:raw_graphql]
   end
 
   def format_arguments

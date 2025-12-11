@@ -30,10 +30,13 @@ module ActiveShopifyGraphQL
     def build_field_nodes
       path_tree = {}
       metafield_aliases = {}
+      raw_graphql_nodes = []
 
       # Build a tree structure for nested paths
-      @context.defined_attributes.each_value do |config|
-        if config[:is_metafield]
+      @context.defined_attributes.each do |attr_name, config|
+        if config[:raw_graphql]
+          raw_graphql_nodes << build_raw_graphql_node(attr_name, config[:raw_graphql])
+        elsif config[:is_metafield]
           store_metafield_config(metafield_aliases, config)
         else
           build_path_tree(path_tree, config[:path])
@@ -41,7 +44,7 @@ module ActiveShopifyGraphQL
       end
 
       # Convert tree to QueryNode objects
-      nodes_from_tree(path_tree) + metafield_nodes(metafield_aliases)
+      nodes_from_tree(path_tree) + metafield_nodes(metafield_aliases) + raw_graphql_nodes
     end
 
     # Build QueryNode objects for all connections (protected for recursive calls)
@@ -72,6 +75,14 @@ module ActiveShopifyGraphQL
         key: config[:metafield_key],
         value_field: value_field
       }
+    end
+
+    def build_raw_graphql_node(_attr_name, raw_graphql)
+      QueryNode.new(
+        name: "raw",
+        arguments: { raw_graphql: raw_graphql },
+        node_type: :raw
+      )
     end
 
     def build_path_tree(path_tree, path)
