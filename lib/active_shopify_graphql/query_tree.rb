@@ -73,11 +73,6 @@ module ActiveShopifyGraphQL
       FragmentBuilder.normalize_includes(includes)
     end
 
-    # Helper methods (kept for backward compatibility)
-    def self.query_name(graphql_type)
-      graphql_type.downcase
-    end
-
     def self.fragment_name(graphql_type)
       "#{graphql_type}Fragment"
     end

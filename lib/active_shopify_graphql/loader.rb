@@ -84,7 +84,7 @@ module ActiveShopifyGraphQL
 
     # Delegate query building methods
     def query_name(model_type = nil)
-      (model_type || graphql_type).downcase
+      (model_type || graphql_type).camelize(:lower)
     end
 
     def fragment_name(model_type = nil)
