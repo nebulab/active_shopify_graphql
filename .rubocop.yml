@@ -1,3 +1,6 @@
+AllCops:
+  NewCops: enable
+
 Style/StringLiterals:
   Enabled: false
 
@@ -47,4 +50,16 @@ Naming/MethodParameterName:
   Enabled: false
 
 Naming/AccessorMethodName:
+  Enabled: false
+
+Style/ArgumentsForwarding:
+  Enabled: false
+
+Style/KeywordArgumentsMerging:
+  Enabled: false
+
+Naming/BlockForwarding:
+  Enabled: false
+
+Lint/DuplicateBranch:
   Enabled: false

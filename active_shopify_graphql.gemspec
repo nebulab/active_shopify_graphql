@@ -16,6 +16,7 @@ Gem::Specification.new do |spec|
 
   spec.metadata['homepage_uri'] = spec.homepage
   spec.metadata['source_code_uri'] = 'https://github.com/nebulab/active_shopify_graphql'
+  spec.metadata['rubygems_mfa_required'] = 'true'
 
   gemspec = File.basename(__FILE__)
   spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|
@@ -32,8 +33,4 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'activemodel', '>= 7.0'
   spec.add_dependency 'activesupport', '>= 7.0'
   spec.add_dependency 'globalid', '~> 1.3'
-
-  # Development dependencies
-  spec.add_development_dependency 'rspec', '~> 3.0'
-  spec.add_development_dependency 'rubocop', '~> 1.0'
 end

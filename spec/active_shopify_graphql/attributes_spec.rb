@@ -5,11 +5,7 @@ require "spec_helper"
 RSpec.describe ActiveShopifyGraphQL::Attributes do
   describe ".attribute" do
     it "defines an attribute with default path inference" do
-      model_class = Class.new do
-        include ActiveShopifyGraphQL::Attributes
-        attribute :display_name
-        define_singleton_method(:name) { "TestModel" }
-      end
+      model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [:display_name])
       loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
 
       attrs = model_class.attributes_for_loader(loader_class)
@@ -18,11 +14,8 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
     end
 
     it "allows custom path" do
-      model_class = Class.new do
-        include ActiveShopifyGraphQL::Attributes
-        attribute :total, path: "totalPriceSet.shopMoney.amount"
-        define_singleton_method(:name) { "TestModel" }
-      end
+      model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [])
+      model_class.attribute :total, path: "totalPriceSet.shopMoney.amount"
       loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
 
       attrs = model_class.attributes_for_loader(loader_class)
@@ -31,11 +24,8 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
     end
 
     it "stores type information" do
-      model_class = Class.new do
-        include ActiveShopifyGraphQL::Attributes
-        attribute :count, type: :integer
-        define_singleton_method(:name) { "TestModel" }
-      end
+      model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [])
+      model_class.attribute :count, type: :integer
       loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
 
       attrs = model_class.attributes_for_loader(loader_class)
@@ -44,11 +34,7 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
     end
 
     it "defaults type to :string" do
-      model_class = Class.new do
-        include ActiveShopifyGraphQL::Attributes
-        attribute :name
-        define_singleton_method(:name) { "TestModel" }
-      end
+      model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [:name])
       loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
 
       attrs = model_class.attributes_for_loader(loader_class)
@@ -57,11 +43,8 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
     end
 
     it "stores null constraint" do
-      model_class = Class.new do
-        include ActiveShopifyGraphQL::Attributes
-        attribute :required_field, null: false
-        define_singleton_method(:name) { "TestModel" }
-      end
+      model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [])
+      model_class.attribute :required_field, null: false
       loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
 
       attrs = model_class.attributes_for_loader(loader_class)
@@ -70,11 +53,7 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
     end
 
     it "defaults null to true" do
-      model_class = Class.new do
-        include ActiveShopifyGraphQL::Attributes
-        attribute :optional_field
-        define_singleton_method(:name) { "TestModel" }
-      end
+      model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [:optional_field])
       loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
 
       attrs = model_class.attributes_for_loader(loader_class)
@@ -83,11 +62,8 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
     end
 
     it "stores default value" do
-      model_class = Class.new do
-        include ActiveShopifyGraphQL::Attributes
-        attribute :status, default: "pending"
-        define_singleton_method(:name) { "TestModel" }
-      end
+      model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [])
+      model_class.attribute :status, default: "pending"
       loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
 
       attrs = model_class.attributes_for_loader(loader_class)
@@ -97,10 +73,7 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
 
     it "stores transform function" do
       transform_fn = ->(v) { v&.upcase }
-      model_class = Class.new do
-        include ActiveShopifyGraphQL::Attributes
-        define_singleton_method(:name) { "TestModel" }
-      end
+      model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [])
       model_class.attribute :name, transform: transform_fn
       loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
 
@@ -111,10 +84,7 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
 
     it "stores raw_graphql option" do
       raw_gql = 'metafield(namespace: "custom", key: "roaster") { reference { ... on MetaObject { id } } }'
-      model_class = Class.new do
-        include ActiveShopifyGraphQL::Attributes
-        define_singleton_method(:name) { "TestModel" }
-      end
+      model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [])
       model_class.attribute :roaster, raw_graphql: raw_gql
       loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
 
@@ -124,11 +94,7 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
     end
 
     it "creates attr_accessor for the attribute" do
-      model_class = Class.new do
-        include ActiveShopifyGraphQL::Attributes
-        attribute :my_field
-        define_singleton_method(:name) { "TestModel" }
-      end
+      model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [:my_field])
       instance = model_class.new
 
       instance.my_field = "test"
@@ -139,13 +105,7 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
 
   describe ".attributes_for_loader" do
     it "returns all defined attributes" do
-      model_class = Class.new do
-        include ActiveShopifyGraphQL::Attributes
-        attribute :id
-        attribute :name
-        attribute :email
-        define_singleton_method(:name) { "TestModel" }
-      end
+      model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: %i[id name email])
       loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
 
       attrs = model_class.attributes_for_loader(loader_class)
