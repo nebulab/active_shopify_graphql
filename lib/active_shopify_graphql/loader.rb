@@ -82,8 +82,14 @@ module ActiveShopifyGraphQL
       FragmentBuilder.new(context).build
     end
 
-    delegate :query_name, to: :context
-    delegate :fragment_name, to: :context
+    # Delegate query building methods
+    def query_name(model_type = nil)
+      (model_type || graphql_type).camelize(:lower)
+    end
+
+    def fragment_name(model_type = nil)
+      "#{model_type || graphql_type}Fragment"
+    end
 
     def graphql_query(_model_type = nil)
       QueryTree.build_single_record_query(context)

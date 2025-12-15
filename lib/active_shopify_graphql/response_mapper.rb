@@ -69,7 +69,7 @@ module ActiveShopifyGraphQL
     # Map nested connection response (when loading via parent query)
     def map_nested_connection_response(response_data, connection_field_name, parent, connection_config = nil)
       parent_type = parent.class.graphql_type_for_loader(@context.loader_class)
-      parent_query_name = parent_type.downcase
+      parent_query_name = parent_type.camelize(:lower)
       connection_type = connection_config&.dig(:type) || :connection
 
       if connection_type == :singular

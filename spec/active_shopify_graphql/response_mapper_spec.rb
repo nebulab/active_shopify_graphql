@@ -419,4 +419,36 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
       expect(result[:roaster_id]).to eq("gid://shopify/Metaobject/456")
     end
   end
+
+  describe "#map_nested_connection_response" do
+    it "uses lowerCamelCase for multi-word parent GraphQL types" do
+      product_class = build_product_class
+      stub_const("Product", product_class)
+
+      context = build_context(graphql_type: "Product", attributes: { id: { path: "id", type: :string }, title: { path: "title", type: :string } }, model_class: product_class)
+      mapper = described_class.new(context)
+
+      parent_class = build_product_variant_class
+      stub_const("ProductVariant", parent_class)
+      parent = parent_class.new
+      parent.id = "gid://shopify/ProductVariant/456"
+
+      response_data = {
+        "data" => {
+          "productVariant" => {
+            "product" => {
+              "id" => "gid://shopify/Product/123",
+              "title" => "Test Product"
+            }
+          }
+        }
+      }
+
+      result = mapper.map_nested_connection_response(response_data, "product", parent, { type: :singular })
+
+      expect(result).to be_a(Product)
+      expect(result.id).to eq("gid://shopify/Product/123")
+      expect(result.title).to eq("Test Product")
+    end
+  end
 end

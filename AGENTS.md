@@ -31,6 +31,7 @@
 
 ## Testing Guidelines
 - Framework: RSpec with documentation formatter (`.rspec`).
+- Before stubbing classes look in `model_factories.rb` for existing ones.
 - Place specs under `spec/` and name files `*_spec.rb` matching the class/module under test.
 - Do not use `let` or `before` blocks in specs; each test case should tell a complete story.
 - Use verifying doubles instead of normal doubles. Prefer `{instance|class}_{double|spy}` to `double` or `spy`
