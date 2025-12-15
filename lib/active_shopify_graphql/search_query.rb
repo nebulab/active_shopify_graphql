@@ -27,12 +27,44 @@ module ActiveShopifyGraphQL
     # @return [String] The formatted query condition
     def format_condition(key, value)
       case value
+      when Array
+        format_array_condition(key, value)
       when String
         format_string_condition(key, value)
       when Numeric, true, false
         "#{key}:#{value}"
       when Hash
         format_range_condition(key, value)
+      else
+        "#{key}:#{value}"
+      end
+    end
+
+    # Formats an array condition with OR clauses
+    # @param key [String] The attribute name
+    # @param values [Array] The array of values
+    # @return [String] The formatted query with OR clauses wrapped in parentheses
+    def format_array_condition(key, values)
+      return "" if values.empty?
+      return format_condition(key, values.first) if values.size == 1
+
+      or_parts = values.map do |value|
+        format_single_value(key, value)
+      end
+
+      "(#{or_parts.join(' OR ')})"
+    end
+
+    # Formats a single value for use in array OR clauses
+    # @param key [String] The attribute name
+    # @param value [Object] The attribute value
+    # @return [String] The formatted key:value pair
+    def format_single_value(key, value)
+      case value
+      when String
+        format_string_condition(key, value)
+      when Numeric, true, false
+        "#{key}:#{value}"
       else
         "#{key}:#{value}"
       end
