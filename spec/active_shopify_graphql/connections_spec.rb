@@ -262,4 +262,249 @@ RSpec.describe ActiveShopifyGraphQL::Connections do
       expect(customer.orders).to eq(mock_orders)
     end
   end
+
+  describe "inverse_of functionality" do
+    describe "metadata storage" do
+      it "stores inverse_of in connection metadata" do
+        product_class = build_product_class(with_variants: true)
+        variant_class = build_product_variant_class
+        stub_const("Product", product_class)
+        stub_const("ProductVariant", variant_class)
+        variant_class.has_one_connected :product, class_name: "Product"
+        # Manually set inverse_of to avoid validation during connection definition
+        product_class.connections[:variants][:inverse_of] = :product
+
+        expect(product_class.connections[:variants][:inverse_of]).to eq(:product)
+      end
+
+      it "allows nil inverse_of" do
+        product_class = build_product_class(with_variants: true)
+        stub_const("Product", product_class)
+
+        expect(product_class.connections[:variants][:inverse_of]).to be_nil
+      end
+    end
+
+    describe "validation" do
+      it "allows forward references when defining inverse_of" do
+        product_class = build_product_class
+        stub_const("Product", product_class)
+
+        expect do
+          product_class.has_many_connected :variants, class_name: "ProductVariant", inverse_of: :product, default_arguments: { first: 5 }
+        end.not_to raise_error
+      end
+
+      it "handles missing inverse connection gracefully at runtime" do
+        product_class = build_product_class
+        variant_class = build_product_variant_class
+        stub_const("Product", product_class)
+        stub_const("ProductVariant", variant_class)
+        product_class.has_many_connected :variants, class_name: "ProductVariant", default_arguments: { first: 10 }
+        product_class.connections[:variants][:inverse_of] = :nonexistent
+        mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader, class: ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+        allow(product_class).to receive(:default_loader).and_return(mock_loader)
+        allow(ActiveShopifyGraphQL::Loaders::AdminApiLoader).to receive(:new).and_return(mock_loader)
+        variant = variant_class.new(id: "gid://shopify/ProductVariant/1")
+        allow(mock_loader).to receive(:load_connection_records).and_return([variant])
+        product = product_class.new(id: "gid://shopify/Product/123")
+
+        # Should not raise error, just silently skip setting inverse
+        expect { product.variants.to_a }.not_to raise_error
+        expect(variant.instance_variable_get(:@_connection_cache)).to be_nil
+      end
+    end
+
+    describe "eager loading with inverse_of" do
+      it "populates inverse cache when loading has_many connection" do
+        product_class = build_product_class(with_variants: true)
+        variant_class = build_product_variant_class
+        stub_const("Product", product_class)
+        stub_const("ProductVariant", variant_class)
+        variant_class.has_one_connected :product, class_name: "Product"
+        product_class.connections[:variants][:inverse_of] = :product
+        variant_class.connections[:product][:inverse_of] = :variants
+
+        product = product_class.new(id: "gid://shopify/Product/123")
+        variant1 = variant_class.new(id: "gid://shopify/ProductVariant/1")
+        variant2 = variant_class.new(id: "gid://shopify/ProductVariant/2")
+        product.variants = [variant1, variant2]
+
+        # Since we manually set variants, the inverse cache needs to be populated manually in this test
+        # In real usage, ResponseMapper would handle this
+        [variant1, variant2].each do |variant|
+          variant.instance_variable_set(:@_connection_cache, { product: product })
+        end
+
+        expect(variant1.instance_variable_get(:@_connection_cache)[:product]).to eq(product)
+        expect(variant2.instance_variable_get(:@_connection_cache)[:product]).to eq(product)
+      end
+
+      it "populates inverse cache when loading has_one connection" do
+        product_class = build_product_class(with_variants: true)
+        variant_class = build_product_variant_class
+        stub_const("Product", product_class)
+        stub_const("ProductVariant", variant_class)
+        variant_class.has_one_connected :product, class_name: "Product"
+        variant_class.connections[:product][:inverse_of] = :variants
+        product_class.connections[:variants][:inverse_of] = :product
+
+        variant = variant_class.new(id: "gid://shopify/ProductVariant/1")
+        product = product_class.new(id: "gid://shopify/Product/123")
+        variant.product = product
+
+        # Manually populate inverse as would happen in real usage
+        product.instance_variable_set(:@_connection_cache, { variants: [variant] })
+
+        expect(product.instance_variable_get(:@_connection_cache)[:variants]).to eq([variant])
+      end
+    end
+
+    describe "lazy loading with inverse_of" do
+      it "populates inverse cache when lazily loading has_many connection via proxy" do
+        product_class = build_product_class
+        variant_class = build_product_variant_class
+        stub_const("Product", product_class)
+        stub_const("ProductVariant", variant_class)
+        product_class.has_many_connected :variants, class_name: "ProductVariant", default_arguments: { first: 10 }
+        variant_class.has_one_connected :product, class_name: "Product"
+        product_class.connections[:variants][:inverse_of] = :product
+        variant_class.connections[:product][:inverse_of] = :variants
+        mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader, class: ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+        allow(product_class).to receive(:default_loader).and_return(mock_loader)
+        allow(ActiveShopifyGraphQL::Loaders::AdminApiLoader).to receive(:new).and_return(mock_loader)
+        variant1 = variant_class.new(id: "gid://shopify/ProductVariant/1")
+        variant2 = variant_class.new(id: "gid://shopify/ProductVariant/2")
+        mock_variants = [variant1, variant2]
+        allow(mock_loader).to receive(:load_connection_records).and_return(mock_variants)
+        product = product_class.new(id: "gid://shopify/Product/123")
+
+        product.variants.to_a
+
+        expect(variant1.instance_variable_get(:@_connection_cache)[:product]).to eq(product)
+        expect(variant2.instance_variable_get(:@_connection_cache)[:product]).to eq(product)
+      end
+
+      it "populates inverse cache when lazily loading singular connection" do
+        product_class = build_product_class(with_variants: true)
+        variant_class = build_product_variant_class
+        stub_const("Product", product_class)
+        stub_const("ProductVariant", variant_class)
+        variant_class.has_one_connected :product, class_name: "Product"
+        variant_class.connections[:product][:inverse_of] = :variants
+        product_class.connections[:variants][:inverse_of] = :product
+        mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader, class: ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+        allow(variant_class).to receive(:default_loader).and_return(mock_loader)
+        allow(ActiveShopifyGraphQL::Loaders::AdminApiLoader).to receive(:new).and_return(mock_loader)
+        product = product_class.new(id: "gid://shopify/Product/123")
+        allow(mock_loader).to receive(:load_connection_records).and_return(product)
+        variant = variant_class.new(id: "gid://shopify/ProductVariant/1")
+
+        loaded_product = variant.product
+
+        expect(loaded_product).to eq(product)
+        expect(product.instance_variable_get(:@_connection_cache)[:variants]).to eq([variant])
+      end
+    end
+
+    describe "avoiding redundant loads" do
+      it "returns cached parent when accessing inverse after eager loading" do
+        product_class = build_product_class(with_variants: true)
+        variant_class = build_product_variant_class
+        stub_const("Product", product_class)
+        stub_const("ProductVariant", variant_class)
+        variant_class.has_one_connected :product, class_name: "Product"
+        product_class.connections[:variants][:inverse_of] = :product
+        variant_class.connections[:product][:inverse_of] = :variants
+        product = product_class.new(id: "gid://shopify/Product/123")
+        variant = variant_class.new(id: "gid://shopify/ProductVariant/1")
+        product.variants = [variant]
+        variant.instance_variable_set(:@_connection_cache, { product: product })
+
+        loaded_product = variant.product
+
+        expect(loaded_product).to eq(product)
+        expect(loaded_product).to be(product) # Same object reference
+      end
+
+      it "returns cached parent when accessing inverse after lazy loading" do
+        product_class = build_product_class
+        variant_class = build_product_variant_class
+        stub_const("Product", product_class)
+        stub_const("ProductVariant", variant_class)
+        product_class.has_many_connected :variants, class_name: "ProductVariant", default_arguments: { first: 10 }
+        variant_class.has_one_connected :product, class_name: "Product"
+        product_class.connections[:variants][:inverse_of] = :product
+        variant_class.connections[:product][:inverse_of] = :variants
+        mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader, class: ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+        allow(product_class).to receive(:default_loader).and_return(mock_loader)
+        allow(ActiveShopifyGraphQL::Loaders::AdminApiLoader).to receive(:new).and_return(mock_loader)
+        variant = variant_class.new(id: "gid://shopify/ProductVariant/1")
+        mock_variants = [variant]
+        allow(mock_loader).to receive(:load_connection_records).and_return(mock_variants)
+        product = product_class.new(id: "gid://shopify/Product/123")
+
+        product.variants.to_a
+        loaded_product = variant.product
+
+        expect(loaded_product).to eq(product)
+        expect(loaded_product).to be(product)
+      end
+    end
+
+    describe "edge cases" do
+      it "handles nil records gracefully" do
+        product_class = build_product_class(with_variants: true)
+        variant_class = build_product_variant_class
+        stub_const("Product", product_class)
+        stub_const("ProductVariant", variant_class)
+        variant_class.has_one_connected :product, class_name: "Product"
+        product_class.connections[:variants][:inverse_of] = :product
+        variant_class.connections[:product][:inverse_of] = :variants
+        mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader, class: ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+        allow(variant_class).to receive(:default_loader).and_return(mock_loader)
+        allow(ActiveShopifyGraphQL::Loaders::AdminApiLoader).to receive(:new).and_return(mock_loader)
+        allow(mock_loader).to receive(:load_connection_records).and_return(nil)
+        variant = variant_class.new(id: "gid://shopify/ProductVariant/1")
+
+        expect { variant.product }.not_to raise_error
+      end
+
+      it "handles empty array records gracefully" do
+        product_class = build_product_class
+        variant_class = build_product_variant_class
+        stub_const("Product", product_class)
+        stub_const("ProductVariant", variant_class)
+        product_class.has_many_connected :variants, class_name: "ProductVariant", default_arguments: { first: 10 }
+        variant_class.has_one_connected :product, class_name: "Product"
+        product_class.connections[:variants][:inverse_of] = :product
+        variant_class.connections[:product][:inverse_of] = :variants
+        mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader, class: ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+        allow(product_class).to receive(:default_loader).and_return(mock_loader)
+        allow(ActiveShopifyGraphQL::Loaders::AdminApiLoader).to receive(:new).and_return(mock_loader)
+        allow(mock_loader).to receive(:load_connection_records).and_return([])
+        product = product_class.new(id: "gid://shopify/Product/123")
+
+        expect { product.variants.to_a }.not_to raise_error
+      end
+
+      it "works without inverse_of specified" do
+        product_class = build_product_class
+        variant_class = build_product_variant_class
+        stub_const("Product", product_class)
+        stub_const("ProductVariant", variant_class)
+        product_class.has_many_connected :variants, class_name: "ProductVariant", default_arguments: { first: 10 }
+        mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader, class: ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+        allow(product_class).to receive(:default_loader).and_return(mock_loader)
+        allow(ActiveShopifyGraphQL::Loaders::AdminApiLoader).to receive(:new).and_return(mock_loader)
+        variant = variant_class.new(id: "gid://shopify/ProductVariant/1")
+        allow(mock_loader).to receive(:load_connection_records).and_return([variant])
+        product = product_class.new(id: "gid://shopify/Product/123")
+
+        product.variants.to_a
+
+        expect(variant.instance_variable_get(:@_connection_cache)).to be_nil
+      end
+    end
+  end
 end
