@@ -11,11 +11,16 @@ module ActiveShopifyGraphQL
       # @return [Object, nil] The model instance or nil if not found
       def find(id, loader: default_loader)
         gid = GidHelper.normalize_gid(id, model_name.name.demodulize)
-        attributes = loader.load_attributes(gid)
 
-        return nil if attributes.nil?
+        # If we have included connections, we need to handle inverse_of properly
+        if loader.respond_to?(:load_with_instance) && loader.has_included_connections?
+          loader.load_with_instance(gid, self)
+        else
+          attributes = loader.load_attributes(gid)
+          return nil if attributes.nil?
 
-        new(attributes)
+          new(attributes)
+        end
       end
 
       # Returns the default loader for this model's queries

@@ -96,17 +96,48 @@ module ActiveShopifyGraphQL
     end
 
     # Map the GraphQL response to model attributes
-    def map_response_to_attributes(response_data)
+    def map_response_to_attributes(response_data, parent_instance: nil)
       mapper = ResponseMapper.new(context)
       attributes = mapper.map_response(response_data)
 
       # If we have included connections, extract and cache them
       if @included_connections.any?
-        connection_data = mapper.extract_connection_data(response_data)
+        connection_data = mapper.extract_connection_data(response_data, parent_instance: parent_instance)
         attributes[:_connection_cache] = connection_data unless connection_data.empty?
       end
 
       attributes
+    end
+
+    # Check if this loader has included connections
+    def has_included_connections?
+      @included_connections&.any?
+    end
+
+    # Load and construct an instance with proper inverse_of support for included connections
+    def load_with_instance(id, model_class)
+      query = graphql_query
+      response_data = perform_graphql_query(query, id: id)
+
+      return nil if response_data.nil?
+
+      # First, extract just the attributes (without connections)
+      mapper = ResponseMapper.new(context)
+      attributes = mapper.map_response(response_data)
+
+      # Create the instance with basic attributes
+      instance = model_class.new(attributes)
+
+      # Now extract connection data with the instance as parent to support inverse_of
+      if @included_connections.any?
+        connection_data = mapper.extract_connection_data(response_data, parent_instance: instance)
+        unless connection_data.empty?
+          # Manually set the connection cache on the instance
+          instance.instance_variable_set(:@_connection_cache, connection_data)
+        end
+      end
+
+      instance
     end
 
     # Executes the GraphQL query and returns the mapped attributes hash

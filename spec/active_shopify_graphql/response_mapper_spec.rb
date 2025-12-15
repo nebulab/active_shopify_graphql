@@ -545,18 +545,21 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
       product_class.connections[:variants][:inverse_of] = :product
       variant_class.connections[:product][:inverse_of] = :variants
 
-      context = ActiveShopifyGraphQL::LoaderContext.new(
+      # Test extracting a singular connection from variant's perspective
+      # When a variant has a product connection, and we extract it, the product should have
+      # the variant cached in its inverse (variants) connection
+      variant_context = ActiveShopifyGraphQL::LoaderContext.new(
         graphql_type: "ProductVariant",
         loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
         defined_attributes: { id: { path: "id", type: :string }, sku: { path: "sku", type: :string } },
         model_class: variant_class,
         included_connections: [:product]
       )
-      mapper = described_class.new(context)
-      parent_instance = variant_class.new(id: "gid://shopify/ProductVariant/1", sku: "SKU1")
+      variant_mapper = described_class.new(variant_context)
+      variant_instance = variant_class.new(id: "gid://shopify/ProductVariant/1", sku: "SKU1")
       response_data = {
         "data" => {
-          "productvariant" => {
+          "productVariant" => {
             "id" => "gid://shopify/ProductVariant/1",
             "sku" => "SKU1",
             "product" => {
@@ -567,11 +570,12 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
         }
       }
 
-      result = mapper.extract_connection_data(response_data, parent_instance: parent_instance)
+      result = variant_mapper.extract_connection_data(response_data, parent_instance: variant_instance)
 
       expect(result[:product]).to be_a(Product)
       product = result[:product]
-      expect(product.instance_variable_get(:@_connection_cache)[:variants]).to eq([parent_instance])
+      # The product should have the variant in its inverse cache
+      expect(product.instance_variable_get(:@_connection_cache)[:variants]).to eq([variant_instance])
     end
 
     it "handles missing inverse connection gracefully" do

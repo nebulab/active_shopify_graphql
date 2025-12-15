@@ -506,5 +506,96 @@ RSpec.describe ActiveShopifyGraphQL::Connections do
         expect(variant.instance_variable_get(:@_connection_cache)).to be_nil
       end
     end
+
+    describe "inverse_of with eager loading using includes" do
+      it "populates inverse cache when using includes().find()" do
+        product_class = build_product_class
+        variant_class = build_product_variant_class
+        stub_const("Product", product_class)
+        stub_const("ProductVariant", variant_class)
+        product_class.has_many_connected :variants, class_name: "ProductVariant", default_arguments: { first: 10 }, inverse_of: :product
+        variant_class.has_one_connected :product, class_name: "Product", inverse_of: :variants
+
+        # Create a real loader to test the actual flow
+        mock_graphql_client = double("GraphQL Client")
+        allow(ActiveShopifyGraphQL.configuration).to receive(:admin_api_client).and_return(mock_graphql_client)
+        allow(mock_graphql_client).to receive(:execute) do |_query, **kwargs|
+          {
+            "data" => {
+              "product" => {
+                "id" => kwargs[:id],
+                "title" => "Test Product",
+                "variants" => {
+                  "edges" => [
+                    { "node" => { "id" => "gid://shopify/ProductVariant/1", "sku" => "SKU1" } },
+                    { "node" => { "id" => "gid://shopify/ProductVariant/2", "sku" => "SKU2" } }
+                  ]
+                }
+              }
+            }
+          }
+        end
+
+        product = product_class.includes(:variants).find("gid://shopify/Product/123")
+
+        variants = product.variants.to_a
+        expect(variants.length).to eq(2)
+        expect(variants[0].product).to eq(product)
+        expect(variants[0].product).to be(product)
+        expect(variants[1].product).to eq(product)
+        expect(variants[1].product).to be(product)
+      end
+
+      it "populates inverse cache when using includes().where()" do
+        product_class = build_product_class
+        variant_class = build_product_variant_class
+        stub_const("Product", product_class)
+        stub_const("ProductVariant", variant_class)
+        product_class.has_many_connected :variants, class_name: "ProductVariant", default_arguments: { first: 10 }, inverse_of: :product
+        variant_class.has_one_connected :product, class_name: "Product", inverse_of: :variants
+
+        # Create a real loader to test the actual flow
+        mock_graphql_client = double("GraphQL Client")
+        allow(ActiveShopifyGraphQL.configuration).to receive(:admin_api_client).and_return(mock_graphql_client)
+        allow(mock_graphql_client).to receive(:execute) do
+          {
+            "data" => {
+              "products" => {
+                "nodes" => [
+                  {
+                    "id" => "gid://shopify/Product/123",
+                    "title" => "Product 1",
+                    "variants" => {
+                      "edges" => [
+                        { "node" => { "id" => "gid://shopify/ProductVariant/1", "sku" => "SKU1" } },
+                        { "node" => { "id" => "gid://shopify/ProductVariant/2", "sku" => "SKU2" } }
+                      ]
+                    }
+                  },
+                  {
+                    "id" => "gid://shopify/Product/456",
+                    "title" => "Product 2",
+                    "variants" => {
+                      "edges" => [
+                        { "node" => { "id" => "gid://shopify/ProductVariant/3", "sku" => "SKU3" } }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        end
+
+        products = product_class.includes(:variants).where(title: "Test")
+
+        expect(products.length).to eq(2)
+        product1 = products[0]
+        variants1 = product1.variants.to_a
+        expect(variants1.length).to eq(2)
+        expect(variants1[0].product).to eq(product1)
+        expect(variants1[0].product).to be(product1)
+      end
+    end
   end
 end
