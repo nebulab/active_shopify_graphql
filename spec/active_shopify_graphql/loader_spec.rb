@@ -97,7 +97,7 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
   end
 
   describe "#query_name" do
-    it "returns lowercase graphql_type" do
+    it "returns lowerCamelCase graphql_type" do
       model_class = Class.new do
         define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
         define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
@@ -105,7 +105,7 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
       loader_class = Class.new(described_class)
       loader = loader_class.new(model_class)
 
-      expect(loader.query_name).to eq("testmodel")
+      expect(loader.query_name).to eq("testModel")
     end
   end
 
@@ -172,7 +172,7 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
       query = loader.graphql_query
 
       expect(query).to include("query getTestModel($id: ID!)")
-      expect(query).to include("testmodel(id: $id)")
+      expect(query).to include("testModel(id: $id)")
       expect(query).to include("...TestModelFragment")
     end
   end
@@ -193,7 +193,7 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
       loader = loader_class.new(model_class)
       response_data = {
         "data" => {
-          "testmodel" => {
+          "testModel" => {
             "id" => "gid://shopify/TestModel/123",
             "name" => "Test"
           }
@@ -220,7 +220,7 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
       end
       loader_class = Class.new(described_class) do
         define_method(:perform_graphql_query) do |_query, **_variables|
-          { "data" => { "testmodel" => { "id" => "test-id", "name" => "Test Name" } } }
+          { "data" => { "testModel" => { "id" => "test-id", "name" => "Test Name" } } }
         end
       end
       loader = loader_class.new(model_class)

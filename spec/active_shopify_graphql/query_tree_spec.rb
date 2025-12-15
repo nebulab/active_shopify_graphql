@@ -188,13 +188,6 @@ RSpec.describe ActiveShopifyGraphQL::QueryTree do
     end
   end
 
-  describe ".query_name" do
-    it "returns lowercase graphql_type" do
-      expect(described_class.query_name("Customer")).to eq("customer")
-      expect(described_class.query_name("ProductVariant")).to eq("productvariant")
-    end
-  end
-
   describe ".fragment_name" do
     it "returns graphql_type with Fragment suffix" do
       expect(described_class.fragment_name("Customer")).to eq("CustomerFragment")

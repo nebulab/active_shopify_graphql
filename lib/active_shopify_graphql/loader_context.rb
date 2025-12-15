@@ -38,7 +38,7 @@ module ActiveShopifyGraphQL
 
     # Helper methods delegated from context
     def query_name
-      graphql_type.downcase
+      graphql_type.camelize(:lower)
     end
 
     def fragment_name
