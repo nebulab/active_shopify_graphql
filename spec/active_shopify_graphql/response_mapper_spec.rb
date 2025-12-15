@@ -451,4 +451,340 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
       expect(result.title).to eq("Test Product")
     end
   end
+
+  describe "inverse_of support in extract_connection_data" do
+    it "populates inverse cache on has_many connection records during eager loading" do
+      product_class = Class.new do
+        include ActiveShopifyGraphQL::Base
+        attribute :id
+        attribute :title
+
+        define_singleton_method(:name) { "Product" }
+        define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, "Product") }
+      end
+      product_class.graphql_type("Product")
+
+      variant_class = Class.new do
+        include ActiveShopifyGraphQL::Base
+        attribute :id
+        attribute :sku
+
+        define_singleton_method(:name) { "ProductVariant" }
+        define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, "ProductVariant") }
+      end
+      variant_class.graphql_type("ProductVariant")
+      variant_class.has_one_connected :product, class_name: "Product"
+
+      stub_const("Product", product_class)
+      stub_const("ProductVariant", variant_class)
+
+      product_class.has_many_connected :variants, class_name: "ProductVariant", default_arguments: { first: 10 }
+      product_class.connections[:variants][:inverse_of] = :product
+      variant_class.connections[:product][:inverse_of] = :variants
+
+      context = ActiveShopifyGraphQL::LoaderContext.new(
+        graphql_type: "Product",
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
+        defined_attributes: { id: { path: "id", type: :string }, title: { path: "title", type: :string } },
+        model_class: product_class,
+        included_connections: [:variants]
+      )
+      mapper = described_class.new(context)
+      parent_instance = product_class.new(id: "gid://shopify/Product/123", title: "Test Product")
+      response_data = {
+        "data" => {
+          "product" => {
+            "id" => "gid://shopify/Product/123",
+            "title" => "Test Product",
+            "variants" => {
+              "edges" => [
+                { "node" => { "id" => "gid://shopify/ProductVariant/1", "sku" => "SKU1" } },
+                { "node" => { "id" => "gid://shopify/ProductVariant/2", "sku" => "SKU2" } }
+              ]
+            }
+          }
+        }
+      }
+
+      result = mapper.extract_connection_data(response_data, parent_instance: parent_instance)
+
+      expect(result[:variants]).to be_an(Array)
+      expect(result[:variants].length).to eq(2)
+      variant1 = result[:variants][0]
+      variant2 = result[:variants][1]
+      expect(variant1.instance_variable_get(:@_connection_cache)[:product]).to eq(parent_instance)
+      expect(variant2.instance_variable_get(:@_connection_cache)[:product]).to eq(parent_instance)
+    end
+
+    it "populates inverse cache on singular connection record during eager loading" do
+      product_class = Class.new do
+        include ActiveShopifyGraphQL::Base
+        attribute :id
+        attribute :title
+
+        define_singleton_method(:name) { "Product" }
+        define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, "Product") }
+      end
+      product_class.graphql_type("Product")
+
+      variant_class = Class.new do
+        include ActiveShopifyGraphQL::Base
+        attribute :id
+        attribute :sku
+
+        define_singleton_method(:name) { "ProductVariant" }
+        define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, "ProductVariant") }
+      end
+      variant_class.graphql_type("ProductVariant")
+
+      stub_const("Product", product_class)
+      stub_const("ProductVariant", variant_class)
+
+      product_class.has_many_connected :variants, class_name: "ProductVariant", default_arguments: { first: 10 }
+      variant_class.has_one_connected :product, class_name: "Product"
+      product_class.connections[:variants][:inverse_of] = :product
+      variant_class.connections[:product][:inverse_of] = :variants
+
+      # Test extracting a singular connection from variant's perspective
+      # When a variant has a product connection, and we extract it, the product should have
+      # the variant cached in its inverse (variants) connection
+      variant_context = ActiveShopifyGraphQL::LoaderContext.new(
+        graphql_type: "ProductVariant",
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
+        defined_attributes: { id: { path: "id", type: :string }, sku: { path: "sku", type: :string } },
+        model_class: variant_class,
+        included_connections: [:product]
+      )
+      variant_mapper = described_class.new(variant_context)
+      variant_instance = variant_class.new(id: "gid://shopify/ProductVariant/1", sku: "SKU1")
+      response_data = {
+        "data" => {
+          "productVariant" => {
+            "id" => "gid://shopify/ProductVariant/1",
+            "sku" => "SKU1",
+            "product" => {
+              "id" => "gid://shopify/Product/123",
+              "title" => "Test Product"
+            }
+          }
+        }
+      }
+
+      result = variant_mapper.extract_connection_data(response_data, parent_instance: variant_instance)
+
+      expect(result[:product]).to be_a(Product)
+      product = result[:product]
+      # The product should have the variant in its inverse cache
+      expect(product.instance_variable_get(:@_connection_cache)[:variants]).to eq([variant_instance])
+    end
+
+    it "handles missing inverse connection gracefully" do
+      product_class = Class.new do
+        include ActiveShopifyGraphQL::Base
+        attribute :id
+        attribute :title
+
+        define_singleton_method(:name) { "Product" }
+        define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, "Product") }
+      end
+      product_class.graphql_type("Product")
+
+      variant_class = Class.new do
+        include ActiveShopifyGraphQL::Base
+        attribute :id
+        attribute :sku
+
+        define_singleton_method(:name) { "ProductVariant" }
+        define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, "ProductVariant") }
+      end
+      variant_class.graphql_type("ProductVariant")
+
+      stub_const("Product", product_class)
+      stub_const("ProductVariant", variant_class)
+
+      product_class.has_many_connected :variants, class_name: "ProductVariant", default_arguments: { first: 10 }
+      product_class.connections[:variants][:inverse_of] = :nonexistent_connection
+
+      context = ActiveShopifyGraphQL::LoaderContext.new(
+        graphql_type: "Product",
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
+        defined_attributes: { id: { path: "id", type: :string }, title: { path: "title", type: :string } },
+        model_class: product_class,
+        included_connections: [:variants]
+      )
+      mapper = described_class.new(context)
+      parent_instance = product_class.new(id: "gid://shopify/Product/123", title: "Test Product")
+      response_data = {
+        "data" => {
+          "product" => {
+            "id" => "gid://shopify/Product/123",
+            "title" => "Test Product",
+            "variants" => {
+              "edges" => [
+                { "node" => { "id" => "gid://shopify/ProductVariant/1", "sku" => "SKU1" } }
+              ]
+            }
+          }
+        }
+      }
+
+      result = mapper.extract_connection_data(response_data, parent_instance: parent_instance)
+
+      expect(result[:variants]).to be_an(Array)
+      expect(result[:variants].length).to eq(1)
+      variant = result[:variants][0]
+      cache = variant.instance_variable_get(:@_connection_cache)
+      expect(cache).to be_nil.or be_empty
+    end
+
+    it "works without inverse_of specified" do
+      product_class = Class.new do
+        include ActiveShopifyGraphQL::Base
+        attribute :id
+        attribute :title
+
+        define_singleton_method(:name) { "Product" }
+        define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, "Product") }
+      end
+      product_class.graphql_type("Product")
+
+      variant_class = Class.new do
+        include ActiveShopifyGraphQL::Base
+        attribute :id
+        attribute :sku
+
+        define_singleton_method(:name) { "ProductVariant" }
+        define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, "ProductVariant") }
+      end
+      variant_class.graphql_type("ProductVariant")
+
+      stub_const("Product", product_class)
+      stub_const("ProductVariant", variant_class)
+
+      product_class.has_many_connected :variants, class_name: "ProductVariant", default_arguments: { first: 10 }
+
+      context = ActiveShopifyGraphQL::LoaderContext.new(
+        graphql_type: "Product",
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
+        defined_attributes: { id: { path: "id", type: :string }, title: { path: "title", type: :string } },
+        model_class: product_class,
+        included_connections: [:variants]
+      )
+      mapper = described_class.new(context)
+      parent_instance = product_class.new(id: "gid://shopify/Product/123", title: "Test Product")
+      response_data = {
+        "data" => {
+          "product" => {
+            "id" => "gid://shopify/Product/123",
+            "title" => "Test Product",
+            "variants" => {
+              "edges" => [
+                { "node" => { "id" => "gid://shopify/ProductVariant/1", "sku" => "SKU1" } }
+              ]
+            }
+          }
+        }
+      }
+
+      result = mapper.extract_connection_data(response_data, parent_instance: parent_instance)
+
+      expect(result[:variants]).to be_an(Array)
+      expect(result[:variants].length).to eq(1)
+      variant = result[:variants][0]
+      expect(variant.instance_variable_get(:@_connection_cache)).to be_nil
+    end
+
+    it "handles nested connections with inverse_of recursively" do
+      customer_class = Class.new do
+        include ActiveShopifyGraphQL::Base
+        attribute :id
+        attribute :email
+
+        define_singleton_method(:name) { "Customer" }
+        define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, "Customer") }
+      end
+      customer_class.graphql_type("Customer")
+
+      order_class = Class.new do
+        include ActiveShopifyGraphQL::Base
+        attribute :id
+        attribute :name
+
+        define_singleton_method(:name) { "Order" }
+        define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, "Order") }
+      end
+      order_class.graphql_type("Order")
+
+      line_item_class = Class.new do
+        include ActiveShopifyGraphQL::Base
+        attribute :id
+        attribute :quantity
+
+        define_singleton_method(:name) { "LineItem" }
+        define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, "LineItem") }
+      end
+      line_item_class.graphql_type("LineItem")
+
+      stub_const("Customer", customer_class)
+      stub_const("Order", order_class)
+      stub_const("LineItem", line_item_class)
+
+      customer_class.has_many_connected :orders, class_name: "Order", default_arguments: { first: 5 }
+      order_class.has_one_connected :customer, class_name: "Customer"
+      order_class.has_many_connected :line_items, class_name: "LineItem", default_arguments: { first: 10 }
+      line_item_class.has_one_connected :order, class_name: "Order"
+
+      customer_class.connections[:orders][:inverse_of] = :customer
+      order_class.connections[:customer][:inverse_of] = :orders
+      order_class.connections[:line_items][:inverse_of] = :order
+      line_item_class.connections[:order][:inverse_of] = :line_items
+
+      context = ActiveShopifyGraphQL::LoaderContext.new(
+        graphql_type: "Customer",
+        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
+        defined_attributes: { id: { path: "id", type: :string }, email: { path: "email", type: :string } },
+        model_class: customer_class,
+        included_connections: [{ orders: [:line_items] }]
+      )
+      mapper = described_class.new(context)
+      parent_instance = customer_class.new(id: "gid://shopify/Customer/1", email: "test@example.com")
+      response_data = {
+        "data" => {
+          "customer" => {
+            "id" => "gid://shopify/Customer/1",
+            "email" => "test@example.com",
+            "orders" => {
+              "edges" => [
+                {
+                  "node" => {
+                    "id" => "gid://shopify/Order/100",
+                    "name" => "#1001",
+                    "line_items" => {
+                      "edges" => [
+                        { "node" => { "id" => "gid://shopify/LineItem/1", "quantity" => 2 } },
+                        { "node" => { "id" => "gid://shopify/LineItem/2", "quantity" => 1 } }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+
+      result = mapper.extract_connection_data(response_data, parent_instance: parent_instance)
+
+      expect(result[:orders]).to be_an(Array)
+      expect(result[:orders].length).to eq(1)
+      order = result[:orders][0]
+      expect(order.instance_variable_get(:@_connection_cache)[:customer]).to eq(parent_instance)
+
+      line_items = order.instance_variable_get(:@_connection_cache)[:line_items]
+      expect(line_items).to be_an(Array)
+      expect(line_items.length).to eq(2)
+      expect(line_items[0].instance_variable_get(:@_connection_cache)[:order]).to eq(order)
+      expect(line_items[1].instance_variable_get(:@_connection_cache)[:order]).to eq(order)
+    end
+  end
 end

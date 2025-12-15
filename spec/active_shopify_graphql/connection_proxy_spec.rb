@@ -205,8 +205,7 @@ RSpec.describe ActiveShopifyGraphQL::Connections::ConnectionProxy do
       allow(mock_loader).to receive(:load_connection_records).and_return(mock_orders)
       parent = customer_class.new(id: "gid://shopify/Customer/123")
 
-      ids = []
-      parent.orders.each { |order| ids << order.id }
+      ids = parent.orders.map(&:id)
 
       expect(ids).to eq(["gid://shopify/Order/1", "gid://shopify/Order/2"])
     end
