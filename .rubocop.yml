@@ -60,3 +60,6 @@ Style/KeywordArgumentsMerging:
 
 Naming/BlockForwarding:
   Enabled: false
+
+Lint/DuplicateBranch:
+  Enabled: false

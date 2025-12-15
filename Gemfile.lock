@@ -42,13 +42,13 @@ GEM
       pp (>= 0.6.0)
       rdoc (>= 4.0.0)
       reline (>= 0.4.2)
-    json (2.13.2)
+    json (2.17.1)
     language_server-protocol (3.17.0.5)
     lint_roller (1.1.0)
     logger (1.7.0)
     minitest (5.25.5)
     parallel (1.27.0)
-    parser (3.3.9.0)
+    parser (3.3.10.0)
       ast (~> 2.4.1)
       racc
     pp (0.6.3)
@@ -65,7 +65,7 @@ GEM
       erb
       psych (>= 4.0.0)
       tsort
-    regexp_parser (2.11.2)
+    regexp_parser (2.11.3)
     reline (0.6.3)
       io-console (~> 0.5)
     rspec (3.13.0)
@@ -95,9 +95,6 @@ GEM
     rubocop-ast (1.48.0)
       parser (>= 3.3.7.2)
       prism (~> 1.4)
-    rubocop-rspec (3.8.0)
-      lint_roller (~> 1.1)
-      rubocop (~> 1.81)
     ruby-progressbar (1.13.0)
     securerandom (0.4.1)
     stringio (3.1.8)
@@ -117,8 +114,7 @@ DEPENDENCIES
   irb
   rake (~> 13.0)
   rspec (~> 3.0)
-  rubocop (~> 1.0)
-  rubocop-rspec
+  rubocop
 
 BUNDLED WITH
    2.7.2
