@@ -35,18 +35,18 @@ module ActiveShopifyGraphQL
     end
 
     # Extract connection data from GraphQL response for eager loading
-    def extract_connection_data(response_data, root_path: nil)
+    def extract_connection_data(response_data, root_path: nil, parent_instance: nil)
       return {} if @context.included_connections.empty?
 
       root_path ||= ["data", @context.query_name]
       root_data = response_data.dig(*root_path)
       return {} unless root_data
 
-      extract_connections_from_node(root_data)
+      extract_connections_from_node(root_data, parent_instance)
     end
 
     # Extract connections from a node (reusable for nested connections)
-    def extract_connections_from_node(node_data)
+    def extract_connections_from_node(node_data, parent_instance = nil)
       return {} if @context.included_connections.empty?
 
       connections = @context.connections
@@ -59,7 +59,7 @@ module ActiveShopifyGraphQL
         connection_config = connections[connection_name]
         next unless connection_config
 
-        records = extract_connection_records(node_data, connection_config, nested_includes)
+        records = extract_connection_records(node_data, connection_config, nested_includes, parent_instance: parent_instance)
         connection_cache[connection_name] = records if records
       end
 
@@ -171,24 +171,33 @@ module ActiveShopifyGraphQL
       end
     end
 
-    def extract_connection_records(node_data, connection_config, nested_includes)
+    def extract_connection_records(node_data, connection_config, nested_includes, parent_instance: nil)
       # Use original_name (Ruby attr name) as the response key since we alias connections
       response_key = connection_config[:original_name].to_s
       connection_type = connection_config[:type] || :connection
       target_class = connection_config[:class_name].constantize
+      connection_name = connection_config[:original_name]
 
       if connection_type == :singular
         item_data = node_data[response_key]
         return nil unless item_data
 
-        build_nested_model_instance(item_data, target_class, nested_includes)
+        build_nested_model_instance(item_data, target_class, nested_includes,
+                                    parent_instance: parent_instance,
+                                    parent_connection_name: connection_name,
+                                    connection_config: connection_config)
       else
         edges = node_data.dig(response_key, "edges")
         return nil unless edges
 
         edges.filter_map do |edge|
           item_data = edge["node"]
-          build_nested_model_instance(item_data, target_class, nested_includes) if item_data
+          if item_data
+            build_nested_model_instance(item_data, target_class, nested_includes,
+                                        parent_instance: parent_instance,
+                                        parent_connection_name: connection_name,
+                                        connection_config: connection_config)
+          end
         end
       end
     end
@@ -200,16 +209,35 @@ module ActiveShopifyGraphQL
       @context.model_class.new(attributes)
     end
 
-    def build_nested_model_instance(node_data, target_class, nested_includes)
+    def build_nested_model_instance(node_data, target_class, nested_includes, parent_instance: nil, parent_connection_name: nil, connection_config: nil) # rubocop:disable Lint/UnusedMethodArgument
       nested_context = @context.for_model(target_class, new_connections: nested_includes)
       nested_mapper = ResponseMapper.new(nested_context)
 
       attributes = nested_mapper.map_node_to_attributes(node_data)
       instance = target_class.new(attributes)
 
-      # Handle nested connections recursively
+      # Populate inverse cache if inverse_of is specified
+      if parent_instance && connection_config && connection_config[:inverse_of]
+        inverse_name = connection_config[:inverse_of]
+        instance.instance_variable_set(:@_connection_cache, {}) unless instance.instance_variable_get(:@_connection_cache)
+        cache = instance.instance_variable_get(:@_connection_cache)
+
+        # Check the type of the inverse connection to determine how to cache
+        if target_class.respond_to?(:connections) && target_class.connections[inverse_name]
+          inverse_type = target_class.connections[inverse_name][:type]
+          cache[inverse_name] =
+            if inverse_type == :singular
+              parent_instance
+            else
+              # For collection inverses, wrap parent in an array
+              [parent_instance]
+            end
+        end
+      end
+
+      # Handle nested connections recursively (instance becomes parent for its children)
       if nested_includes.any?
-        nested_data = nested_mapper.extract_connections_from_node(node_data)
+        nested_data = nested_mapper.extract_connections_from_node(node_data, instance)
         nested_data.each do |nested_name, nested_records|
           instance.send("#{nested_name}=", nested_records)
         end
