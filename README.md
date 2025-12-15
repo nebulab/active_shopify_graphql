@@ -551,6 +551,69 @@ expect(customer.orders.size).to eq(2)
 expect(customer.orders.first.name).to eq('#1001')
 ```
 
+### Inverse Relationships with `inverse_of`
+
+When you have bidirectional relationships between models, you can use the `inverse_of` parameter to avoid redundant GraphQL queries. This is similar to ActiveRecord's `inverse_of` option and automatically caches the parent object when loading children.
+
+#### Basic Usage
+
+```ruby
+class Product
+  include ActiveShopifyGraphQL::Base
+
+  graphql_type 'Product'
+
+  attribute :id
+  attribute :title
+
+  # Define inverse relationship to avoid redundant queries
+  has_many_connected :variants,
+    class_name: "ProductVariant",
+    inverse_of: :product,  # Points to the inverse connection name
+    default_arguments: { first: 10 }
+end
+
+class ProductVariant
+  include ActiveShopifyGraphQL::Base
+
+  graphql_type 'ProductVariant'
+
+  attribute :id
+  attribute :title
+
+  # Define inverse relationship back to Product
+  has_one_connected :product,
+    inverse_of: :variants  # Points back to the parent's connection
+end
+```
+
+#### With Eager Loading
+
+```ruby
+# Load product with variants in a single GraphQL query
+product = Product.includes(:variants).find(123)
+
+# Access variants - already loaded, no additional query
+product.variants.each do |variant|
+  # Access product from variant - uses cached parent, NO QUERY!
+  puts variant.product.title
+end
+```
+
+#### With Lazy Loading
+
+```ruby
+# Load product without preloading variants
+product = Product.find(123)
+
+# First access triggers a query to load variants
+variants = product.variants.to_a
+
+# Access product from variant - uses cached parent, NO QUERY!
+variant = variants.first
+puts variant.product.title  # Returns the same product instance
+```
+
 ### Connection Configuration
 
 Connections automatically infer sensible defaults but can be customized:
@@ -560,6 +623,7 @@ Connections automatically infer sensible defaults but can be customized:
 - **foreign_key**: Field used to filter connection records (defaults to `{model_name}_id`)
 - **loader_class**: Custom loader class (defaults to model's default loader)
 - **eager_load**: Whether to automatically eager load this connection on find/where queries (default: false)
+- **inverse_of**: The name of the inverse connection on the target model (optional, enables automatic inverse caching)
 - **default_arguments**: Hash of default arguments to pass to the GraphQL query (e.g., `{ first: 10, sort_key: 'CREATED_AT' }`)
 
 ### Error Handling
