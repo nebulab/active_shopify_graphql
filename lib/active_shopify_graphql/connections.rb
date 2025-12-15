@@ -131,26 +131,8 @@ module ActiveShopifyGraphQL
         # Merge manual and automatic connections
         all_included_connections = (connection_names + auto_included_connections).uniq
 
-        # Create a new class that inherits from self with eager loading enabled
-        included_class = Class.new(self)
-
-        # Store the connections to include
-        included_class.instance_variable_set(:@included_connections, all_included_connections)
-
-        # Override methods to use eager loading
-        included_class.define_singleton_method(:default_loader) do
-          @default_loader ||= superclass.default_loader.class.new(
-            superclass,
-            included_connections: @included_connections
-          )
-        end
-
-        # Preserve the original class name and model name for GraphQL operations
-        included_class.define_singleton_method(:name) { superclass.name }
-        included_class.define_singleton_method(:model_name) { superclass.model_name }
-        included_class.define_singleton_method(:connections) { superclass.connections }
-
-        included_class
+        # Create a scope object that holds the included connections
+        IncludesScope.new(self, all_included_connections)
       end
 
       private

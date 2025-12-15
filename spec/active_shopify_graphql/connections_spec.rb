@@ -206,15 +206,16 @@ RSpec.describe ActiveShopifyGraphQL::Connections do
   end
 
   describe ".includes" do
-    it "returns a new class for method chaining" do
+    it "returns an IncludesScope for method chaining" do
       customer_class = build_customer_class(with_orders: true)
       stub_const("Customer", customer_class)
       stub_const("Order", build_order_class)
 
-      included_class = customer_class.includes(:orders)
+      scope = customer_class.includes(:orders)
 
-      expect(included_class).not_to eq(customer_class)
-      expect(included_class.name).to eq("Customer")
+      expect(scope).to be_a(ActiveShopifyGraphQL::IncludesScope)
+      expect(scope.model_class).to eq(customer_class)
+      expect(scope.included_connections).to eq([:orders])
     end
 
     it "validates connection names" do
