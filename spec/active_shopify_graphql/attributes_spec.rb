@@ -7,6 +7,7 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
     it "defines an attribute with default path inference" do
       model_class = Class.new do
         include ActiveShopifyGraphQL::Attributes
+
         attribute :display_name
         define_singleton_method(:name) { "TestModel" }
       end
@@ -20,6 +21,7 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
     it "allows custom path" do
       model_class = Class.new do
         include ActiveShopifyGraphQL::Attributes
+
         attribute :total, path: "totalPriceSet.shopMoney.amount"
         define_singleton_method(:name) { "TestModel" }
       end
@@ -33,6 +35,7 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
     it "stores type information" do
       model_class = Class.new do
         include ActiveShopifyGraphQL::Attributes
+
         attribute :count, type: :integer
         define_singleton_method(:name) { "TestModel" }
       end
@@ -46,6 +49,7 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
     it "defaults type to :string" do
       model_class = Class.new do
         include ActiveShopifyGraphQL::Attributes
+
         attribute :name
         define_singleton_method(:name) { "TestModel" }
       end
@@ -59,6 +63,7 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
     it "stores null constraint" do
       model_class = Class.new do
         include ActiveShopifyGraphQL::Attributes
+
         attribute :required_field, null: false
         define_singleton_method(:name) { "TestModel" }
       end
@@ -72,6 +77,7 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
     it "defaults null to true" do
       model_class = Class.new do
         include ActiveShopifyGraphQL::Attributes
+
         attribute :optional_field
         define_singleton_method(:name) { "TestModel" }
       end
@@ -85,6 +91,7 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
     it "stores default value" do
       model_class = Class.new do
         include ActiveShopifyGraphQL::Attributes
+
         attribute :status, default: "pending"
         define_singleton_method(:name) { "TestModel" }
       end
@@ -99,6 +106,7 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
       transform_fn = ->(v) { v&.upcase }
       model_class = Class.new do
         include ActiveShopifyGraphQL::Attributes
+
         define_singleton_method(:name) { "TestModel" }
       end
       model_class.attribute :name, transform: transform_fn
@@ -113,6 +121,7 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
       raw_gql = 'metafield(namespace: "custom", key: "roaster") { reference { ... on MetaObject { id } } }'
       model_class = Class.new do
         include ActiveShopifyGraphQL::Attributes
+
         define_singleton_method(:name) { "TestModel" }
       end
       model_class.attribute :roaster, raw_graphql: raw_gql
@@ -126,6 +135,7 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
     it "creates attr_accessor for the attribute" do
       model_class = Class.new do
         include ActiveShopifyGraphQL::Attributes
+
         attribute :my_field
         define_singleton_method(:name) { "TestModel" }
       end
@@ -141,6 +151,7 @@ RSpec.describe ActiveShopifyGraphQL::Attributes do
     it "returns all defined attributes" do
       model_class = Class.new do
         include ActiveShopifyGraphQL::Attributes
+
         attribute :id
         attribute :name
         attribute :email

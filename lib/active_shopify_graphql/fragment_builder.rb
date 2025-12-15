@@ -153,7 +153,7 @@ module ActiveShopifyGraphQL
       formatted_args = (connection_config[:default_arguments] || {}).transform_keys(&:to_sym)
 
       # Add alias if the connection name differs from the query name
-      alias_name = original_name.to_s != query_name ? original_name.to_s : nil
+      alias_name = original_name.to_s == query_name ? nil : original_name.to_s
 
       node_type = connection_type == :singular ? :singular : :connection
       QueryNode.new(

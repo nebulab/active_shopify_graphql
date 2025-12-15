@@ -244,6 +244,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
     it "extracts connection data using original_name as response key" do
       order_class = Class.new do
         include ActiveShopifyGraphQL::Base
+
         attribute :id
 
         define_singleton_method(:name) { "Order" }
@@ -297,6 +298,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
     it "handles multiple connections with same query_name using different aliases" do
       order_class = Class.new do
         include ActiveShopifyGraphQL::Base
+
         attribute :id
 
         define_singleton_method(:name) { "Order" }
@@ -456,6 +458,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
     it "populates inverse cache on has_many connection records during eager loading" do
       product_class = Class.new do
         include ActiveShopifyGraphQL::Base
+
         attribute :id
         attribute :title
 
@@ -466,6 +469,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
 
       variant_class = Class.new do
         include ActiveShopifyGraphQL::Base
+
         attribute :id
         attribute :sku
 
@@ -519,6 +523,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
     it "populates inverse cache on singular connection record during eager loading" do
       product_class = Class.new do
         include ActiveShopifyGraphQL::Base
+
         attribute :id
         attribute :title
 
@@ -529,6 +534,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
 
       variant_class = Class.new do
         include ActiveShopifyGraphQL::Base
+
         attribute :id
         attribute :sku
 
@@ -581,6 +587,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
     it "handles missing inverse connection gracefully" do
       product_class = Class.new do
         include ActiveShopifyGraphQL::Base
+
         attribute :id
         attribute :title
 
@@ -591,6 +598,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
 
       variant_class = Class.new do
         include ActiveShopifyGraphQL::Base
+
         attribute :id
         attribute :sku
 
@@ -640,6 +648,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
     it "works without inverse_of specified" do
       product_class = Class.new do
         include ActiveShopifyGraphQL::Base
+
         attribute :id
         attribute :title
 
@@ -650,6 +659,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
 
       variant_class = Class.new do
         include ActiveShopifyGraphQL::Base
+
         attribute :id
         attribute :sku
 
@@ -697,6 +707,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
     it "handles nested connections with inverse_of recursively" do
       customer_class = Class.new do
         include ActiveShopifyGraphQL::Base
+
         attribute :id
         attribute :email
 
@@ -707,6 +718,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
 
       order_class = Class.new do
         include ActiveShopifyGraphQL::Base
+
         attribute :id
         attribute :name
 
@@ -717,6 +729,7 @@ RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
 
       line_item_class = Class.new do
         include ActiveShopifyGraphQL::Base
+
         attribute :id
         attribute :quantity
 

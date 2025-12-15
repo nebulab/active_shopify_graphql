@@ -135,7 +135,7 @@ module ActiveShopifyGraphQL
         return unless invalid_attrs.any?
 
         raise ArgumentError, "Invalid attributes for #{name}: #{invalid_attrs.join(', ')}. " \
-                           "Available attributes are: #{available_attrs.join(', ')}"
+                             "Available attributes are: #{available_attrs.join(', ')}"
       end
 
       # Gets all available attributes for selection

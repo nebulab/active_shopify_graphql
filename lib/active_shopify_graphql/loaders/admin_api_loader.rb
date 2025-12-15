@@ -4,7 +4,7 @@ module ActiveShopifyGraphQL
   module Loaders
     class AdminApiLoader < Loader
       def initialize(model_class = nil, selected_attributes: nil, included_connections: nil)
-        super(model_class, selected_attributes: selected_attributes, included_connections: included_connections)
+        super
       end
 
       def perform_graphql_query(query, **variables)
