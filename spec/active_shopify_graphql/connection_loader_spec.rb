@@ -110,6 +110,26 @@ RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
 
       expect(result).to eq([])
     end
+
+    it "uses lowerCamelCase for multi-word parent GraphQL types in nested queries" do
+      product_class = build_product_class
+      stub_const("Product", product_class)
+      parent_class = build_product_variant_class
+      stub_const("ProductVariant", parent_class)
+      parent = parent_class.new
+      parent.id = "gid://shopify/ProductVariant/456"
+      context = build_context(graphql_type: "Product", model_class: product_class)
+      loader_instance = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+      allow(loader_instance).to receive(:perform_graphql_query).and_return({ "data" => { "productVariant" => { "product" => { "id" => "gid://shopify/Product/123", "title" => "Test Product" } } } })
+      loader = described_class.new(context, loader_instance: loader_instance)
+
+      loader.load_records("product", {}, parent, { nested: true, type: :singular })
+
+      expect(loader_instance).to have_received(:perform_graphql_query) do |query, **_vars|
+        expect(query).to include("productVariant(id: $id)")
+        expect(query).not_to include("productvariant")
+      end
+    end
   end
 
   private

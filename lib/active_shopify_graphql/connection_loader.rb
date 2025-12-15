@@ -33,7 +33,7 @@ module ActiveShopifyGraphQL
 
     def load_nested_connection(query_name, variables, parent, connection_config)
       parent_type = parent.class.graphql_type_for_loader(@context.loader_class)
-      parent_query_name = parent_type.downcase
+      parent_query_name = parent_type.camelize(:lower)
       connection_type = connection_config&.dig(:type) || :connection
 
       query = QueryTree.build_connection_query(
