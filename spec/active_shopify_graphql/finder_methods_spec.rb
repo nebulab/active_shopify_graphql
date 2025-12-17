@@ -51,16 +51,14 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
       expect(customer).not_to be_nil
     end
 
-    it "returns nil when record is not found" do
+    it "raises ObjectNotFoundError when record is not found" do
       mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
       ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
       allow(mock_client).to receive(:execute).and_return(nil)
 
-      customer = customer_class.find(999)
-
-      expect(customer).to be_nil
+      expect { customer_class.find(999) }.to raise_error(ActiveShopifyGraphQL::ObjectNotFoundError, "Couldn't find Customer with id=999")
     end
 
     it "allows custom loader" do

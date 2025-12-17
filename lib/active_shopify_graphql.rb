@@ -33,4 +33,5 @@ require_relative "active_shopify_graphql/base"
 
 module ActiveShopifyGraphQL
   class Error < StandardError; end
+  class ObjectNotFoundError < Error; end
 end
