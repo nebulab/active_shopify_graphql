@@ -8,19 +8,23 @@ module ActiveShopifyGraphQL
       # Find a single record by ID using the provided loader
       # @param id [String, Integer] The record ID (will be converted to GID automatically)
       # @param loader [ActiveShopifyGraphQL::Loader] The loader to use for fetching data
-      # @return [Object, nil] The model instance or nil if not found
+      # @return [Object] The model instance
+      # @raise [ActiveShopifyGraphQL::ObjectNotFoundError] If the record is not found
       def find(id, loader: default_loader)
         gid = GidHelper.normalize_gid(id, model_name.name.demodulize)
 
         # If we have included connections, we need to handle inverse_of properly
-        if loader.respond_to?(:load_with_instance) && loader.has_included_connections?
-          loader.load_with_instance(gid, self)
-        else
-          attributes = loader.load_attributes(gid)
-          return nil if attributes.nil?
+        result =
+          if loader.has_included_connections?
+            loader.load_with_instance(gid, self)
+          else
+            attributes = loader.load_attributes(gid)
+            attributes.nil? ? nil : new(attributes)
+          end
 
-          new(attributes)
-        end
+        raise ObjectNotFoundError, "Couldn't find #{name} with id=#{id}" if result.nil?
+
+        result
       end
 
       # Returns the default loader for this model's queries
@@ -75,6 +79,25 @@ module ActiveShopifyGraphQL
         selected_class.define_singleton_method(:model_name) { superclass.model_name }
 
         selected_class
+      end
+
+      # Find a single record by attribute conditions
+      # @param conditions [Hash] The conditions to query (e.g., { email: "example@test.com", first_name: "John" })
+      # @param options [Hash] Options hash containing loader
+      # @option options [ActiveShopifyGraphQL::Loader] :loader The loader to use for fetching data
+      # @return [Object, nil] The first matching model instance or nil if not found
+      # @raise [ArgumentError] If any attribute is not valid for querying
+      #
+      # @example
+      #   # Keyword argument style (recommended)
+      #   Customer.find_by(email: "john@example.com")
+      #   Customer.find_by(first_name: "John", country: "Canada")
+      #   Customer.find_by(orders_count: { gte: 5 })
+      #
+      #   # Hash style with options
+      #   Customer.find_by({ email: "john@example.com" }, loader: custom_loader)
+      def find_by(conditions_or_first_condition = {}, *args, **options)
+        where(conditions_or_first_condition, *args, **options.merge(limit: 1)).first
       end
 
       # Query for multiple records using attribute conditions
