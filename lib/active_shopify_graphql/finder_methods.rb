@@ -77,6 +77,25 @@ module ActiveShopifyGraphQL
         selected_class
       end
 
+      # Find a single record by attribute conditions
+      # @param conditions [Hash] The conditions to query (e.g., { email: "example@test.com", first_name: "John" })
+      # @param options [Hash] Options hash containing loader
+      # @option options [ActiveShopifyGraphQL::Loader] :loader The loader to use for fetching data
+      # @return [Object, nil] The first matching model instance or nil if not found
+      # @raise [ArgumentError] If any attribute is not valid for querying
+      #
+      # @example
+      #   # Keyword argument style (recommended)
+      #   Customer.find_by(email: "john@example.com")
+      #   Customer.find_by(first_name: "John", country: "Canada")
+      #   Customer.find_by(orders_count: { gte: 5 })
+      #
+      #   # Hash style with options
+      #   Customer.find_by({ email: "john@example.com" }, loader: custom_loader)
+      def find_by(conditions_or_first_condition = {}, *args, **options)
+        where(conditions_or_first_condition, *args, **options.merge(limit: 1)).first
+      end
+
       # Query for multiple records using attribute conditions
       # @param conditions [Hash] The conditions to query (e.g., { email: "example@test.com", first_name: "John" })
       # @param options [Hash] Options hash containing loader and limit (when first arg is a Hash)

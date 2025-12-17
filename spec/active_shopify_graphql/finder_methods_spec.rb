@@ -79,6 +79,135 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
     end
   end
 
+  describe ".find_by" do
+    it "returns the first matching record" do
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+      expect(mock_client).to receive(:execute) do |_query, **variables|
+        expect(variables[:query]).to eq("email:john@example.com")
+        expect(variables[:first]).to eq(1)
+        { "data" => { "customers" => { "nodes" => [
+          { "id" => "gid://shopify/Customer/123", "displayName" => "John", "email" => "john@example.com" }
+        ] } } }
+      end
+
+      result = customer_class.find_by(email: "john@example.com")
+
+      expect(result).not_to be_nil
+      expect(result.id).to eq("gid://shopify/Customer/123")
+      expect(result.email).to eq("john@example.com")
+    end
+
+    it "returns nil when no record is found" do
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+      allow(mock_client).to receive(:execute).and_return({ "data" => { "customers" => { "nodes" => [] } } })
+
+      result = customer_class.find_by(email: "nonexistent@example.com")
+
+      expect(result).to be_nil
+    end
+
+    it "handles multiple conditions" do
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+      expect(mock_client).to receive(:execute) do |_query, **variables|
+        expect(variables[:query]).to eq("email:john@example.com AND first_name:John")
+        expect(variables[:first]).to eq(1)
+        { "data" => { "customers" => { "nodes" => [
+          { "id" => "gid://shopify/Customer/123", "displayName" => "John", "email" => "john@example.com" }
+        ] } } }
+      end
+
+      result = customer_class.find_by(email: "john@example.com", first_name: "John")
+
+      expect(result).not_to be_nil
+      expect(result.id).to eq("gid://shopify/Customer/123")
+    end
+
+    it "handles range conditions" do
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+      expect(mock_client).to receive(:execute) do |_query, **variables|
+        expect(variables[:query]).to include("id:>=100")
+        expect(variables[:first]).to eq(1)
+        { "data" => { "customers" => { "nodes" => [
+          { "id" => "gid://shopify/Customer/100", "email" => "test@example.com" }
+        ] } } }
+      end
+
+      result = customer_class.find_by(id: { gte: 100 })
+
+      expect(result).not_to be_nil
+    end
+
+    it "supports hash style with options" do
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+      custom_loader = ActiveShopifyGraphQL::Loaders::AdminApiLoader.new(customer_class)
+      expect(mock_client).to receive(:execute).and_return(
+        { "data" => { "customers" => { "nodes" => [
+          { "id" => "gid://shopify/Customer/123", "email" => "test@example.com" }
+        ] } } }
+      )
+
+      result = customer_class.find_by({ email: "test@example.com" }, loader: custom_loader)
+
+      expect(result).not_to be_nil
+    end
+
+    it "raises ArgumentError for invalid attributes" do
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+      mock_response = {
+        "data" => { "customers" => { "nodes" => [] } },
+        "extensions" => {
+          "search" => [{
+            "path" => ["customers"],
+            "query" => "invalid_field:test",
+            "warnings" => [{ "field" => "invalid_field", "message" => "Invalid search field for this query." }]
+          }]
+        }
+      }
+      allow(mock_client).to receive(:execute).and_return(mock_response)
+
+      expect { customer_class.find_by(invalid_field: "test") }.to raise_error(ArgumentError, /Shopify query validation failed/)
+    end
+
+    it "works with select method" do
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+      expect(mock_client).to receive(:execute) do |query, **variables|
+        expect(query).to include("id")
+        expect(query).to include("email")
+        expect(query).not_to include("displayName")
+        expect(variables[:first]).to eq(1)
+        { "data" => { "customers" => { "nodes" => [
+          { "id" => "gid://shopify/Customer/123", "email" => "john@example.com" }
+        ] } } }
+      end
+
+      result = customer_class.select(:email).find_by(email: "john@example.com")
+
+      expect(result).not_to be_nil
+      expect(result.email).to eq("john@example.com")
+    end
+  end
+
   describe ".where" do
     it "builds correct Shopify query syntax for simple conditions" do
       mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
