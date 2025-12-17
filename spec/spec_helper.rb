@@ -17,7 +17,8 @@ RSpec.configure do |config|
   end
 
   # Include model factories in all specs
-  config.include ModelFactories
+  config.include ArPoroModelFactories
+  config.include GraphQLModelFactories
 
   # Reset configuration after each test to avoid state bleeding
   config.after(:each) do
