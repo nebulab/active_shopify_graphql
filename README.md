@@ -323,6 +323,35 @@ end
 
 The associations automatically handle Shopify GID format conversion, extracting numeric IDs when needed for querying related records.
 
+## Bridging ActiveRecord with GraphQL
+
+The `GraphQLAssociations` module allows ActiveRecord models (or duck-typed objects) to define associations to Shopify GraphQL models:
+
+```ruby
+class Reward < ApplicationRecord
+  include ActiveShopifyGraphQL::GraphQLAssociations
+
+  belongs_to_graphql :customer                     # Expects shopify_customer_id column
+  has_one_graphql :primary_address,
+    class_name: "Address",
+    foreign_key: :customer_id
+  has_many_graphql :variants,
+    class_name: "ProductVariant"
+end
+
+reward = Reward.find(1)
+reward.customer        # Loads Customer from shopify_customer_id
+reward.primary_address # Queries Address.where(customer_id: reward.shopify_customer_id).first
+reward.variants        # Queries ProductVariant.where({})
+```
+
+**Available associations:**
+- `belongs_to_graphql` - Loads single GraphQL object via stored GID/ID
+- `has_one_graphql` - Queries first GraphQL object matching foreign key
+- `has_many_graphql` - Queries multiple GraphQL objects with optional filtering
+
+All associations support `class_name`, `foreign_key`, `primary_key`, and `loader_class` options. Results are automatically cached and setter methods are provided for testing.
+
 ## GraphQL Connections
 
 ActiveShopifyGraphQL supports GraphQL connections for loading related data from Shopify APIs. Connections provide both lazy and eager loading patterns.

@@ -36,9 +36,6 @@ module ActiveShopifyGraphQL
           primary_key_value = send(association_primary_key)
           return @_association_cache[name] = [] if primary_key_value.blank?
 
-          # Extract numeric ID from Shopify GID if needed
-          primary_key_value = primary_key_value.to_plain_id if primary_key_value.gid?
-
           association_class = association_class_name.constantize
           @_association_cache[name] = association_class.where(association_foreign_key => primary_key_value)
         end
@@ -73,7 +70,14 @@ module ActiveShopifyGraphQL
           return @_association_cache[name] = nil if primary_key_value.blank?
 
           # Extract numeric ID from Shopify GID if needed
-          primary_key_value = primary_key_value.to_plain_id if primary_key_value.gid?
+          if primary_key_value.is_a?(String)
+            begin
+              parsed_gid = URI::GID.parse(primary_key_value)
+              primary_key_value = parsed_gid.model_id
+            rescue URI::InvalidURIError, URI::BadURIError, ArgumentError
+              # Not a GID, use value as-is
+            end
+          end
 
           association_class = association_class_name.constantize
           @_association_cache[name] = association_class.find_by(association_foreign_key => primary_key_value)

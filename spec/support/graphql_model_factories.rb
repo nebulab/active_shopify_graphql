@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
-# Factory methods for creating test model classes.
-# These provide consistent model definitions across specs without using let blocks.
-# Each method creates a fresh class to avoid state bleeding between tests.
-module ModelFactories
+# Factory methods for creating GraphQL-backed test model classes.
+module GraphQLModelFactories
   module_function
 
   def build_customer_class(graphql_type: "Customer", with_orders: false, with_addresses: false)
