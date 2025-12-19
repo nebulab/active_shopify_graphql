@@ -250,6 +250,78 @@ customers = Customer.where({ email: "john@example.com" }, limit: 100)
 
 The `where` method automatically converts Ruby conditions into Shopify's GraphQL query syntax and validates that the query fields are supported by Shopify.
 
+### Pagination
+
+ActiveShopifyGraphQL supports cursor-based pagination for efficiently working with large result sets. Queries return a chainable `QueryScope` that provides both automatic and manual pagination.
+
+#### Basic Pagination with Limits
+
+Use the `limit` method to control the total number of records fetched:
+
+```ruby
+# Fetch up to 100 records (automatically handles pagination behind the scenes)
+variants = ProductVariant.where(sku: "*").limit(100).to_a
+
+# Chainable with other query methods
+customers = Customer.where(email: "*@example.com").limit(500).to_a
+```
+
+#### Manual Pagination
+
+Use `in_pages` without a block to manually navigate through pages:
+
+```ruby
+# Get first page (50 records per page)
+page = ProductVariant.where(sku: "FRZ*").in_pages(of: 50)
+
+page.size              # => 50
+page.has_next_page?    # => true
+page.end_cursor        # => "eyJsYXN0X2lk..."
+
+# Navigate to next page
+next_page = page.next_page
+next_page.size         # => 50
+
+# Navigate backwards
+prev_page = next_page.previous_page
+```
+
+#### Automatic Pagination with Blocks
+
+Process records in batches to control memory usage:
+
+```ruby
+# Process 10 records at a time
+ProductVariant.where(sku: "*").in_pages(of: 10) do |page|
+  page.each do |variant|
+    MemoryExpensiveThing.run(variant)
+  end
+end
+
+# Combine with limit to stop after a certain number of records
+ProductVariant.where(sku: "*").limit(500).in_pages(of: 50) do |page|
+  # Processes 10 pages of 50 records each, then stops
+  process_batch(page.to_a)
+end
+```
+
+#### Lazy Enumeration
+
+The `QueryScope` returned by `where` is enumerable and lazy-loads records:
+
+```ruby
+# These don't execute queries immediately
+scope = Customer.where(email: "*@example.com")
+
+# Query executes when you iterate or convert to array
+scope.each { |customer| puts customer.email }
+scope.to_a    # Returns array of all records
+scope.first   # Fetches just the first record
+scope.empty?  # Checks if any records exist
+```
+
+**Note:** Shopify imposes a maximum of 250 records per page. The `in_pages(of: n)` method will cap `n` at 250.
+
 ### Optimizing Queries with Select
 
 Use the `select` method to only fetch specific attributes, reducing GraphQL query size and improving performance:

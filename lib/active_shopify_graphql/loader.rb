@@ -168,6 +168,35 @@ module ActiveShopifyGraphQL
       map_collection_response(response, collection_query_name)
     end
 
+    # Executes a paginated collection query that returns a PaginatedResult with cursor info
+    # @param conditions [Hash] Search conditions
+    # @param per_page [Integer] Number of records per page
+    # @param after [String, nil] Cursor to fetch records after
+    # @param before [String, nil] Cursor to fetch records before
+    # @param query_scope [QueryScope] The query scope for navigation
+    # @return [PaginatedResult] A paginated result with records and page info
+    def load_paginated_collection(conditions:, per_page:, query_scope:, after: nil, before: nil)
+      search_query = SearchQuery.new(conditions)
+      collection_query_name = query_name.pluralize
+
+      variables = build_pagination_variables(
+        query: search_query.to_s,
+        per_page: per_page,
+        after: after,
+        before: before
+      )
+
+      query = QueryTree.build_paginated_collection_query(
+        context,
+        query_name: collection_query_name,
+        variables: variables
+      )
+
+      response = perform_graphql_query(query, **variables)
+      validate_search_response(response)
+      map_paginated_response(response, collection_query_name, query_scope)
+    end
+
     # Load records for a connection query
     def load_connection_records(query_name, variables, parent = nil, connection_config = nil)
       connection_loader = ConnectionLoader.new(context, loader_instance: self)
@@ -209,6 +238,51 @@ module ActiveShopifyGraphQL
         single_response = { "data" => { query_name => node_data } }
         map_response_to_attributes(single_response)
       end
+    end
+
+    def build_pagination_variables(query:, per_page:, after: nil, before: nil)
+      variables = { query: query }
+
+      if before
+        # Paginating backwards
+        variables[:last] = per_page
+        variables[:before] = before
+      else
+        # Paginating forwards (default)
+        variables[:first] = per_page
+        variables[:after] = after if after
+      end
+
+      variables.compact
+    end
+
+    def map_paginated_response(response_data, collection_query_name, query_scope)
+      connection_data = response_data.dig("data", collection_query_name)
+      return empty_paginated_result(query_scope) unless connection_data
+
+      page_info_data = connection_data["pageInfo"] || {}
+      page_info = PageInfo.new(page_info_data)
+
+      nodes = connection_data["nodes"] || []
+      records = nodes.filter_map do |node_data|
+        single_response = { "data" => { query_name => node_data } }
+        attributes = map_response_to_attributes(single_response)
+        @model_class.new(attributes)
+      end
+
+      PaginatedResult.new(
+        records: records,
+        page_info: page_info,
+        query_scope: query_scope
+      )
+    end
+
+    def empty_paginated_result(query_scope)
+      PaginatedResult.new(
+        records: [],
+        page_info: PageInfo.new,
+        query_scope: query_scope
+      )
     end
   end
 end

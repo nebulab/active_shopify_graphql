@@ -214,12 +214,12 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
       stub_const("Customer", customer_class)
       expect(mock_client).to receive(:execute) do |_query, **variables|
         expect(variables[:query]).to eq("email:'john@example.com' AND first_name:'John'")
-        { "data" => { "customers" => { "nodes" => [
+        { "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [
           { "id" => "gid://shopify/Customer/123", "displayName" => "John", "email" => "john@example.com" }
         ] } } }
       end
 
-      results = customer_class.where(email: "john@example.com", first_name: "John")
+      results = customer_class.where(email: "john@example.com", first_name: "John").to_a
 
       expect(results.size).to eq(1)
       expect(results.first.id).to eq("gid://shopify/Customer/123")
@@ -231,7 +231,7 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
       mock_response = {
-        "data" => { "customers" => { "nodes" => [] } },
+        "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } },
         "extensions" => {
           "search" => [{
             "path" => ["customers"],
@@ -242,7 +242,7 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
       }
       allow(mock_client).to receive(:execute).and_return(mock_response)
 
-      expect { customer_class.where(invalid_field: "test") }.to raise_error(ArgumentError, /Shopify query validation failed/)
+      expect { customer_class.where(invalid_field: "test").to_a }.to raise_error(ArgumentError, /Shopify query validation failed/)
     end
 
     it "handles range conditions correctly" do
@@ -253,10 +253,10 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
       expect(mock_client).to receive(:execute) do |_query, **variables|
         expect(variables[:query]).to include("id:>=100")
         expect(variables[:query]).to include("id:<200")
-        { "data" => { "customers" => { "nodes" => [] } } }
+        { "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
       end
 
-      customer_class.where(id: { gte: 100, lt: 200 })
+      customer_class.where(id: { gte: 100, lt: 200 }).to_a
     end
 
     it "handles quoted values for multi-word strings" do
@@ -266,10 +266,10 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
       stub_const("Customer", customer_class)
       expect(mock_client).to receive(:execute) do |_query, **variables|
         expect(variables[:query]).to eq("first_name:'John Doe'")
-        { "data" => { "customers" => { "nodes" => [] } } }
+        { "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
       end
 
-      customer_class.where(first_name: "John Doe")
+      customer_class.where(first_name: "John Doe").to_a
     end
 
     it "returns empty array when no results" do
@@ -277,37 +277,37 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
       ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
-      allow(mock_client).to receive(:execute).and_return({ "data" => { "customers" => { "nodes" => [] } } })
+      allow(mock_client).to receive(:execute).and_return({ "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } })
 
       results = customer_class.where(email: "nonexistent@example.com")
 
       expect(results).to be_empty
     end
 
-    it "respects limit option" do
+    it "respects limit with chainable method" do
       mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
       ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
       expect(mock_client).to receive(:execute) do |_query, **variables|
         expect(variables[:first]).to eq(100)
-        { "data" => { "customers" => { "nodes" => [] } } }
+        { "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
       end
 
-      customer_class.where({ email: "test@example.com" }, limit: 100)
+      customer_class.where(email: "test@example.com").limit(100).to_a
     end
 
-    it "defaults limit to 250" do
+    it "defaults per_page to 250" do
       mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
       ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
       expect(mock_client).to receive(:execute) do |_query, **variables|
         expect(variables[:first]).to eq(250)
-        { "data" => { "customers" => { "nodes" => [] } } }
+        { "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
       end
 
-      customer_class.where(email: "test@example.com")
+      customer_class.where(email: "test@example.com").to_a
     end
   end
 
@@ -425,10 +425,10 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
         expect(query).to include("id")
         expect(query).to include("email")
         expect(query).not_to include("displayName")
-        { "data" => { "customers" => { "nodes" => [{ "id" => "gid://shopify/Customer/123", "email" => "john@example.com" }] } } }
+        { "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [{ "id" => "gid://shopify/Customer/123", "email" => "john@example.com" }] } } }
       end
 
-      customers = customer_class.select(:email).where(first_name: "John")
+      customers = customer_class.select(:email).where(first_name: "John").to_a
 
       expect(customers).to be_an(Array)
       expect(customers.size).to eq(1)

@@ -188,6 +188,77 @@ RSpec.describe ActiveShopifyGraphQL::QueryTree do
     end
   end
 
+  describe ".build_paginated_collection_query" do
+    it "generates paginated collection query with pageInfo" do
+      context = build_context(
+        graphql_type: "ProductVariant",
+        attributes: { id: { path: "id", type: :string }, sku: { path: "sku", type: :string } }
+      )
+      variables = { query: "sku:*", first: 50 }
+
+      query = described_class.build_paginated_collection_query(context, query_name: "productVariants", variables: variables)
+
+      expect(query).to include("query getProductVariants")
+      expect(query).to include("productVariants")
+      expect(query).to include("pageInfo")
+      expect(query).to include("hasNextPage")
+      expect(query).to include("hasPreviousPage")
+      expect(query).to include("startCursor")
+      expect(query).to include("endCursor")
+      expect(query).to include("nodes")
+      expect(query).to include("...ProductVariantFragment")
+    end
+
+    it "includes query parameter in field signature" do
+      context = build_context(
+        graphql_type: "Customer",
+        attributes: { id: { path: "id", type: :string } }
+      )
+      variables = { query: "email:test@example.com", first: 100 }
+
+      query = described_class.build_paginated_collection_query(context, query_name: "customers", variables: variables)
+
+      expect(query).to include('query: "email:test@example.com"')
+      expect(query).to include("first: 100")
+    end
+
+    it "includes after cursor when provided" do
+      context = build_context(
+        graphql_type: "Customer",
+        attributes: { id: { path: "id", type: :string } }
+      )
+      variables = { query: "", first: 50, after: "cursor123" }
+
+      query = described_class.build_paginated_collection_query(context, query_name: "customers", variables: variables)
+
+      expect(query).to include('after: "cursor123"')
+    end
+
+    it "includes before cursor when provided" do
+      context = build_context(
+        graphql_type: "Customer",
+        attributes: { id: { path: "id", type: :string } }
+      )
+      variables = { query: "", last: 50, before: "cursor456" }
+
+      query = described_class.build_paginated_collection_query(context, query_name: "customers", variables: variables)
+
+      expect(query).to include('before: "cursor456"')
+    end
+
+    it "properly quotes cursor values" do
+      context = build_context(
+        graphql_type: "ProductVariant",
+        attributes: { id: { path: "id", type: :string } }
+      )
+      variables = { query: "", first: 10, after: "eyJsYXN0X2lkIjo0NTk1MjYxNTU3OTk0NywibGFzdF92YWx1ZSI6IjQ1OTUyNjE1NTc5OTQ3In0=" }
+
+      query = described_class.build_paginated_collection_query(context, query_name: "productVariants", variables: variables)
+
+      expect(query).to include('after: "eyJsYXN0X2lkIjo0NTk1MjYxNTU3OTk0NywibGFzdF92YWx1ZSI6IjQ1OTUyNjE1NTc5OTQ3In0="')
+    end
+  end
+
   describe ".fragment_name" do
     it "returns graphql_type with Fragment suffix" do
       expect(described_class.fragment_name("Customer")).to eq("CustomerFragment")
