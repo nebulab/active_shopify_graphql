@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe QueryNode do
+RSpec.describe ActiveShopifyGraphQL::Query::Node do
   describe "#initialize" do
     it "creates a field node with name" do
       node = described_class.new(name: "id", node_type: :field)

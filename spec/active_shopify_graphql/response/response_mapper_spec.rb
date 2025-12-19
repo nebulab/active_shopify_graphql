@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe ActiveShopifyGraphQL::ResponseMapper do
+RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
   def build_context(graphql_type: "Customer", attributes: {}, model_class: nil, included_connections: [])
     model_class ||= Class.new do
       define_singleton_method(:connections) { {} }

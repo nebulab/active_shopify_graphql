@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe ActiveShopifyGraphQL::Relation do
+RSpec.describe ActiveShopifyGraphQL::Query::Relation do
   mock_client = nil
 
   before do

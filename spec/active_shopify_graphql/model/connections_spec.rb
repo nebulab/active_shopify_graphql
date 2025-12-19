@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe ActiveShopifyGraphQL::Connections do
+RSpec.describe ActiveShopifyGraphQL::Model::Connections do
   describe ".connection" do
     it "defines connection metadata with inferred defaults" do
       customer_class = build_customer_class(with_orders: true)
@@ -213,7 +213,7 @@ RSpec.describe ActiveShopifyGraphQL::Connections do
 
       scope = customer_class.includes(:orders)
 
-      expect(scope).to be_a(ActiveShopifyGraphQL::Relation)
+      expect(scope).to be_a(ActiveShopifyGraphQL::Query::Relation)
       expect(scope.model_class).to eq(customer_class)
       expect(scope.included_connections).to include(:orders)
     end

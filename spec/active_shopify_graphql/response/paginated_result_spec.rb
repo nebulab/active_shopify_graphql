@@ -2,13 +2,13 @@
 
 require "spec_helper"
 
-RSpec.describe ActiveShopifyGraphQL::PaginatedResult do
+RSpec.describe ActiveShopifyGraphQL::Response::PaginatedResult do
   describe "#initialize" do
     it "stores records, page_info, and query_scope" do
       records = [double("record1"), double("record2")]
-      page_info = ActiveShopifyGraphQL::PageInfo.new("hasNextPage" => true)
+      page_info = ActiveShopifyGraphQL::Response::PageInfo.new("hasNextPage" => true)
       query_scope = double("query_scope")
-      paginated_result = ActiveShopifyGraphQL::PaginatedResult.new(
+      paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         records: records,
         page_info: page_info,
         query_scope: query_scope
@@ -23,8 +23,8 @@ RSpec.describe ActiveShopifyGraphQL::PaginatedResult do
   describe "Enumerable behavior" do
     it "iterates over records" do
       records = [double("record1", id: 1), double("record2", id: 2)]
-      page_info = ActiveShopifyGraphQL::PageInfo.new
-      paginated_result = ActiveShopifyGraphQL::PaginatedResult.new(
+      page_info = ActiveShopifyGraphQL::Response::PageInfo.new
+      paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         records: records,
         page_info: page_info,
         query_scope: nil
@@ -37,8 +37,8 @@ RSpec.describe ActiveShopifyGraphQL::PaginatedResult do
 
     it "supports map" do
       records = [double("record1", id: 1), double("record2", id: 2)]
-      page_info = ActiveShopifyGraphQL::PageInfo.new
-      paginated_result = ActiveShopifyGraphQL::PaginatedResult.new(
+      page_info = ActiveShopifyGraphQL::Response::PageInfo.new
+      paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         records: records,
         page_info: page_info,
         query_scope: nil
@@ -53,8 +53,8 @@ RSpec.describe ActiveShopifyGraphQL::PaginatedResult do
   describe "#[]" do
     it "provides array-like access to records" do
       records = [double("record1", id: 1), double("record2", id: 2)]
-      page_info = ActiveShopifyGraphQL::PageInfo.new
-      paginated_result = ActiveShopifyGraphQL::PaginatedResult.new(
+      page_info = ActiveShopifyGraphQL::Response::PageInfo.new
+      paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         records: records,
         page_info: page_info,
         query_scope: nil
@@ -68,8 +68,8 @@ RSpec.describe ActiveShopifyGraphQL::PaginatedResult do
   describe "#size and #length" do
     it "returns the number of records in this page" do
       records = [double, double, double]
-      page_info = ActiveShopifyGraphQL::PageInfo.new
-      paginated_result = ActiveShopifyGraphQL::PaginatedResult.new(
+      page_info = ActiveShopifyGraphQL::Response::PageInfo.new
+      paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         records: records,
         page_info: page_info,
         query_scope: nil
@@ -82,9 +82,9 @@ RSpec.describe ActiveShopifyGraphQL::PaginatedResult do
 
   describe "#empty?" do
     it "returns true when no records" do
-      paginated_result = ActiveShopifyGraphQL::PaginatedResult.new(
+      paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         records: [],
-        page_info: ActiveShopifyGraphQL::PageInfo.new,
+        page_info: ActiveShopifyGraphQL::Response::PageInfo.new,
         query_scope: nil
       )
 
@@ -92,9 +92,9 @@ RSpec.describe ActiveShopifyGraphQL::PaginatedResult do
     end
 
     it "returns false when records exist" do
-      paginated_result = ActiveShopifyGraphQL::PaginatedResult.new(
+      paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         records: [double],
-        page_info: ActiveShopifyGraphQL::PageInfo.new,
+        page_info: ActiveShopifyGraphQL::Response::PageInfo.new,
         query_scope: nil
       )
 
@@ -104,8 +104,8 @@ RSpec.describe ActiveShopifyGraphQL::PaginatedResult do
 
   describe "pagination delegation" do
     it "delegates has_next_page? to page_info" do
-      page_info = ActiveShopifyGraphQL::PageInfo.new("hasNextPage" => true)
-      paginated_result = ActiveShopifyGraphQL::PaginatedResult.new(
+      page_info = ActiveShopifyGraphQL::Response::PageInfo.new("hasNextPage" => true)
+      paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         records: [],
         page_info: page_info,
         query_scope: nil
@@ -115,8 +115,8 @@ RSpec.describe ActiveShopifyGraphQL::PaginatedResult do
     end
 
     it "delegates has_previous_page? to page_info" do
-      page_info = ActiveShopifyGraphQL::PageInfo.new("hasPreviousPage" => true)
-      paginated_result = ActiveShopifyGraphQL::PaginatedResult.new(
+      page_info = ActiveShopifyGraphQL::Response::PageInfo.new("hasPreviousPage" => true)
+      paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         records: [],
         page_info: page_info,
         query_scope: nil
@@ -126,8 +126,8 @@ RSpec.describe ActiveShopifyGraphQL::PaginatedResult do
     end
 
     it "exposes start_cursor from page_info" do
-      page_info = ActiveShopifyGraphQL::PageInfo.new("startCursor" => "start123")
-      paginated_result = ActiveShopifyGraphQL::PaginatedResult.new(
+      page_info = ActiveShopifyGraphQL::Response::PageInfo.new("startCursor" => "start123")
+      paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         records: [],
         page_info: page_info,
         query_scope: nil
@@ -137,8 +137,8 @@ RSpec.describe ActiveShopifyGraphQL::PaginatedResult do
     end
 
     it "exposes end_cursor from page_info" do
-      page_info = ActiveShopifyGraphQL::PageInfo.new("endCursor" => "end456")
-      paginated_result = ActiveShopifyGraphQL::PaginatedResult.new(
+      page_info = ActiveShopifyGraphQL::Response::PageInfo.new("endCursor" => "end456")
+      paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         records: [],
         page_info: page_info,
         query_scope: nil
@@ -150,8 +150,8 @@ RSpec.describe ActiveShopifyGraphQL::PaginatedResult do
 
   describe "#next_page" do
     it "returns nil when no next page exists" do
-      page_info = ActiveShopifyGraphQL::PageInfo.new("hasNextPage" => false)
-      paginated_result = ActiveShopifyGraphQL::PaginatedResult.new(
+      page_info = ActiveShopifyGraphQL::Response::PageInfo.new("hasNextPage" => false)
+      paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         records: [],
         page_info: page_info,
         query_scope: nil
@@ -161,13 +161,13 @@ RSpec.describe ActiveShopifyGraphQL::PaginatedResult do
     end
 
     it "fetches the next page when one exists" do
-      page_info = ActiveShopifyGraphQL::PageInfo.new(
+      page_info = ActiveShopifyGraphQL::Response::PageInfo.new(
         "hasNextPage" => true,
         "endCursor" => "cursor123"
       )
-      query_scope = instance_double(ActiveShopifyGraphQL::QueryScope)
+      query_scope = instance_double(ActiveShopifyGraphQL::Query::Scope)
       next_page_result = double("next_page")
-      paginated_result = ActiveShopifyGraphQL::PaginatedResult.new(
+      paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         records: [],
         page_info: page_info,
         query_scope: query_scope
@@ -182,8 +182,8 @@ RSpec.describe ActiveShopifyGraphQL::PaginatedResult do
 
   describe "#previous_page" do
     it "returns nil when no previous page exists" do
-      page_info = ActiveShopifyGraphQL::PageInfo.new("hasPreviousPage" => false)
-      paginated_result = ActiveShopifyGraphQL::PaginatedResult.new(
+      page_info = ActiveShopifyGraphQL::Response::PageInfo.new("hasPreviousPage" => false)
+      paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         records: [],
         page_info: page_info,
         query_scope: nil
@@ -193,13 +193,13 @@ RSpec.describe ActiveShopifyGraphQL::PaginatedResult do
     end
 
     it "fetches the previous page when one exists" do
-      page_info = ActiveShopifyGraphQL::PageInfo.new(
+      page_info = ActiveShopifyGraphQL::Response::PageInfo.new(
         "hasPreviousPage" => true,
         "startCursor" => "cursor456"
       )
-      query_scope = instance_double(ActiveShopifyGraphQL::QueryScope)
+      query_scope = instance_double(ActiveShopifyGraphQL::Query::Scope)
       previous_page_result = double("previous_page")
-      paginated_result = ActiveShopifyGraphQL::PaginatedResult.new(
+      paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         records: [],
         page_info: page_info,
         query_scope: query_scope
@@ -215,9 +215,9 @@ RSpec.describe ActiveShopifyGraphQL::PaginatedResult do
   describe "#to_a" do
     it "returns a copy of the records array" do
       records = [double, double]
-      paginated_result = ActiveShopifyGraphQL::PaginatedResult.new(
+      paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         records: records,
-        page_info: ActiveShopifyGraphQL::PageInfo.new,
+        page_info: ActiveShopifyGraphQL::Response::PageInfo.new,
         query_scope: nil
       )
 

@@ -63,7 +63,7 @@ module ActiveShopifyGraphQL
 
     # Get GraphQL type for this loader instance
     def graphql_type
-      GraphqlTypeResolver.resolve(model_class: @model_class, loader_class: self.class)
+      Model::GraphqlTypeResolver.resolve(model_class: @model_class, loader_class: self.class)
     end
 
     # Get defined attributes for this loader instance
@@ -79,7 +79,7 @@ module ActiveShopifyGraphQL
 
     # Returns the complete GraphQL fragment
     def fragment
-      FragmentBuilder.new(context).build
+      Query::FragmentBuilder.new(context).build
     end
 
     # Delegate query building methods
@@ -92,12 +92,12 @@ module ActiveShopifyGraphQL
     end
 
     def graphql_query(_model_type = nil)
-      QueryTree.build_single_record_query(context)
+      Query::Tree.build_single_record_query(context)
     end
 
     # Map the GraphQL response to model attributes
     def map_response_to_attributes(response_data, parent_instance: nil)
-      mapper = ResponseMapper.new(context)
+      mapper = Response::ResponseMapper.new(context)
       attributes = mapper.map_response(response_data)
 
       # If we have included connections, extract and cache them
@@ -122,7 +122,7 @@ module ActiveShopifyGraphQL
       return nil if response_data.nil?
 
       # First, extract just the attributes (without connections)
-      mapper = ResponseMapper.new(context)
+      mapper = Response::ResponseMapper.new(context)
       attributes = mapper.map_response(response_data)
 
       # Create the instance with basic attributes
@@ -156,7 +156,7 @@ module ActiveShopifyGraphQL
       collection_query_name = query_name.pluralize
       variables = { query: search_query.to_s, first: limit }
 
-      query = QueryTree.build_collection_query(
+      query = Query::Tree.build_collection_query(
         context,
         query_name: collection_query_name,
         variables: variables,
@@ -173,7 +173,7 @@ module ActiveShopifyGraphQL
     # @param per_page [Integer] Number of records per page
     # @param after [String, nil] Cursor to fetch records after
     # @param before [String, nil] Cursor to fetch records before
-    # @param query_scope [QueryScope] The query scope for navigation
+    # @param query_scope [Query::Scope] The query scope for navigation
     # @return [PaginatedResult] A paginated result with records and page info
     def load_paginated_collection(conditions:, per_page:, query_scope:, after: nil, before: nil)
       search_query = SearchQuery.new(conditions)
@@ -186,7 +186,7 @@ module ActiveShopifyGraphQL
         before: before
       )
 
-      query = QueryTree.build_paginated_collection_query(
+      query = Query::Tree.build_paginated_collection_query(
         context,
         query_name: collection_query_name,
         variables: variables
@@ -199,7 +199,7 @@ module ActiveShopifyGraphQL
 
     # Load records for a connection query
     def load_connection_records(query_name, variables, parent = nil, connection_config = nil)
-      connection_loader = ConnectionLoader.new(context, loader_instance: self)
+      connection_loader = Connections::ConnectionLoader.new(context, loader_instance: self)
       connection_loader.load_records(query_name, variables, parent, connection_config)
     end
 
@@ -261,7 +261,7 @@ module ActiveShopifyGraphQL
       return empty_paginated_result(query_scope) unless connection_data
 
       page_info_data = connection_data["pageInfo"] || {}
-      page_info = PageInfo.new(page_info_data)
+      page_info = Response::PageInfo.new(page_info_data)
 
       nodes = connection_data["nodes"] || []
       records = nodes.filter_map do |node_data|
@@ -270,7 +270,7 @@ module ActiveShopifyGraphQL
         @model_class.new(attributes)
       end
 
-      PaginatedResult.new(
+      Response::PaginatedResult.new(
         records: records,
         page_info: page_info,
         query_scope: query_scope
@@ -278,9 +278,9 @@ module ActiveShopifyGraphQL
     end
 
     def empty_paginated_result(query_scope)
-      PaginatedResult.new(
+      Response::PaginatedResult.new(
         records: [],
-        page_info: PageInfo.new,
+        page_info: Response::PageInfo.new,
         query_scope: query_scope
       )
     end

@@ -12,7 +12,7 @@ module ActiveShopifyGraphQL
       def graphql_query(model_type = nil)
         type = model_type || graphql_type
         if type == 'Customer'
-          QueryTree.build_current_customer_query(context)
+          Query::Tree.build_current_customer_query(context)
         else
           super(type)
         end

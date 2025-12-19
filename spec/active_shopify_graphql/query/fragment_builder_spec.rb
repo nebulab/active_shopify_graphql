@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe ActiveShopifyGraphQL::FragmentBuilder do
+RSpec.describe ActiveShopifyGraphQL::Query::FragmentBuilder do
   def build_context(graphql_type: "Customer", attributes: {}, model_class: nil, included_connections: [])
     model_class ||= Class.new do
       define_singleton_method(:connections) { {} }
@@ -102,7 +102,7 @@ RSpec.describe ActiveShopifyGraphQL::FragmentBuilder do
   end
 
   describe "#build_field_nodes" do
-    it "returns array of QueryNode objects" do
+    it "returns array of Query::Node objects" do
       context = build_context(
         graphql_type: "Customer",
         attributes: { id: { path: "id", type: :string } }
@@ -112,7 +112,7 @@ RSpec.describe ActiveShopifyGraphQL::FragmentBuilder do
       nodes = builder.build_field_nodes
 
       expect(nodes).to be_an(Array)
-      expect(nodes.first).to be_a(QueryNode)
+      expect(nodes.first).to be_a(ActiveShopifyGraphQL::Query::Node)
     end
 
     it "handles metafield attributes with correct alias syntax" do

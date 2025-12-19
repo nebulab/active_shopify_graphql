@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe ActiveShopifyGraphQL::PageInfo do
+RSpec.describe ActiveShopifyGraphQL::Response::PageInfo do
   describe "#initialize" do
     it "parses page info data from a hash" do
       data = {

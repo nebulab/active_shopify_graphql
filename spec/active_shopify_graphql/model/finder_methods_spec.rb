@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe ActiveShopifyGraphQL::FinderMethods do
+RSpec.describe ActiveShopifyGraphQL::Model::FinderMethods do
   describe ".find" do
     it "accepts numeric ID and normalizes to GID" do
       mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
@@ -471,7 +471,7 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
 
       selected_relation = customer_class.select(:id, :email)
 
-      expect(selected_relation).to be_a(ActiveShopifyGraphQL::Relation)
+      expect(selected_relation).to be_a(ActiveShopifyGraphQL::Query::Relation)
       expect(selected_relation).to respond_to(:find)
       expect(selected_relation).to respond_to(:where)
     end

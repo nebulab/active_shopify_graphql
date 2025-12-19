@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe ActiveShopifyGraphQL::Attributes do
+RSpec.describe ActiveShopifyGraphQL::Model::Attributes do
   describe ".attribute" do
     it "defines an attribute with default path inference" do
       model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [:display_name])

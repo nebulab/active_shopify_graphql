@@ -59,7 +59,7 @@ RSpec.describe ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader do
   end
 
   describe "#graphql_query" do
-    it "uses QueryTree.build_current_customer_query for Customer type" do
+    it "uses Query::Tree.build_current_customer_query for Customer type" do
       model_class = build_customer_class
       loader = described_class.new(model_class, "fake_token")
 
@@ -84,7 +84,7 @@ RSpec.describe ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader do
       expect(query).to include("node {")
     end
 
-    it "uses QueryTree.build_single_record_query for non-Customer types" do
+    it "uses Query::Tree.build_single_record_query for non-Customer types" do
       model_class = build_order_class
       loader = described_class.new(model_class, "fake_token")
 
@@ -96,7 +96,7 @@ RSpec.describe ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader do
   end
 end
 
-RSpec.describe ActiveShopifyGraphQL::LoaderSwitchable::LoaderProxy do
+RSpec.describe ActiveShopifyGraphQL::Model::LoaderSwitchable::LoaderProxy do
   describe "#includes" do
     it "returns a Relation with included_connections set" do
       order_class = build_order_class
@@ -108,7 +108,7 @@ RSpec.describe ActiveShopifyGraphQL::LoaderSwitchable::LoaderProxy do
 
       result = proxy.includes(:orders)
 
-      expect(result).to be_a(ActiveShopifyGraphQL::Relation)
+      expect(result).to be_a(ActiveShopifyGraphQL::Query::Relation)
       expect(result.included_connections).to include(:orders)
     end
 
@@ -120,7 +120,7 @@ RSpec.describe ActiveShopifyGraphQL::LoaderSwitchable::LoaderProxy do
 
       result = proxy.all
 
-      expect(result).to be_a(ActiveShopifyGraphQL::Relation)
+      expect(result).to be_a(ActiveShopifyGraphQL::Query::Relation)
     end
 
     it "generates query with connection fields when includes is called" do
@@ -150,7 +150,7 @@ RSpec.describe ActiveShopifyGraphQL::LoaderSwitchable::LoaderProxy do
 
       result = proxy.select(:id, :email)
 
-      expect(result).to be_a(ActiveShopifyGraphQL::Relation)
+      expect(result).to be_a(ActiveShopifyGraphQL::Query::Relation)
       relation_loader = result.send(:loader)
       expect(relation_loader.instance_variable_get(:@selected_attributes)).to eq(%i[id email])
     end
@@ -182,7 +182,7 @@ RSpec.describe ActiveShopifyGraphQL::LoaderSwitchable::LoaderProxy do
 
       result = proxy.where(email: "test@example.com")
 
-      expect(result).to be_a(ActiveShopifyGraphQL::Relation)
+      expect(result).to be_a(ActiveShopifyGraphQL::Query::Relation)
       expect(result.conditions).to eq(email: "test@example.com")
     end
   end
