@@ -5,6 +5,10 @@ module ActiveShopifyGraphQL
   # Refactored for Single Responsibility - only handles query string generation.
   # Fragment building is delegated to FragmentBuilder.
   class QueryTree
+    # Keys whose string values should be wrapped in double quotes in inline GraphQ
+    STRING_KEYS_NEEDING_QUOTES = %i[query after before].freeze
+    PAGE_INFO_FIELDS = "pageInfo { hasNextPage hasPreviousPage startCursor endCursor }"
+
     attr_reader :context
 
     def initialize(context)
@@ -54,6 +58,20 @@ module ActiveShopifyGraphQL
       end.to_s
     end
 
+    # Build a paginated collection query that includes pageInfo for cursor-based pagination
+    def self.build_paginated_collection_query(context, query_name:, variables:)
+      new(context).tap do |tree|
+        tree.add_fragment(FragmentBuilder.new(context).build)
+        tree.set_query_config(
+          type: :paginated_collection,
+          model_type: context.graphql_type,
+          query_name: query_name,
+          fragment_name: context.fragment_name,
+          variables: variables
+        )
+      end.to_s
+    end
+
     def self.build_connection_query(context, query_name:, variables:, parent_query: nil, connection_type: :connection)
       new(context).tap do |tree|
         tree.add_fragment(FragmentBuilder.new(context).build)
@@ -89,8 +107,9 @@ module ActiveShopifyGraphQL
       case @query_config[:type]
       when :single_record then render_single_record_query
       when :current_customer then render_current_customer_query
-      when :collection    then render_collection_query
-      when :connection    then render_connection_query
+      when :collection then render_collection_query
+      when :paginated_collection then render_paginated_collection_query
+      when :connection then render_connection_query
       else ""
       end
     end
@@ -149,6 +168,21 @@ module ActiveShopifyGraphQL
       else
         body = wrap_connection_body_formatted(fragment_name, connection_type, 2)
         "#{fragments_string}\nquery get#{type.pluralize} {\n  #{query_name}#{field_sig} {\n#{body}\n  }\n}\n"
+      end
+    end
+
+    def render_paginated_collection_query
+      type = @query_config[:model_type]
+      query_name = @query_config[:query_name]
+      fragment_name = @query_config[:fragment_name]
+      variables = @query_config[:variables] || {}
+
+      field_sig = field_signature(variables)
+
+      if compact?
+        "#{fragments_string} query get#{type.pluralize} { #{query_name}#{field_sig} { #{PAGE_INFO_FIELDS} nodes { ...#{fragment_name} } } }"
+      else
+        "#{fragments_string}\nquery get#{type.pluralize} {\n  #{query_name}#{field_sig} {\n#{PAGE_INFO_FIELDS}\n    nodes {\n      ...#{fragment_name}\n    }\n  }\n}\n"
       end
     end
 
@@ -217,7 +251,7 @@ module ActiveShopifyGraphQL
     def format_inline_value(key, value)
       case value
       when Integer, TrueClass, FalseClass then value.to_s
-      when String then key.to_sym == :query ? "\"#{value}\"" : value
+      when String then STRING_KEYS_NEEDING_QUOTES.include?(key.to_sym) ? "\"#{value}\"" : value
       else value.to_s
       end
     end
