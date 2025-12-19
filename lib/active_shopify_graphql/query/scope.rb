@@ -21,7 +21,6 @@ module ActiveShopifyGraphQL
       include Enumerable
 
       DEFAULT_PER_PAGE = 250
-      MAX_PER_PAGE = 250
 
       attr_reader :model_class, :conditions, :total_limit, :per_page
 
@@ -30,7 +29,7 @@ module ActiveShopifyGraphQL
         @conditions = conditions
         @loader = loader
         @total_limit = total_limit
-        @per_page = [per_page, MAX_PER_PAGE].min
+        @per_page = [per_page, ActiveShopifyGraphQL.configuration.max_objects_per_paginated_query].min
         @loaded = false
         @records = nil
       end
@@ -47,7 +46,7 @@ module ActiveShopifyGraphQL
       # @yield [PaginatedResult] Each page of results
       # @return [PaginatedResult, self] Returns PaginatedResult if no block given
       def in_pages(of: DEFAULT_PER_PAGE, &block)
-        page_size = [of, MAX_PER_PAGE].min
+        page_size = [of, ActiveShopifyGraphQL.configuration.max_objects_per_paginated_query].min
         scoped = dup_with(per_page: page_size)
 
         if block_given?
@@ -123,7 +122,7 @@ module ActiveShopifyGraphQL
       # @return [Object, Array, nil] First record(s) or nil
       def first(count = nil)
         if count
-          scoped = dup_with(total_limit: count, per_page: [count, MAX_PER_PAGE].min)
+          scoped = dup_with(total_limit: count, per_page: [count, max_objects_per_paginated_query].min)
           scoped.to_a
         else
           scoped = dup_with(total_limit: 1, per_page: 1)

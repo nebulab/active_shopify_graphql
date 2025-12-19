@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'global_id'
-
 module ActiveShopifyGraphQL
   module Connections
     # Handles loading records for GraphQL connections.
