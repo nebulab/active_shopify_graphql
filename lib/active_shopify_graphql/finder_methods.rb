@@ -82,22 +82,15 @@ module ActiveShopifyGraphQL
       end
 
       # Find a single record by attribute conditions
-      # @param conditions [Hash] The conditions to query (e.g., { email: "example@test.com", first_name: "John" })
-      # @param options [Hash] Options hash containing loader
-      # @option options [ActiveShopifyGraphQL::Loader] :loader The loader to use for fetching data
+      # @param conditions [Hash] The conditions to query
       # @return [Object, nil] The first matching model instance or nil if not found
-      # @raise [ArgumentError] If any attribute is not valid for querying
       #
       # @example
-      #   # Keyword argument style (recommended)
       #   Customer.find_by(email: "john@example.com")
       #   Customer.find_by(first_name: "John", country: "Canada")
       #   Customer.find_by(orders_count: { gte: 5 })
-      #
-      #   # Hash style with options
-      #   Customer.find_by({ email: "john@example.com" }, loader: custom_loader)
-      def find_by(conditions_or_first_condition = {}, *args, **options)
-        where(conditions_or_first_condition, *args, **options).first
+      def find_by(conditions = {}, **options)
+        where(conditions.empty? ? options : conditions).first
       end
 
       # Query for multiple records using attribute conditions
@@ -110,10 +103,8 @@ module ActiveShopifyGraphQL
       #
       # @param conditions_or_first_condition [Hash, String] The conditions to query
       # @param args [Array] Additional positional arguments for parameter binding
-      # @param options [Hash] Options hash containing loader (when first arg is a Hash)
-      # @option options [ActiveShopifyGraphQL::Loader] :loader The loader to use for fetching data
+      # @param options [Hash] Named parameters for parameter binding
       # @return [QueryScope] A chainable query scope
-      # @raise [ArgumentError] If any attribute is not valid for querying
       #
       # @example Hash-based query (safe, escaped)
       #   Customer.where(email: "john@example.com").to_a
@@ -129,6 +120,7 @@ module ActiveShopifyGraphQL
       #
       # @example String with named parameter binding (safe)
       #   ProductVariant.where("sku::sku product_id::id", { sku: "A-SKU", id: 123 }).to_a
+      #   ProductVariant.where("sku::sku", sku: "A-SKU").to_a
       #   # => produces: query:"sku:'A-SKU' product_id:123"
       #
       # @example With limit
@@ -138,54 +130,27 @@ module ActiveShopifyGraphQL
       #   Customer.where(orders_count: { gte: 5 }).in_pages(of: 50) do |page|
       #     page.each { |customer| process(customer) }
       #   end
-      #
-      # @example Manual pagination
-      #   page = Customer.where(email: "*@example.com").in_pages(of: 25)
-      #   page.has_next_page? # => true
-      #   next_page = page.next_page
       def where(conditions_or_first_condition = {}, *args, **options)
         # Handle string-based queries (raw query syntax or with parameter binding)
         if conditions_or_first_condition.is_a?(String)
-          # Separate binding args from option hashes
-          binding_args = args.reject { |arg| arg.is_a?(Hash) && arg.key?(:loader) }
-          loader_option = args.find { |arg| arg.is_a?(Hash) && arg.key?(:loader) }
-          loader = loader_option&.fetch(:loader, nil) || options[:loader] || default_loader
-          loader.instance_variable_set(:@model_class, self) if loader.instance_variable_get(:@model_class).nil?
-
-          # Check if we have binding parameters (either in args or options)
-          # Named parameters can come from keyword args: where("sku: :sku", sku: "foo")
-          # Positional parameters come from positional args: where("sku: ?", "foo")
-          binding_params = if binding_args.empty? && options.except(:loader).any?
-                             [options.except(:loader)]
-                           else
-                             binding_args
-                           end
+          # Named parameters can come from keyword args: where("sku::sku", sku: "foo")
+          # Positional parameters come from positional args: where("sku:?", "foo")
+          binding_params = args.empty? && options.any? ? [options] : args
 
           conditions = binding_params.empty? ? conditions_or_first_condition : [conditions_or_first_condition, *binding_params]
-          return QueryScope.new(self, conditions: conditions, loader: loader)
+          return QueryScope.new(self, conditions: conditions)
         end
 
         # Handle hash-based queries (with sanitization)
         # where(email: "john@example.com") - keyword args become options
-        # where({ email: "john@example.com" }, loader: custom_loader) - explicit hash + options
-        if conditions_or_first_condition.is_a?(Hash) && !conditions_or_first_condition.empty?
-          # Explicit hash provided as first argument
-          conditions = conditions_or_first_condition
-          # Any additional options passed as keyword args or second hash argument
-          final_options = args.first.is_a?(Hash) ? options.merge(args.first) : options
-        else
-          # Keyword arguments style - conditions come from options, excluding known option keys
-          known_option_keys = %i[loader]
-          conditions = options.except(*known_option_keys)
-          final_options = options.slice(*known_option_keys)
-        end
+        # where({ email: "john@example.com" }) - explicit hash
+        conditions = if conditions_or_first_condition.is_a?(Hash) && !conditions_or_first_condition.empty?
+                       conditions_or_first_condition
+                     else
+                       options
+                     end
 
-        loader = final_options[:loader] || default_loader
-
-        # Ensure loader has model class set - needed for graphql_type inference
-        loader.instance_variable_set(:@model_class, self) if loader.instance_variable_get(:@model_class).nil?
-
-        QueryScope.new(self, conditions: conditions, loader: loader)
+        QueryScope.new(self, conditions: conditions)
       end
 
       private

@@ -34,88 +34,69 @@ RSpec.describe ActiveShopifyGraphQL::IncludesScope do
   end
 
   describe "#find" do
-    it "delegates to model class with custom loader containing included connections" do
+    it "uses a loader with included connections" do
       product_class = build_product_class(with_variants: true)
+      variant_class = build_product_variant_class
       stub_const("Product", product_class)
-      allow(product_class).to receive(:find).and_return(product_class.new(id: "gid://shopify/Product/123"))
+      stub_const("ProductVariant", variant_class)
 
       scope = described_class.new(product_class, [:variants])
-      scope.find("gid://shopify/Product/123")
+      loader = scope.send(:loader_proxy).loader
 
-      expect(product_class).to have_received(:find) do |id, **options|
-        expect(id).to eq("gid://shopify/Product/123")
-        expect(options[:loader]).to be_a(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-        expect(options[:loader].instance_variable_get(:@included_connections)).to eq([:variants])
-      end
+      expect(loader).to be_a(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+      expect(loader.instance_variable_get(:@included_connections)).to eq([:variants])
     end
 
-    it "accepts optional loader parameter and uses it instead" do
-      product_class = build_product_class(with_variants: true)
-      stub_const("Product", product_class)
-      custom_loader = ActiveShopifyGraphQL::Loaders::AdminApiLoader.new(product_class)
-      allow(product_class).to receive(:find).and_return(product_class.new(id: "gid://shopify/Product/123"))
-
-      scope = described_class.new(product_class, [:variants])
-      scope.find("gid://shopify/Product/123", loader: custom_loader)
-
-      expect(product_class).to have_received(:find).with("gid://shopify/Product/123", loader: custom_loader)
-    end
-
-    it "memoizes the default loader instance" do
+    it "memoizes the loader proxy instance" do
       product_class = build_product_class(with_variants: true)
       stub_const("Product", product_class)
 
       scope = described_class.new(product_class, [:variants])
-      loader1 = scope.send(:default_loader)
-      loader2 = scope.send(:default_loader)
+      proxy1 = scope.send(:loader_proxy)
+      proxy2 = scope.send(:loader_proxy)
 
-      expect(loader1).to be(loader2)
-      expect(loader1.instance_variable_get(:@included_connections)).to eq([:variants])
+      expect(proxy1).to be(proxy2)
     end
   end
 
   describe "#where" do
-    it "delegates to model class with custom loader containing included connections" do
+    it "returns a QueryScope with custom loader containing included connections" do
       product_class = build_product_class(with_variants: true)
       stub_const("Product", product_class)
-      allow(product_class).to receive(:where).and_return([])
 
       scope = described_class.new(product_class, [:variants])
-      scope.where(query: "test")
+      result = scope.where(title: "test")
 
-      expect(product_class).to have_received(:where) do |**options|
-        expect(options[:query]).to eq("test")
-        expect(options[:loader]).to be_a(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-        expect(options[:loader].instance_variable_get(:@included_connections)).to eq([:variants])
-      end
+      expect(result).to be_a(ActiveShopifyGraphQL::QueryScope)
+      expect(result.instance_variable_get(:@model_class)).to eq(product_class)
+      expect(result.instance_variable_get(:@conditions)).to eq(title: "test")
+      loader = result.send(:loader)
+      expect(loader).to be_a(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+      expect(loader.instance_variable_get(:@included_connections)).to eq([:variants])
     end
 
-    it "accepts optional loader parameter and uses it instead" do
-      product_class = build_product_class(with_variants: true)
-      stub_const("Product", product_class)
-      custom_loader = ActiveShopifyGraphQL::Loaders::AdminApiLoader.new(product_class)
-      allow(product_class).to receive(:where).and_return([])
-
-      scope = described_class.new(product_class, [:variants])
-      scope.where(query: "test", loader: custom_loader)
-
-      expect(product_class).to have_received(:where).with(query: "test", loader: custom_loader)
-    end
-
-    it "passes through arguments and options correctly" do
+    it "supports string conditions with parameter binding" do
       customer_class = build_customer_class(with_orders: true)
       stub_const("Customer", customer_class)
-      allow(customer_class).to receive(:where).and_return([])
 
       scope = described_class.new(customer_class, [:orders])
-      scope.where("email:*@example.com", query: "email:*@example.com", first: 10)
+      result = scope.where("email:?", "*@example.com")
 
-      expect(customer_class).to have_received(:where) do |*args, **options|
-        expect(args).to eq(["email:*@example.com"])
-        expect(options[:query]).to eq("email:*@example.com")
-        expect(options[:first]).to eq(10)
-        expect(options[:loader]).to be_a(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      end
+      expect(result).to be_a(ActiveShopifyGraphQL::QueryScope)
+      expect(result.instance_variable_get(:@conditions)).to eq(["email:?", "*@example.com"])
+      loader = result.send(:loader)
+      expect(loader).to be_a(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+    end
+
+    it "supports string conditions with named parameter binding" do
+      customer_class = build_customer_class(with_orders: true)
+      stub_const("Customer", customer_class)
+
+      scope = described_class.new(customer_class, [:orders])
+      result = scope.where("email::domain", domain: "*@example.com")
+
+      expect(result).to be_a(ActiveShopifyGraphQL::QueryScope)
+      expect(result.instance_variable_get(:@conditions)).to eq(["email::domain", { domain: "*@example.com" }])
     end
   end
 
@@ -193,21 +174,19 @@ RSpec.describe ActiveShopifyGraphQL::IncludesScope do
   end
 
   describe "chaining operations" do
-    it "allows chaining select and find" do
+    it "allows chaining select and maintains included connections" do
       product_class = build_product_class(with_variants: true)
+      variant_class = build_product_variant_class
       stub_const("Product", product_class)
-      selected_model = product_class.select(:id, :title)
-      allow(product_class).to receive(:select).with(:id, :title).and_return(selected_model)
-      allow(selected_model).to receive(:find).and_return(product_class.new(id: "gid://shopify/Product/123"))
+      stub_const("ProductVariant", variant_class)
 
       scope = described_class.new(product_class, [:variants])
       chained_scope = scope.select(:id, :title)
-      chained_scope.find("gid://shopify/Product/123")
 
-      expect(product_class).to have_received(:select).with(:id, :title)
       expect(chained_scope).to be_a(described_class)
-      expect(chained_scope.model_class).to eq(selected_model)
       expect(chained_scope.included_connections).to eq([:variants])
+      # The model_class should be a selected scope (anonymous class)
+      expect(chained_scope.model_class).not_to eq(product_class)
     end
 
     it "allows chaining select and where" do
@@ -247,18 +226,15 @@ RSpec.describe ActiveShopifyGraphQL::IncludesScope do
   describe "integration with connections" do
     it "passes included connections to the loader for eager loading" do
       product_class = build_product_class(with_variants: true)
+      variant_class = build_product_variant_class
       stub_const("Product", product_class)
-      allow(product_class).to receive(:find).and_return(product_class.new(id: "gid://shopify/Product/123"))
+      stub_const("ProductVariant", variant_class)
 
       scope = described_class.new(product_class, [:variants])
-      scope.find("gid://shopify/Product/123")
+      loader = scope.send(:loader_proxy).loader
 
-      expect(product_class).to have_received(:find) do |_id, **options|
-        loader = options[:loader]
-        expect(loader).to be_a(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-        # The loader should have included_connections configured
-        expect(loader.instance_variable_get(:@included_connections)).to eq([:variants])
-      end
+      expect(loader).to be_a(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+      expect(loader.instance_variable_get(:@included_connections)).to eq([:variants])
     end
   end
 end
