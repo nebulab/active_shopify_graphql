@@ -152,7 +152,16 @@ module ActiveShopifyGraphQL
           loader = loader_option&.fetch(:loader, nil) || options[:loader] || default_loader
           loader.instance_variable_set(:@model_class, self) if loader.instance_variable_get(:@model_class).nil?
 
-          conditions = binding_args.empty? ? conditions_or_first_condition : [conditions_or_first_condition, *binding_args]
+          # Check if we have binding parameters (either in args or options)
+          # Named parameters can come from keyword args: where("sku: :sku", sku: "foo")
+          # Positional parameters come from positional args: where("sku: ?", "foo")
+          binding_params = if binding_args.empty? && options.except(:loader).any?
+                             [options.except(:loader)]
+                           else
+                             binding_args
+                           end
+
+          conditions = binding_params.empty? ? conditions_or_first_condition : [conditions_or_first_condition, *binding_params]
           return QueryScope.new(self, conditions: conditions, loader: loader)
         end
 

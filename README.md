@@ -261,9 +261,12 @@ customers = Customer.where("email:*@example.com AND orders_count:>5")
 # Positional parameters
 variants = ProductVariant.where("sku:? AND product_id:?", "Test's Product", 123)
 
-# Named parameters
+# Named parameters (as hash)
 customers = Customer.where("email::email AND first_name::name",
                           { email: "test@example.com", name: "John" })
+
+# Named parameters (as keyword arguments - more convenient!)
+variants = ProductVariant.where("sku::sku", sku: "Test's Product")
 ```
 
 **Query safety levels:**

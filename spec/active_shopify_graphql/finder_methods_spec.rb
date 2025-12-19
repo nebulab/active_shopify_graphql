@@ -407,7 +407,7 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
         product_variant_class.where("sku:? product_id:?", "Good ol' value", 123).to_a
       end
 
-      it "binds named parameters safely" do
+      it "binds named parameters safely from hash argument" do
         mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
         ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
         product_variant_class = build_product_variant_class
@@ -418,6 +418,19 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
         end
 
         product_variant_class.where("sku::sku product_id::product_id", { sku: "A-SKU", product_id: 123 }).to_a
+      end
+
+      it "binds named parameters safely from keyword arguments" do
+        mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+        ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+        product_variant_class = build_product_variant_class
+        stub_const("ProductVariant", product_variant_class)
+        expect(mock_client).to receive(:execute) do |_query, **variables|
+          expect(variables[:query]).to eq("sku:'foo'")
+          { "data" => { "productVariants" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
+        end
+
+        product_variant_class.where("sku::sku", sku: "foo").to_a
       end
 
       it "escapes special characters in bound parameters" do
