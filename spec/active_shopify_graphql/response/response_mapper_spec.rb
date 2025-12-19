@@ -280,9 +280,9 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
           "customer" => {
             "id" => "gid://shopify/Customer/123",
             "recent_orders" => {
-              "edges" => [
-                { "node" => { "id" => "gid://shopify/Order/1" } },
-                { "node" => { "id" => "gid://shopify/Order/2" } }
+              "nodes" => [
+                { "id" => "gid://shopify/Order/1" },
+                { "id" => "gid://shopify/Order/2" }
               ]
             }
           }
@@ -341,16 +341,16 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
           "customer" => {
             "id" => "gid://shopify/Customer/123",
             "orders" => {
-              "edges" => [
-                { "node" => { "id" => "gid://shopify/Order/old1" } },
-                { "node" => { "id" => "gid://shopify/Order/old2" } }
+              "nodes" => [
+                { "id" => "gid://shopify/Order/old1" },
+                { "id" => "gid://shopify/Order/old2" }
               ]
             },
             "recent_orders" => {
-              "edges" => [
-                { "node" => { "id" => "gid://shopify/Order/new1" } },
-                { "node" => { "id" => "gid://shopify/Order/new2" } },
-                { "node" => { "id" => "gid://shopify/Order/new3" } }
+              "nodes" => [
+                { "id" => "gid://shopify/Order/new1" },
+                { "id" => "gid://shopify/Order/new2" },
+                { "id" => "gid://shopify/Order/new3" }
               ]
             }
           }
@@ -501,9 +501,9 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
             "id" => "gid://shopify/Product/123",
             "title" => "Test Product",
             "variants" => {
-              "edges" => [
-                { "node" => { "id" => "gid://shopify/ProductVariant/1", "sku" => "SKU1" } },
-                { "node" => { "id" => "gid://shopify/ProductVariant/2", "sku" => "SKU2" } }
+              "nodes" => [
+                { "id" => "gid://shopify/ProductVariant/1", "sku" => "SKU1" },
+                { "id" => "gid://shopify/ProductVariant/2", "sku" => "SKU2" }
               ]
             }
           }
@@ -628,8 +628,8 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
             "id" => "gid://shopify/Product/123",
             "title" => "Test Product",
             "variants" => {
-              "edges" => [
-                { "node" => { "id" => "gid://shopify/ProductVariant/1", "sku" => "SKU1" } }
+              "nodes" => [
+                { "id" => "gid://shopify/ProductVariant/1", "sku" => "SKU1" }
               ]
             }
           }
@@ -688,8 +688,8 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
             "id" => "gid://shopify/Product/123",
             "title" => "Test Product",
             "variants" => {
-              "edges" => [
-                { "node" => { "id" => "gid://shopify/ProductVariant/1", "sku" => "SKU1" } }
+              "nodes" => [
+                { "id" => "gid://shopify/ProductVariant/1", "sku" => "SKU1" }
               ]
             }
           }
@@ -767,17 +767,15 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
             "id" => "gid://shopify/Customer/1",
             "email" => "test@example.com",
             "orders" => {
-              "edges" => [
+              "nodes" => [
                 {
-                  "node" => {
-                    "id" => "gid://shopify/Order/100",
-                    "name" => "#1001",
-                    "line_items" => {
-                      "edges" => [
-                        { "node" => { "id" => "gid://shopify/LineItem/1", "quantity" => 2 } },
-                        { "node" => { "id" => "gid://shopify/LineItem/2", "quantity" => 1 } }
-                      ]
-                    }
+                  "id" => "gid://shopify/Order/100",
+                  "name" => "#1001",
+                  "line_items" => {
+                    "nodes" => [
+                      { "id" => "gid://shopify/LineItem/1", "quantity" => 2 },
+                      { "id" => "gid://shopify/LineItem/2", "quantity" => 1 }
+                    ]
                   }
                 }
               ]

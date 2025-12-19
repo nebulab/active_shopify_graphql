@@ -2,20 +2,119 @@
 
 module ActiveShopifyGraphQL
   module Query
-    # Builds GraphQL fragments from model attributes and connections.
-    class FragmentBuilder
+    # Builds complete GraphQL queries from a LoaderContext.
+    # Handles both fragment construction and query wrapping.
+    # Delegates rendering to polymorphic Node subclasses.
+    class QueryBuilder
+      attr_reader :context
+
       def initialize(context)
         @context = context
       end
 
+      # === Class-level factory methods for building complete queries ===
+
+      def self.build_single_record_query(context)
+        builder = new(context)
+        fragment = builder.build_fragment
+
+        Node::SingleRecord.new(
+          model_type: context.graphql_type,
+          query_name: context.query_name,
+          fragment_name: context.fragment_name,
+          fragments: [fragment]
+        ).to_s
+      end
+
+      # Build a query that doesn't require an ID parameter (e.g., Customer Account API's current customer)
+      def self.build_current_customer_query(context, query_name: nil)
+        builder = new(context)
+        fragment = builder.build_fragment
+
+        Node::CurrentCustomer.new(
+          model_type: context.graphql_type,
+          query_name: query_name || context.query_name,
+          fragment_name: context.fragment_name,
+          fragments: [fragment]
+        ).to_s
+      end
+
+      def self.build_collection_query(context, query_name:, variables:, include_page_info: false)
+        builder = new(context)
+        fragment = builder.build_fragment
+
+        Node::Collection.new(
+          model_type: context.graphql_type,
+          query_name: query_name,
+          fragment_name: context.fragment_name,
+          variables: variables,
+          fragments: [fragment],
+          include_page_info: include_page_info
+        ).to_s
+      end
+
+      # Build a paginated collection query that includes pageInfo for cursor-based pagination
+      def self.build_paginated_collection_query(context, query_name:, variables:)
+        build_collection_query(context, query_name: query_name, variables: variables, include_page_info: true)
+      end
+
+      def self.build_connection_query(context, query_name:, variables:, parent_query: nil, singular: false)
+        builder = new(context)
+        fragment = builder.build_fragment
+
+        if parent_query
+          Node::NestedConnection.new(
+            query_name: query_name,
+            fragment_name: context.fragment_name,
+            variables: variables,
+            parent_query: parent_query,
+            fragments: [fragment],
+            singular: singular
+          ).to_s
+        else
+          Node::RootConnection.new(
+            query_name: query_name,
+            fragment_name: context.fragment_name,
+            variables: variables,
+            fragments: [fragment],
+            singular: singular
+          ).to_s
+        end
+      end
+
+      def self.normalize_includes(includes)
+        includes = Array(includes)
+        includes.each_with_object({}) do |inc, normalized|
+          case inc
+          when Hash
+            inc.each do |key, value|
+              key = key.to_sym
+              normalized[key] ||= []
+              case value
+              when Hash then normalized[key] << value
+              when Array then normalized[key].concat(value)
+              else normalized[key] << value
+              end
+            end
+          when Symbol, String
+            normalized[inc.to_sym] ||= []
+          end
+        end
+      end
+
+      def self.fragment_name(graphql_type)
+        "#{graphql_type}Fragment"
+      end
+
+      # === Instance methods for building fragments ===
+
       # Build a complete fragment node with all fields and connections
-      def build
+      def build_fragment
         raise NotImplementedError, "#{@context.loader_class} must define attributes" if @context.defined_attributes.empty?
 
-        fragment_node = Query::Node.new(
+        fragment_node = Node::Fragment.new(
           name: @context.fragment_name,
-          arguments: { on: @context.graphql_type },
-          node_type: :fragment
+          arguments: { on: @context.graphql_type }
         )
 
         # Add field nodes from attributes
@@ -27,7 +126,7 @@ module ActiveShopifyGraphQL
         fragment_node
       end
 
-      # Build field nodes from attribute definitions (protected for recursive calls)
+      # Build field nodes from attribute definitions
       def build_field_nodes
         path_tree = {}
         metafield_aliases = {}
@@ -56,14 +155,14 @@ module ActiveShopifyGraphQL
         nodes_from_tree(path_tree) + aliased_field_nodes + metafield_nodes(metafield_aliases) + raw_graphql_nodes
       end
 
-      # Build Node objects for all connections (protected for recursive calls)
+      # Build Node objects for all connections
       def build_connection_nodes
         return [] if @context.included_connections.empty?
 
         connections = @context.connections
         return [] if connections.empty?
 
-        normalized_includes = normalize_includes(@context.included_connections)
+        normalized_includes = self.class.normalize_includes(@context.included_connections)
 
         normalized_includes.filter_map do |connection_name, nested_includes|
           connection_config = connections[connection_name]
@@ -89,10 +188,9 @@ module ActiveShopifyGraphQL
       def build_raw_graphql_node(attr_name, raw_graphql)
         # Prepend alias to raw GraphQL for predictable response mapping
         aliased_raw_graphql = "#{attr_name}: #{raw_graphql}"
-        Node.new(
+        Node::Raw.new(
           name: "raw",
-          arguments: { raw_graphql: aliased_raw_graphql },
-          node_type: :raw
+          arguments: { raw_graphql: aliased_raw_graphql }
         )
       end
 
@@ -100,7 +198,7 @@ module ActiveShopifyGraphQL
         alias_name = attr_name.to_s
         # Only add alias if the attr_name differs from the GraphQL field name
         alias_name = nil if alias_name == path
-        Node.new(name: path, alias_name: alias_name, node_type: :field)
+        Node::Field.new(name: path, alias_name: alias_name)
       end
 
       def build_path_tree(path_tree, path)
@@ -120,22 +218,21 @@ module ActiveShopifyGraphQL
       def nodes_from_tree(tree)
         tree.map do |key, value|
           if value == true
-            Node.new(name: key, node_type: :field)
+            Node::Field.new(name: key)
           else
             children = nodes_from_tree(value)
-            Node.new(name: key, node_type: :field, children: children)
+            Node::Field.new(name: key, children: children)
           end
         end
       end
 
       def metafield_nodes(metafield_aliases)
         metafield_aliases.map do |alias_name, config|
-          value_node = Node.new(name: config[:value_field], node_type: :field)
-          Node.new(
+          value_node = Node::Field.new(name: config[:value_field])
+          Node::Field.new(
             name: "metafield",
             alias_name: alias_name,
             arguments: { namespace: config[:namespace], key: config[:key] },
-            node_type: :field,
             children: [value_node]
           )
         end
@@ -156,74 +253,37 @@ module ActiveShopifyGraphQL
         # Add alias if the connection name differs from the query name
         alias_name = original_name.to_s == query_name ? nil : original_name.to_s
 
-        node_type = connection_type == :singular ? :singular : :connection
-        Node.new(
-          name: query_name,
-          alias_name: alias_name,
-          arguments: formatted_args,
-          node_type: node_type,
-          children: child_nodes
-        )
+        if connection_type == :singular
+          Node::Singular.new(
+            name: query_name,
+            alias_name: alias_name,
+            arguments: formatted_args,
+            children: child_nodes
+          )
+        else
+          Node::Connection.new(
+            name: query_name,
+            alias_name: alias_name,
+            arguments: formatted_args,
+            children: child_nodes
+          )
+        end
       end
 
       def build_target_field_nodes(target_context, nested_includes)
         # Build attribute nodes
         attribute_nodes = if target_context.defined_attributes.any?
-                            FragmentBuilder.new(target_context.with_connections([])).build_field_nodes
+                            QueryBuilder.new(target_context.with_connections([])).build_field_nodes
                           else
-                            [Node.new(name: "id", node_type: :field)]
+                            [Node::Field.new(name: "id")]
                           end
 
         # Build nested connection nodes
         return attribute_nodes if nested_includes.empty?
 
-        nested_builder = FragmentBuilder.new(target_context)
+        nested_builder = QueryBuilder.new(target_context)
         nested_connection_nodes = nested_builder.build_connection_nodes
         attribute_nodes + nested_connection_nodes
-      end
-
-      # Normalize includes from various formats to a consistent hash structure
-      def normalize_includes(includes)
-        includes = Array(includes)
-        includes.each_with_object({}) do |inc, normalized|
-          case inc
-          when Hash
-            inc.each do |key, value|
-              key = key.to_sym
-              normalized[key] ||= []
-              case value
-              when Hash then normalized[key] << value
-              when Array then normalized[key].concat(value)
-              else normalized[key] << value
-              end
-            end
-          when Symbol, String
-            normalized[inc.to_sym] ||= []
-          end
-        end
-      end
-
-      class << self
-        # Expose for external use (Query::Tree needs this)
-        def normalize_includes(includes)
-          includes = Array(includes)
-          includes.each_with_object({}) do |inc, normalized|
-            case inc
-            when Hash
-              inc.each do |key, value|
-                key = key.to_sym
-                normalized[key] ||= []
-                case value
-                when Hash then normalized[key] << value
-                when Array then normalized[key].concat(value)
-                else normalized[key] << value
-                end
-              end
-            when Symbol, String
-              normalized[inc.to_sym] ||= []
-            end
-          end
-        end
       end
     end
   end

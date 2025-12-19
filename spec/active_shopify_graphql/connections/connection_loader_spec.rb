@@ -7,7 +7,7 @@ RSpec.describe ActiveShopifyGraphQL::Connections::ConnectionLoader do
     it "loads records from root-level connection and returns empty array for empty response" do
       context = build_context(graphql_type: "Order")
       loader_instance = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      allow(loader_instance).to receive(:perform_graphql_query).and_return({ "data" => { "orders" => { "edges" => [] } } })
+      allow(loader_instance).to receive(:perform_graphql_query).and_return({ "data" => { "orders" => { "nodes" => [] } } })
       loader = described_class.new(context, loader_instance: loader_instance)
 
       result = loader.load_records("orders", { first: 10 })
@@ -37,7 +37,7 @@ RSpec.describe ActiveShopifyGraphQL::Connections::ConnectionLoader do
       parent.id = "gid://shopify/Customer/123"
       context = build_context(graphql_type: "Order")
       loader_instance = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      allow(loader_instance).to receive(:perform_graphql_query).and_return({ "data" => { "customer" => { "orders" => { "edges" => [] } } } })
+      allow(loader_instance).to receive(:perform_graphql_query).and_return({ "data" => { "customer" => { "orders" => { "nodes" => [] } } } })
       loader = described_class.new(context, loader_instance: loader_instance)
 
       result = loader.load_records("orders", { first: 10 }, parent, { nested: true })
@@ -61,7 +61,7 @@ RSpec.describe ActiveShopifyGraphQL::Connections::ConnectionLoader do
       parent.id = 123
       context = build_context(graphql_type: "Order")
       loader_instance = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      allow(loader_instance).to receive(:perform_graphql_query).and_return({ "data" => { "customer" => { "orders" => { "edges" => [] } } } })
+      allow(loader_instance).to receive(:perform_graphql_query).and_return({ "data" => { "customer" => { "orders" => { "nodes" => [] } } } })
       loader = described_class.new(context, loader_instance: loader_instance)
 
       loader.load_records("orders", {}, parent, { nested: true })
@@ -83,7 +83,7 @@ RSpec.describe ActiveShopifyGraphQL::Connections::ConnectionLoader do
       parent.gid = "gid://shopify/Customer/789"
       context = build_context(graphql_type: "Order")
       loader_instance = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      allow(loader_instance).to receive(:perform_graphql_query).and_return({ "data" => { "customer" => { "orders" => { "edges" => [] } } } })
+      allow(loader_instance).to receive(:perform_graphql_query).and_return({ "data" => { "customer" => { "orders" => { "nodes" => [] } } } })
       loader = described_class.new(context, loader_instance: loader_instance)
 
       loader.load_records("orders", {}, parent, { nested: true })

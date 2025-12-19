@@ -79,7 +79,7 @@ module ActiveShopifyGraphQL
 
     # Returns the complete GraphQL fragment
     def fragment
-      Query::FragmentBuilder.new(context).build
+      Query::QueryBuilder.new(context).build_fragment
     end
 
     # Delegate query building methods
@@ -92,7 +92,7 @@ module ActiveShopifyGraphQL
     end
 
     def graphql_query(_model_type = nil)
-      Query::Tree.build_single_record_query(context)
+      Query::QueryBuilder.build_single_record_query(context)
     end
 
     # Map the GraphQL response to model attributes
@@ -156,11 +156,10 @@ module ActiveShopifyGraphQL
       collection_query_name = query_name.pluralize
       variables = { query: search_query.to_s, first: limit }
 
-      query = Query::Tree.build_collection_query(
+      query = Query::QueryBuilder.build_collection_query(
         context,
         query_name: collection_query_name,
-        variables: variables,
-        connection_type: :nodes_only
+        variables: variables
       )
 
       response = perform_graphql_query(query, **variables)
@@ -186,7 +185,7 @@ module ActiveShopifyGraphQL
         before: before
       )
 
-      query = Query::Tree.build_paginated_collection_query(
+      query = Query::QueryBuilder.build_paginated_collection_query(
         context,
         query_name: collection_query_name,
         variables: variables
