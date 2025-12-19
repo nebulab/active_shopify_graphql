@@ -78,58 +78,35 @@ module ActiveShopifyGraphQL
       end
     end
 
-    # Simple proxy class to handle loader delegation
+    # Simple proxy class to handle loader delegation when using a specific API
+    # This provides a consistent interface with Relation while using a custom loader
     class LoaderProxy
-      def initialize(model_class, loader, included_connections: [], selected_attributes: nil)
+      def initialize(model_class, loader)
         @model_class = model_class
         @loader = loader
-        @included_connections = included_connections
-        @selected_attributes = selected_attributes
       end
 
+      # Create a Relation with this loader's configuration
+      # @return [Relation] A relation configured with this loader
+      def all
+        build_relation
+      end
+
+      # Delegate chainable methods to Relation
       def includes(*connection_names)
-        # Validate connections exist
-        @model_class.send(:validate_includes_connections!, connection_names) if @model_class.respond_to?(:validate_includes_connections!, true)
-
-        # Collect connections with eager_load: true
-        auto_included_connections = @model_class.connections.select { |_name, config| config[:eager_load] }.keys
-
-        # Merge manual and automatic connections
-        all_included_connections = (@included_connections + connection_names + auto_included_connections).uniq
-
-        # Create a new loader with the included connections
-        new_loader = @loader.class.new(
-          @model_class,
-          *loader_extra_args,
-          selected_attributes: @selected_attributes,
-          included_connections: all_included_connections
-        )
-
-        LoaderProxy.new(
-          @model_class,
-          new_loader,
-          included_connections: all_included_connections,
-          selected_attributes: @selected_attributes
-        )
+        build_relation.includes(*connection_names)
       end
 
       def select(*attribute_names)
-        new_selected = attribute_names.map(&:to_sym)
+        build_relation.select(*attribute_names)
+      end
 
-        # Create a new loader with the selected attributes
-        new_loader = @loader.class.new(
-          @model_class,
-          *loader_extra_args,
-          selected_attributes: new_selected,
-          included_connections: @included_connections
-        )
+      def where(*args, **options)
+        build_relation.where(*args, **options)
+      end
 
-        LoaderProxy.new(
-          @model_class,
-          new_loader,
-          included_connections: @included_connections,
-          selected_attributes: new_selected
-        )
+      def find_by(conditions = {}, **options)
+        build_relation.find_by(conditions, **options)
       end
 
       def find(id = nil)
@@ -144,17 +121,7 @@ module ActiveShopifyGraphQL
         # For other cases, require ID and use standard flow
         return nil if id.nil?
 
-        gid = GidHelper.normalize_gid(id, @model_class.model_name.name.demodulize)
-
-        attributes = @loader.load_attributes(gid)
-        return nil if attributes.nil?
-
-        @model_class.new(attributes)
-      end
-
-      # Delegate where to the model class with the specific loader
-      def where(*args, **options)
-        @model_class.where(*args, **options.merge(loader: @loader))
+        build_relation.find(id)
       end
 
       attr_reader :loader
@@ -165,6 +132,14 @@ module ActiveShopifyGraphQL
       alias to_s inspect
 
       private
+
+      def build_relation
+        Relation.new(
+          @model_class,
+          loader_class: @loader.class,
+          loader_extra_args: loader_extra_args
+        )
+      end
 
       # Returns extra arguments needed when creating a new loader of the same type
       # For CustomerAccountApiLoader, this includes the token

@@ -5,26 +5,34 @@ module ActiveShopifyGraphQL
     extend ActiveSupport::Concern
 
     class_methods do
-      # Find a single record by ID using the provided loader
+      # Returns a Relation for the model that can be chained
+      # @return [Relation] A new relation for this model
+      def all
+        Relation.new(self)
+      end
+
+      # Find a single record by ID
       # @param id [String, Integer] The record ID (will be converted to GID automatically)
-      # @param loader [ActiveShopifyGraphQL::Loader] The loader to use for fetching data
+      # @param loader [ActiveShopifyGraphQL::Loader] The loader to use for fetching data (deprecated, use Relation chain)
       # @return [Object] The model instance
       # @raise [ActiveShopifyGraphQL::ObjectNotFoundError] If the record is not found
-      def find(id, loader: default_loader)
-        gid = GidHelper.normalize_gid(id, model_name.name.demodulize)
+      def find(id, loader: nil)
+        # For backward compatibility: if loader is provided, use old behavior
+        if loader
+          gid = GidHelper.normalize_gid(id, model_name.name.demodulize)
+          result = if loader.has_included_connections?
+                     loader.load_with_instance(gid, self)
+                   else
+                     attributes = loader.load_attributes(gid)
+                     attributes.nil? ? nil : new(attributes)
+                   end
+          raise ObjectNotFoundError, "Couldn't find #{name} with id=#{id}" if result.nil?
 
-        # If we have included connections, we need to handle inverse_of properly
-        result =
-          if loader.has_included_connections?
-            loader.load_with_instance(gid, self)
-          else
-            attributes = loader.load_attributes(gid)
-            attributes.nil? ? nil : new(attributes)
-          end
+          return result
+        end
 
-        raise ObjectNotFoundError, "Couldn't find #{name} with id=#{id}" if result.nil?
-
-        result
+        # New behavior: delegate to Relation
+        all.find(id)
       end
 
       # Returns the default loader for this model's queries
@@ -51,36 +59,6 @@ module ActiveShopifyGraphQL
         @default_loader = loader
       end
 
-      # Select specific attributes to optimize GraphQL queries
-      # @param *attributes [Symbol] The attributes to select
-      # @return [Class] A class with modified default loader for method chaining
-      #
-      # @example
-      #   Customer.select(:id, :email).find(123)
-      #   Customer.select(:id, :email).where(first_name: "John")
-      def select(*attributes)
-        # Validate attributes exist
-        attrs = Array(attributes).flatten.map(&:to_sym)
-        validate_select_attributes!(attrs)
-
-        # Create a new class that inherits from self with a modified default loader
-        selected_class = Class.new(self)
-
-        # Override the default_loader method to return a loader with selected attributes
-        selected_class.define_singleton_method(:default_loader) do
-          @default_loader ||= superclass.default_loader.class.new(
-            superclass,
-            selected_attributes: attrs
-          )
-        end
-
-        # Preserve the original class name and model name for GraphQL operations
-        selected_class.define_singleton_method(:name) { superclass.name }
-        selected_class.define_singleton_method(:model_name) { superclass.model_name }
-
-        selected_class
-      end
-
       # Find a single record by attribute conditions
       # @param conditions [Hash] The conditions to query
       # @return [Object, nil] The first matching model instance or nil if not found
@@ -90,11 +68,11 @@ module ActiveShopifyGraphQL
       #   Customer.find_by(first_name: "John", country: "Canada")
       #   Customer.find_by(orders_count: { gte: 5 })
       def find_by(conditions = {}, **options)
-        where(conditions.empty? ? options : conditions).first
+        all.find_by(conditions.empty? ? options : conditions)
       end
 
       # Query for multiple records using attribute conditions
-      # Returns a QueryScope that supports chaining .limit() and .in_pages()
+      # Returns a Relation that supports chaining .limit(), .includes(), .find_by() and .in_pages()
       #
       # Supports three query styles:
       # 1. Hash-based (safe, with automatic sanitization) - burden on library
@@ -104,7 +82,7 @@ module ActiveShopifyGraphQL
       # @param conditions_or_first_condition [Hash, String] The conditions to query
       # @param args [Array] Additional positional arguments for parameter binding
       # @param options [Hash] Named parameters for parameter binding
-      # @return [QueryScope] A chainable query scope
+      # @return [Relation] A chainable relation
       #
       # @example Hash-based query (safe, escaped)
       #   Customer.where(email: "john@example.com").to_a
@@ -131,26 +109,29 @@ module ActiveShopifyGraphQL
       #     page.each { |customer| process(customer) }
       #   end
       def where(conditions_or_first_condition = {}, *args, **options)
-        # Handle string-based queries (raw query syntax or with parameter binding)
-        if conditions_or_first_condition.is_a?(String)
-          # Named parameters can come from keyword args: where("sku::sku", sku: "foo")
-          # Positional parameters come from positional args: where("sku:?", "foo")
-          binding_params = args.empty? && options.any? ? [options] : args
+        all.where(conditions_or_first_condition, *args, **options)
+      end
 
-          conditions = binding_params.empty? ? conditions_or_first_condition : [conditions_or_first_condition, *binding_params]
-          return QueryScope.new(self, conditions: conditions)
-        end
+      # Select specific attributes to optimize GraphQL queries
+      # @param attributes [Symbol] The attributes to select
+      # @return [Relation] A relation with selected attributes
+      #
+      # @example
+      #   Customer.select(:id, :email).find(123)
+      #   Customer.select(:id, :email).where(first_name: "John")
+      def select(*attributes)
+        all.select(*attributes)
+      end
 
-        # Handle hash-based queries (with sanitization)
-        # where(email: "john@example.com") - keyword args become options
-        # where({ email: "john@example.com" }) - explicit hash
-        conditions = if conditions_or_first_condition.is_a?(Hash) && !conditions_or_first_condition.empty?
-                       conditions_or_first_condition
-                     else
-                       options
-                     end
-
-        QueryScope.new(self, conditions: conditions)
+      # Include connections for eager loading
+      # @param connection_names [Array<Symbol>] Connection names to include
+      # @return [Relation] A relation with connections included
+      #
+      # @example
+      #   Customer.includes(:orders).find(123)
+      #   Customer.includes(:orders, :addresses).where(country: "Canada")
+      def includes(*connection_names)
+        all.includes(*connection_names)
       end
 
       private

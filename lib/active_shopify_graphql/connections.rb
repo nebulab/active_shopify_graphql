@@ -113,28 +113,6 @@ module ActiveShopifyGraphQL
         end
       end
 
-      # Load records with eager-loaded connections
-      # @param *connection_names [Symbol, Hash] The connection names to eager load
-      # @return [Class] A modified class for method chaining
-      #
-      # @example
-      #   Customer.includes(:orders).find(123)
-      #   Customer.includes(:orders, :addresses).where(email: "john@example.com")
-      #   Order.includes(line_items: :variant)
-      def includes(*connection_names)
-        # Validate connections exist
-        validate_includes_connections!(connection_names)
-
-        # Collect connections with eager_load: true
-        auto_included_connections = connections.select { |_name, config| config[:eager_load] }.keys
-
-        # Merge manual and automatic connections
-        all_included_connections = (connection_names + auto_included_connections).uniq
-
-        # Create a scope object that holds the included connections
-        IncludesScope.new(self, all_included_connections)
-      end
-
       private
 
       def validate_inverse_of!(_name, _target_class_name, _inverse_name)
