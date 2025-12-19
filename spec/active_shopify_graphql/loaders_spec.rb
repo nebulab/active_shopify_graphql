@@ -159,7 +159,7 @@ RSpec.describe ActiveShopifyGraphQL::Model::LoaderSwitchable::LoaderProxy do
       model_class = build_customer_class
       stub_const("Customer", model_class)
       mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      allow(mock_client).to receive(:execute).and_return({ "data" => { "customers" => { "edges" => [] } } })
+      allow(mock_client).to receive(:execute).and_return({ "data" => { "customers" => { "nodes" => [] } } })
       ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
 
       loader = ActiveShopifyGraphQL::Loaders::AdminApiLoader.new(model_class)

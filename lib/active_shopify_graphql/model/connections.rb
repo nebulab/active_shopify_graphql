@@ -20,7 +20,7 @@ module ActiveShopifyGraphQL
           connection(name, type: :singular, inverse_of: inverse_of, **options)
         end
 
-        # Define a plural connection (returns a collection via edges)
+        # Define a plural connection (returns a collection via nodes)
         # @see #connection
         def has_many_connected(name, inverse_of: nil, **options)
           connection(name, type: :connection, inverse_of: inverse_of, **options)

@@ -124,7 +124,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::Relation do
       product_class = build_product_class
       stub_const("Product", product_class)
       mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      allow(mock_client).to receive(:execute).and_return({ "data" => { "products" => { "edges" => [] } } })
+      allow(mock_client).to receive(:execute).and_return({ "data" => { "products" => { "nodes" => [] } } })
       ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
 
       relation = described_class.new(product_class)
@@ -246,7 +246,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::Relation do
       stub_const("Customer", customer_class)
       stub_const("Order", build_order_class)
       mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      allow(mock_client).to receive(:execute).and_return({ "data" => { "customers" => { "edges" => [] } } })
+      allow(mock_client).to receive(:execute).and_return({ "data" => { "customers" => { "nodes" => [] } } })
       ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
 
       result = customer_class.includes(:orders).find_by(email: "test@example.com")
@@ -259,7 +259,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::Relation do
       stub_const("Customer", customer_class)
       stub_const("Order", build_order_class)
       mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      allow(mock_client).to receive(:execute).and_return({ "data" => { "customers" => { "edges" => [] } } })
+      allow(mock_client).to receive(:execute).and_return({ "data" => { "customers" => { "nodes" => [] } } })
       ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
 
       result = customer_class.includes(:orders).where(country: "Canada").first

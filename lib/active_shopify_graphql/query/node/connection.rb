@@ -3,7 +3,7 @@
 module ActiveShopifyGraphQL
   module Query
     class Node
-      # Renders connection fields using the nodes pattern (not edges).
+      # Renders connection fields using the nodes pattern.
       # Example: `orders(first: 10) { nodes { id createdAt } }`
       class Connection < Node
         def to_s

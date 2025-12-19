@@ -527,9 +527,9 @@ RSpec.describe ActiveShopifyGraphQL::Model::Connections do
                 "id" => kwargs[:id],
                 "title" => "Test Product",
                 "variants" => {
-                  "edges" => [
-                    { "node" => { "id" => "gid://shopify/ProductVariant/1", "sku" => "SKU1" } },
-                    { "node" => { "id" => "gid://shopify/ProductVariant/2", "sku" => "SKU2" } }
+                  "nodes" => [
+                    { "id" => "gid://shopify/ProductVariant/1", "sku" => "SKU1" },
+                    { "id" => "gid://shopify/ProductVariant/2", "sku" => "SKU2" }
                   ]
                 }
               }
@@ -567,9 +567,9 @@ RSpec.describe ActiveShopifyGraphQL::Model::Connections do
                     "id" => "gid://shopify/Product/123",
                     "title" => "Product 1",
                     "variants" => {
-                      "edges" => [
-                        { "node" => { "id" => "gid://shopify/ProductVariant/1", "sku" => "SKU1" } },
-                        { "node" => { "id" => "gid://shopify/ProductVariant/2", "sku" => "SKU2" } }
+                      "nodes" => [
+                        { "id" => "gid://shopify/ProductVariant/1", "sku" => "SKU1" },
+                        { "id" => "gid://shopify/ProductVariant/2", "sku" => "SKU2" }
                       ]
                     }
                   },
@@ -577,8 +577,8 @@ RSpec.describe ActiveShopifyGraphQL::Model::Connections do
                     "id" => "gid://shopify/Product/456",
                     "title" => "Product 2",
                     "variants" => {
-                      "edges" => [
-                        { "node" => { "id" => "gid://shopify/ProductVariant/3", "sku" => "SKU3" } }
+                      "nodes" => [
+                        { "id" => "gid://shopify/ProductVariant/3", "sku" => "SKU3" }
                       ]
                     }
                   }

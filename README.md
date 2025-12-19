@@ -166,7 +166,7 @@ class Product
   attribute :product_bundle,
     path: "bundle",  # The alias will be used as the response key
     type: :json,
-    raw_graphql: 'metafield(namespace: "bundles", key: "items") { references(first: 10) { edges { node { ... on Product { id title } } } } }'
+    raw_graphql: 'metafield(namespace: "bundles", key: "items") { references(first: 10) { nodes { ... on Product { id title } } } }'
 end
 ```
 
@@ -512,10 +512,10 @@ fragment CustomerFragment on Customer {
   id
   displayName
   orders(first: 2) {
-    edges { node { id name } }
+    nodes { id name }
   }
   recent_orders: orders(first: 5, reverse: true, sortKey: CREATED_AT) {
-    edges { node { id name } }
+    nodes { id name }
   }
 }
 ```
@@ -621,25 +621,21 @@ query customer($id: ID!) {
 
     # Eager-loaded connections
     orders(first: 10, sortKey: CREATED_AT, reverse: false) {
-      edges {
-        node {
-          id
-          name
-          totalPriceSet {
-            shopMoney {
-              amount
-            }
+      nodes {
+        id
+        name
+        totalPriceSet {
+          shopMoney {
+            amount
           }
         }
       }
     }
     addresses(first: 5, sortKey: CREATED_AT, reverse: false) {
-      edges {
-        node {
-          id
-          address1
-          city
-        }
+      nodes {
+        id
+        address1
+        city
       }
     }
   }

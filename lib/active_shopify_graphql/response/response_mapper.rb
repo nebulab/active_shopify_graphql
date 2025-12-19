@@ -79,11 +79,10 @@ module ActiveShopifyGraphQL
 
           build_model_instance(node_data)
         else
-          edges = response_data.dig("data", parent_query_name, connection_field_name, "edges")
-          return [] unless edges
+          nodes = response_data.dig("data", parent_query_name, connection_field_name, "nodes")
+          return [] unless nodes
 
-          edges.filter_map do |edge|
-            node_data = edge["node"]
+          nodes.filter_map do |node_data|
             build_model_instance(node_data) if node_data
           end
         end
@@ -99,11 +98,10 @@ module ActiveShopifyGraphQL
 
           build_model_instance(node_data)
         else
-          edges = response_data.dig("data", query_name, "edges")
-          return [] unless edges
+          nodes = response_data.dig("data", query_name, "nodes")
+          return [] unless nodes
 
-          edges.filter_map do |edge|
-            node_data = edge["node"]
+          nodes.filter_map do |node_data|
             build_model_instance(node_data) if node_data
           end
         end
@@ -188,11 +186,10 @@ module ActiveShopifyGraphQL
                                       parent_connection_name: connection_name,
                                       connection_config: connection_config)
         else
-          edges = node_data.dig(response_key, "edges")
-          return nil unless edges
+          nodes = node_data.dig(response_key, "nodes")
+          return nil unless nodes
 
-          edges.filter_map do |edge|
-            item_data = edge["node"]
+          nodes.filter_map do |item_data|
             if item_data
               build_nested_model_instance(item_data, target_class, nested_includes,
                                           parent_instance: parent_instance,
