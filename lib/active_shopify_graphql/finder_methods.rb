@@ -103,11 +103,13 @@ module ActiveShopifyGraphQL
       # Query for multiple records using attribute conditions
       # Returns a QueryScope that supports chaining .limit() and .in_pages()
       #
-      # Supports two query styles:
+      # Supports three query styles:
       # 1. Hash-based (safe, with automatic sanitization) - burden on library
       # 2. String-based (raw query, no sanitization) - burden on developer
+      # 3. String with parameter binding (safe, with sanitization) - burden on library
       #
       # @param conditions_or_first_condition [Hash, String] The conditions to query
+      # @param args [Array] Additional positional arguments for parameter binding
       # @param options [Hash] Options hash containing loader (when first arg is a Hash)
       # @option options [ActiveShopifyGraphQL::Loader] :loader The loader to use for fetching data
       # @return [QueryScope] A chainable query scope
@@ -120,6 +122,14 @@ module ActiveShopifyGraphQL
       # @example String-based query (raw, allows wildcards)
       #   ProductVariant.where("sku:*").to_a
       #   # => produces: query:"sku:*" (wildcard matching enabled)
+      #
+      # @example String with positional parameter binding (safe)
+      #   ProductVariant.where("sku:? product_id:?", "Good ol' value", 123).to_a
+      #   # => produces: query:"sku:'Good ol\\' value' product_id:123"
+      #
+      # @example String with named parameter binding (safe)
+      #   ProductVariant.where("sku::sku product_id::id", { sku: "A-SKU", id: 123 }).to_a
+      #   # => produces: query:"sku:'A-SKU' product_id:123"
       #
       # @example With limit
       #   Customer.where(first_name: "John").limit(100).to_a
@@ -134,11 +144,16 @@ module ActiveShopifyGraphQL
       #   page.has_next_page? # => true
       #   next_page = page.next_page
       def where(conditions_or_first_condition = {}, *args, **options)
-        # Handle string-based queries (raw query syntax)
+        # Handle string-based queries (raw query syntax or with parameter binding)
         if conditions_or_first_condition.is_a?(String)
-          loader = options[:loader] || default_loader
+          # Separate binding args from option hashes
+          binding_args = args.reject { |arg| arg.is_a?(Hash) && arg.key?(:loader) }
+          loader_option = args.find { |arg| arg.is_a?(Hash) && arg.key?(:loader) }
+          loader = loader_option&.fetch(:loader, nil) || options[:loader] || default_loader
           loader.instance_variable_set(:@model_class, self) if loader.instance_variable_get(:@model_class).nil?
-          return QueryScope.new(self, conditions: conditions_or_first_condition, loader: loader)
+
+          conditions = binding_args.empty? ? conditions_or_first_condition : [conditions_or_first_condition, *binding_args]
+          return QueryScope.new(self, conditions: conditions, loader: loader)
         end
 
         # Handle hash-based queries (with sanitization)

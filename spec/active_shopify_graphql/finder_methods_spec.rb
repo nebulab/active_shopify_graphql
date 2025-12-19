@@ -392,6 +392,61 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
         product_variant_class.where("sku:*").to_a
       end
     end
+
+    context "with parameter binding" do
+      it "binds positional parameters safely" do
+        mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+        ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+        product_variant_class = build_product_variant_class
+        stub_const("ProductVariant", product_variant_class)
+        expect(mock_client).to receive(:execute) do |_query, **variables|
+          expect(variables[:query]).to eq("sku:'Good ol\\' value' product_id:123")
+          { "data" => { "productVariants" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
+        end
+
+        product_variant_class.where("sku:? product_id:?", "Good ol' value", 123).to_a
+      end
+
+      it "binds named parameters safely" do
+        mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+        ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+        product_variant_class = build_product_variant_class
+        stub_const("ProductVariant", product_variant_class)
+        expect(mock_client).to receive(:execute) do |_query, **variables|
+          expect(variables[:query]).to eq("sku:'A-SKU' product_id:123")
+          { "data" => { "productVariants" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
+        end
+
+        product_variant_class.where("sku::sku product_id::product_id", { sku: "A-SKU", product_id: 123 }).to_a
+      end
+
+      it "escapes special characters in bound parameters" do
+        mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+        ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+        customer_class = build_customer_class
+        stub_const("Customer", customer_class)
+        expect(mock_client).to receive(:execute) do |_query, **variables|
+          expect(variables[:query]).to eq("email:'test\\\"quote\\\"@example.com'")
+          { "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
+        end
+
+        customer_class.where("email:?", 'test"quote"@example.com').to_a
+      end
+
+      it "can chain parameter binding with limit" do
+        mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+        ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+        product_variant_class = build_product_variant_class
+        stub_const("ProductVariant", product_variant_class)
+        expect(mock_client).to receive(:execute) do |_query, **variables|
+          expect(variables[:query]).to eq("sku:'TEST'")
+          expect(variables[:first]).to eq(50)
+          { "data" => { "productVariants" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
+        end
+
+        product_variant_class.where("sku:?", "TEST").limit(50).to_a
+      end
+    end
   end
 
   describe ".select" do
