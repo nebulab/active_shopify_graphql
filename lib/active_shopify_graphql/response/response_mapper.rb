@@ -53,7 +53,7 @@ module ActiveShopifyGraphQL
         connections = @context.connections
         return {} if connections.empty?
 
-        normalized_includes = Query::FragmentBuilder.normalize_includes(@context.included_connections)
+        normalized_includes = Query::QueryBuilder.normalize_includes(@context.included_connections)
         connection_cache = {}
 
         normalized_includes.each do |connection_name, nested_includes|

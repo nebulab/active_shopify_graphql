@@ -80,8 +80,7 @@ RSpec.describe ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader do
 
       expect(query).to include("query getCurrentCustomer")
       expect(query).to include("orders(")
-      expect(query).to include("edges {")
-      expect(query).to include("node {")
+      expect(query).to include("nodes {")
     end
 
     it "uses Query::Tree.build_single_record_query for non-Customer types" do
@@ -136,8 +135,7 @@ RSpec.describe ActiveShopifyGraphQL::Model::LoaderSwitchable::LoaderProxy do
       query = relation_loader.graphql_query
 
       expect(query).to include("orders(")
-      expect(query).to include("edges {")
-      expect(query).to include("node {")
+      expect(query).to include("nodes {")
     end
   end
 

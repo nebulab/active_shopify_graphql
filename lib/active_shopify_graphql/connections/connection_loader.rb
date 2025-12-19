@@ -33,14 +33,14 @@ module ActiveShopifyGraphQL
       def load_nested_connection(query_name, variables, parent, connection_config)
         parent_type = parent.class.graphql_type_for_loader(@context.loader_class)
         parent_query_name = parent_type.camelize(:lower)
-        connection_type = connection_config&.dig(:type) || :connection
+        singular = connection_config&.dig(:type) == :singular
 
-        query = Query::Tree.build_connection_query(
+        query = Query::QueryBuilder.build_connection_query(
           @context,
           query_name: query_name,
           variables: variables,
           parent_query: "#{parent_query_name}(id: $id)",
-          connection_type: connection_type
+          singular: singular
         )
 
         parent_id = extract_gid(parent)
@@ -53,14 +53,14 @@ module ActiveShopifyGraphQL
       end
 
       def load_root_connection(query_name, variables, connection_config)
-        connection_type = connection_config&.dig(:type) || :connection
+        singular = connection_config&.dig(:type) == :singular
 
-        query = Query::Tree.build_connection_query(
+        query = Query::QueryBuilder.build_connection_query(
           @context,
           query_name: query_name,
           variables: variables,
           parent_query: nil,
-          connection_type: connection_type
+          singular: singular
         )
 
         response_data = @loader_instance.perform_graphql_query(query)

@@ -27,12 +27,6 @@ RSpec.describe ActiveShopifyGraphQL::Configuration do
 
       expect(config.log_queries).to be false
     end
-
-    it "sets compact_queries to false by default" do
-      config = described_class.new
-
-      expect(config.compact_queries).to be false
-    end
   end
 
   describe "attribute accessors" do
@@ -69,14 +63,6 @@ RSpec.describe ActiveShopifyGraphQL::Configuration do
       config.log_queries = true
 
       expect(config.log_queries).to be true
-    end
-
-    it "allows setting and getting compact_queries" do
-      config = described_class.new
-
-      config.compact_queries = true
-
-      expect(config.compact_queries).to be true
     end
   end
 end
@@ -142,13 +128,11 @@ RSpec.describe ActiveShopifyGraphQL do
     it "resets all configuration values to defaults" do
       described_class.configure do |config|
         config.log_queries = true
-        config.compact_queries = true
       end
 
       described_class.reset_configuration!
 
       expect(described_class.configuration.log_queries).to be false
-      expect(described_class.configuration.compact_queries).to be false
     end
   end
 end
