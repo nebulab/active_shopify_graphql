@@ -309,6 +309,89 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
 
       customer_class.where(email: "test@example.com").to_a
     end
+
+    context "with string-based conditions (raw query)" do
+      it "accepts string conditions for wildcard matching" do
+        mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+        ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+        product_variant_class = build_product_variant_class
+        stub_const("ProductVariant", product_variant_class)
+        expect(mock_client).to receive(:execute) do |_query, **variables|
+          expect(variables[:query]).to eq("sku:*")
+          { "data" => { "productVariants" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
+        end
+
+        product_variant_class.where("sku:*").to_a
+      end
+
+      it "does not sanitize raw string queries" do
+        mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+        ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+        customer_class = build_customer_class
+        stub_const("Customer", customer_class)
+        expect(mock_client).to receive(:execute) do |_query, **variables|
+          expect(variables[:query]).to eq("email:test@example.com AND first_name:John")
+          { "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
+        end
+
+        customer_class.where("email:test@example.com AND first_name:John").to_a
+      end
+
+      it "allows complex raw queries with parentheses and OR" do
+        mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+        ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+        customer_class = build_customer_class
+        stub_const("Customer", customer_class)
+        expect(mock_client).to receive(:execute) do |_query, **variables|
+          expect(variables[:query]).to eq("(status:open OR status:pending) AND total_price:>100")
+          { "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
+        end
+
+        customer_class.where("(status:open OR status:pending) AND total_price:>100").to_a
+      end
+
+      it "can chain string-based conditions with limit" do
+        mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+        ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+        product_variant_class = build_product_variant_class
+        stub_const("ProductVariant", product_variant_class)
+        expect(mock_client).to receive(:execute) do |_query, **variables|
+          expect(variables[:query]).to eq("sku:*")
+          expect(variables[:first]).to eq(50)
+          { "data" => { "productVariants" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
+        end
+
+        product_variant_class.where("sku:*").limit(50).to_a
+      end
+    end
+
+    context "hash vs string query distinction" do
+      it "escapes wildcards in hash conditions" do
+        mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+        ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+        product_variant_class = build_product_variant_class
+        stub_const("ProductVariant", product_variant_class)
+        expect(mock_client).to receive(:execute) do |_query, **variables|
+          expect(variables[:query]).to eq("sku:'*'")
+          { "data" => { "productVariants" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
+        end
+
+        product_variant_class.where(sku: "*").to_a
+      end
+
+      it "does not escape wildcards in string conditions" do
+        mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+        ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+        product_variant_class = build_product_variant_class
+        stub_const("ProductVariant", product_variant_class)
+        expect(mock_client).to receive(:execute) do |_query, **variables|
+          expect(variables[:query]).to eq("sku:*")
+          { "data" => { "productVariants" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
+        end
+
+        product_variant_class.where("sku:*").to_a
+      end
+    end
   end
 
   describe ".select" do

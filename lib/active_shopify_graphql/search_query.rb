@@ -1,7 +1,18 @@
 # frozen_string_literal: true
 
+require_relative "search_query/hash_condition_formatter"
+
 module ActiveShopifyGraphQL
   # Represents a Shopify search query, converting Ruby conditions into Shopify's search syntax
+  # Supports both hash-based conditions (with sanitization) and string-based conditions (raw)
+  #
+  # @example Hash-based query (safe, with sanitization)
+  #   SearchQuery.new(sku: "ABC-123").to_s
+  #   # => "sku:'ABC-123'"
+  #
+  # @example String-based query (raw, user responsibility for safety)
+  #   SearchQuery.new("sku:* AND product_id:123").to_s
+  #   # => "sku:* AND product_id:123"
   class SearchQuery
     def initialize(conditions = {})
       @conditions = conditions
@@ -10,107 +21,14 @@ module ActiveShopifyGraphQL
     # Converts conditions to Shopify search query string
     # @return [String] The Shopify query string
     def to_s
-      return "" if @conditions.empty?
-
-      query_parts = @conditions.map do |key, value|
-        format_condition(key.to_s, value)
-      end
-
-      query_parts.join(" AND ")
-    end
-
-    private
-
-    # Formats a single query condition into Shopify's query syntax
-    # @param key [String] The attribute name
-    # @param value [Object] The attribute value
-    # @return [String] The formatted query condition
-    def format_condition(key, value)
-      case value
-      when Array
-        format_array_condition(key, value)
-      when String
-        format_string_condition(key, value)
-      when Numeric, true, false
-        "#{key}:#{value}"
+      case @conditions
       when Hash
-        format_range_condition(key, value)
-      else
-        "#{key}:#{value}"
-      end
-    end
-
-    # Formats an array condition with OR clauses
-    # @param key [String] The attribute name
-    # @param values [Array] The array of values
-    # @return [String] The formatted query with OR clauses wrapped in parentheses
-    def format_array_condition(key, values)
-      return "" if values.empty?
-      return format_condition(key, values.first) if values.size == 1
-
-      or_parts = values.map do |value|
-        format_single_value(key, value)
-      end
-
-      "(#{or_parts.join(' OR ')})"
-    end
-
-    # Formats a single value for use in array OR clauses
-    # @param key [String] The attribute name
-    # @param value [Object] The attribute value
-    # @return [String] The formatted key:value pair
-    def format_single_value(key, value)
-      case value
+        HashConditionFormatter.format(@conditions)
       when String
-        format_string_condition(key, value)
-      when Numeric, true, false
-        "#{key}:#{value}"
+        @conditions
       else
-        "#{key}:#{value}"
+        ""
       end
-    end
-
-    # Formats a string condition with proper quoting
-    def format_string_condition(key, value)
-      escaped_value = sanitize_value(value)
-
-      # Always wrap string values in single quotes
-      "#{key}:'#{escaped_value}'"
-    end
-
-    # Sanitizes a value by escaping special characters for Shopify search syntax
-    # @param value [String] The value to sanitize
-    # @return [String] The sanitized value
-    def sanitize_value(value)
-      value
-        .gsub('\\', '\\\\\\\\') # Escape backslashes first: \ becomes \\
-        .gsub('"', '\\"') # Escape double quotes with a single backslash
-        # Escape single quotes: O'Reilly becomes O\\'Reilly
-        # Why 4 backslashes? The escaping happens in layers:
-        # 1. Ruby string literal: "\\\\\\\\''" = literal string "\\\\''"
-        # 2. String interpolation in "#{key}:'#{escaped_value}'": the \\\' becomes \\'
-        # 3. Final GraphQL query: customers(query: "title:'O\\'Reilly'")
-        # The double backslash is required by Shopify's search syntax to properly escape the single quote
-        .gsub("'", "\\\\\\\\'")
-    end
-
-    # Formats a range condition (e.g., { created_at: { gte: '2024-01-01' } })
-    def format_range_condition(key, value)
-      range_parts = value.map do |operator, range_value|
-        case operator.to_sym
-        when :gt, :>
-          "#{key}:>#{range_value}"
-        when :gte, :>=
-          "#{key}:>=#{range_value}"
-        when :lt, :<
-          "#{key}:<#{range_value}"
-        when :lte, :<=
-          "#{key}:<=#{range_value}"
-        else
-          raise ArgumentError, "Unsupported range operator: #{operator}"
-        end
-      end
-      range_parts.join(" ")
     end
   end
 end

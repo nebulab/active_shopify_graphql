@@ -193,4 +193,44 @@ RSpec.describe ActiveShopifyGraphQL::SearchQuery do
       expect(search_query.to_s).to eq("path:'C:\\\\John\\\\'s Folder'")
     end
   end
+
+  describe "string-based conditions (raw query)" do
+    it "allows raw wildcard matching" do
+      search_query = described_class.new("sku:*")
+
+      expect(search_query.to_s).to eq("sku:*")
+    end
+
+    it "allows complex raw queries" do
+      search_query = described_class.new("sku:* AND product_id:123")
+
+      expect(search_query.to_s).to eq("sku:* AND product_id:123")
+    end
+
+    it "does not sanitize raw string queries" do
+      search_query = described_class.new("title:O'Reilly")
+
+      expect(search_query.to_s).to eq("title:O'Reilly")
+    end
+
+    it "allows user-controlled quoting for spaces" do
+      search_query = described_class.new("title:'John Doe' status:open")
+
+      expect(search_query.to_s).to eq("title:'John Doe' status:open")
+    end
+  end
+
+  describe "hash vs string distinction" do
+    it "escapes wildcards in hash conditions" do
+      search_query = described_class.new(sku: "*")
+
+      expect(search_query.to_s).to eq("sku:'*'")
+    end
+
+    it "does not escape wildcards in string conditions" do
+      search_query = described_class.new("sku:*")
+
+      expect(search_query.to_s).to eq("sku:*")
+    end
+  end
 end
