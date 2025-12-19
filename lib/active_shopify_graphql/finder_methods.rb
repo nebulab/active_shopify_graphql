@@ -97,26 +97,33 @@ module ActiveShopifyGraphQL
       #   # Hash style with options
       #   Customer.find_by({ email: "john@example.com" }, loader: custom_loader)
       def find_by(conditions_or_first_condition = {}, *args, **options)
-        where(conditions_or_first_condition, *args, **options.merge(limit: 1)).first
+        where(conditions_or_first_condition, *args, **options).first
       end
 
       # Query for multiple records using attribute conditions
+      # Returns a QueryScope that supports chaining .limit() and .in_pages()
+      #
       # @param conditions [Hash] The conditions to query (e.g., { email: "example@test.com", first_name: "John" })
-      # @param options [Hash] Options hash containing loader and limit (when first arg is a Hash)
+      # @param options [Hash] Options hash containing loader (when first arg is a Hash)
       # @option options [ActiveShopifyGraphQL::Loader] :loader The loader to use for fetching data
-      # @option options [Integer] :limit The maximum number of records to return (default: 250, max: 250)
-      # @return [Array<Object>] Array of model instances
+      # @return [QueryScope] A chainable query scope
       # @raise [ArgumentError] If any attribute is not valid for querying
       #
-      # @example
-      #   # Keyword argument style (recommended)
-      #   Customer.where(email: "john@example.com")
-      #   Customer.where(first_name: "John", country: "Canada")
-      #   Customer.where(orders_count: { gte: 5 })
-      #   Customer.where(created_at: { gte: "2024-01-01", lt: "2024-02-01" })
+      # @example Basic query
+      #   Customer.where(email: "john@example.com").to_a
       #
-      #   # Hash style with options
-      #   Customer.where({ email: "john@example.com" }, loader: custom_loader, limit: 100)
+      # @example With limit
+      #   Customer.where(first_name: "John").limit(100).to_a
+      #
+      # @example With pagination block
+      #   Customer.where(orders_count: { gte: 5 }).in_pages(of: 50) do |page|
+      #     page.each { |customer| process(customer) }
+      #   end
+      #
+      # @example Manual pagination
+      #   page = Customer.where(email: "*@example.com").in_pages(of: 25)
+      #   page.has_next_page? # => true
+      #   next_page = page.next_page
       def where(conditions_or_first_condition = {}, *args, **options)
         # Handle both syntaxes:
         # where(email: "john@example.com") - keyword args become options
@@ -128,20 +135,17 @@ module ActiveShopifyGraphQL
           final_options = args.first.is_a?(Hash) ? options.merge(args.first) : options
         else
           # Keyword arguments style - conditions come from options, excluding known option keys
-          known_option_keys = %i[loader limit]
+          known_option_keys = %i[loader]
           conditions = options.except(*known_option_keys)
           final_options = options.slice(*known_option_keys)
         end
 
         loader = final_options[:loader] || default_loader
-        limit = final_options[:limit] || 250
 
         # Ensure loader has model class set - needed for graphql_type inference
         loader.instance_variable_set(:@model_class, self) if loader.instance_variable_get(:@model_class).nil?
 
-        attributes_array = loader.load_collection(conditions, limit: limit)
-
-        attributes_array.map { |attributes| new(attributes) }
+        QueryScope.new(self, conditions: conditions, loader: loader)
       end
 
       private
