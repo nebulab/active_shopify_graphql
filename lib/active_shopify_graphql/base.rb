@@ -8,13 +8,13 @@ module ActiveShopifyGraphQL
       include ActiveModel::AttributeAssignment
       include ActiveModel::Validations
       extend ActiveModel::Naming
-      include ActiveShopifyGraphQL::GraphqlTypeResolver
-      include ActiveShopifyGraphQL::FinderMethods
-      include ActiveShopifyGraphQL::Associations
-      include ActiveShopifyGraphQL::Connections
-      include ActiveShopifyGraphQL::Attributes
-      include ActiveShopifyGraphQL::MetafieldAttributes
-      include ActiveShopifyGraphQL::LoaderSwitchable
+      include ActiveShopifyGraphQL::Model::GraphqlTypeResolver
+      include ActiveShopifyGraphQL::Model::FinderMethods
+      include ActiveShopifyGraphQL::Model::Associations
+      include ActiveShopifyGraphQL::Model::Connections
+      include ActiveShopifyGraphQL::Model::Attributes
+      include ActiveShopifyGraphQL::Model::MetafieldAttributes
+      include ActiveShopifyGraphQL::Model::LoaderSwitchable
     end
 
     def initialize(attributes = {})

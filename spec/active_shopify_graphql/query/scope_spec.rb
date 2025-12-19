@@ -2,14 +2,14 @@
 
 require "spec_helper"
 
-RSpec.describe ActiveShopifyGraphQL::QueryScope do
+RSpec.describe ActiveShopifyGraphQL::Query::Scope do
   describe "#initialize" do
     it "stores model class and conditions" do
       mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
       ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
-      scope = ActiveShopifyGraphQL::QueryScope.new(customer_class, conditions: { email: "test@example.com" })
+      scope = ActiveShopifyGraphQL::Query::Scope.new(customer_class, conditions: { email: "test@example.com" })
 
       expect(scope.model_class).to eq(customer_class)
       expect(scope.conditions).to eq({ email: "test@example.com" })
@@ -95,7 +95,7 @@ RSpec.describe ActiveShopifyGraphQL::QueryScope do
 
       result = scope.in_pages(of: 10)
 
-      expect(result).to be_a(ActiveShopifyGraphQL::PaginatedResult)
+      expect(result).to be_a(ActiveShopifyGraphQL::Response::PaginatedResult)
     end
 
     it "yields each page with a block" do
@@ -124,8 +124,8 @@ RSpec.describe ActiveShopifyGraphQL::QueryScope do
       scope.in_pages(of: 1) { |page| pages_yielded << page }
 
       expect(pages_yielded.size).to eq(2)
-      expect(pages_yielded[0]).to be_a(ActiveShopifyGraphQL::PaginatedResult)
-      expect(pages_yielded[1]).to be_a(ActiveShopifyGraphQL::PaginatedResult)
+      expect(pages_yielded[0]).to be_a(ActiveShopifyGraphQL::Response::PaginatedResult)
+      expect(pages_yielded[1]).to be_a(ActiveShopifyGraphQL::Response::PaginatedResult)
     end
 
     it "respects per_page size" do

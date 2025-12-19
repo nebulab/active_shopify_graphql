@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe ActiveShopifyGraphQL::FinderMethods do
+RSpec.describe ActiveShopifyGraphQL::Model::FinderMethods do
   describe ".find" do
     it "accepts numeric ID and normalizes to GID" do
       mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
@@ -463,27 +463,27 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
   end
 
   describe ".select" do
-    it "returns a modified class that can be used for method chaining" do
+    it "returns a Relation that can be used for method chaining" do
       mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
       ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
 
-      selected_class = customer_class.select(:id, :email)
+      selected_relation = customer_class.select(:id, :email)
 
-      expect(selected_class).to be_a(Class)
-      expect(selected_class).to respond_to(:find)
-      expect(selected_class).to respond_to(:where)
+      expect(selected_relation).to be_a(ActiveShopifyGraphQL::Query::Relation)
+      expect(selected_relation).to respond_to(:find)
+      expect(selected_relation).to respond_to(:where)
     end
 
-    it "creates a loader with only selected attributes" do
+    it "creates a relation that builds a loader with only selected attributes" do
       mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
       ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
 
-      selected_class = customer_class.select(:id, :email)
-      loader = selected_class.default_loader
+      selected_relation = customer_class.select(:id, :email)
+      loader = selected_relation.send(:loader)
 
       expect(loader.defined_attributes.keys).to contain_exactly(:id, :email)
     end
@@ -494,8 +494,8 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
 
-      selected_class = customer_class.select(:email)
-      loader = selected_class.default_loader
+      selected_relation = customer_class.select(:email)
+      loader = selected_relation.send(:loader)
 
       expect(loader.defined_attributes.keys).to include(:id)
       expect(loader.defined_attributes.keys).to include(:email)
@@ -507,8 +507,8 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
 
-      selected_class = customer_class.select(:email)
-      loader = selected_class.default_loader
+      selected_relation = customer_class.select(:email)
+      loader = selected_relation.send(:loader)
       fragment = loader.fragment.to_s
 
       expect(fragment).to include("id")
@@ -536,16 +536,15 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
       end
     end
 
-    it "preserves the original class name and model name" do
+    it "preserves the model class reference" do
       mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
       ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
 
-      selected_class = customer_class.select(:id, :email)
+      selected_relation = customer_class.select(:id, :email)
 
-      expect(selected_class.name).to eq("Customer")
-      expect(selected_class.model_name).to eq(customer_class.model_name)
+      expect(selected_relation.model_class).to eq(customer_class)
     end
 
     it "works with find method" do

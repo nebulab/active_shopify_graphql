@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'global_id'
+
 module ActiveShopifyGraphQL
   # Helper module for handling Shopify Global IDs (GIDs)
   # Provides utilities for parsing and building GIDs according to the URI::GID standard

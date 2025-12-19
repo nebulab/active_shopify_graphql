@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe ActiveShopifyGraphQL::ConnectionLoader do
+RSpec.describe ActiveShopifyGraphQL::Connections::ConnectionLoader do
   describe "#load_records" do
     it "loads records from root-level connection and returns empty array for empty response" do
       context = build_context(graphql_type: "Order")

@@ -278,7 +278,7 @@ The `where` method automatically converts Ruby conditions into Shopify's GraphQL
 
 ### Pagination
 
-ActiveShopifyGraphQL supports cursor-based pagination for efficiently working with large result sets. Queries return a chainable `QueryScope` that provides both automatic and manual pagination.
+ActiveShopifyGraphQL supports cursor-based pagination for efficiently working with large result sets. Queries return a chainable `Query::Scope` that provides both automatic and manual pagination.
 
 #### Basic Pagination with Limits
 
@@ -333,7 +333,7 @@ end
 
 #### Lazy Enumeration
 
-The `QueryScope` returned by `where` is enumerable and lazy-loads records:
+The `Query::Scope` returned by `where` is enumerable and lazy-loads records:
 
 ```ruby
 # These don't execute queries immediately

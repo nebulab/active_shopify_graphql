@@ -7,31 +7,49 @@ require 'active_support/core_ext/object/blank'
 require 'active_model'
 require 'globalid'
 
+# Core
 require_relative "active_shopify_graphql/version"
 require_relative "active_shopify_graphql/configuration"
 require_relative "active_shopify_graphql/gid_helper"
-require_relative "active_shopify_graphql/graphql_type_resolver"
 require_relative "active_shopify_graphql/loader_context"
-require_relative "active_shopify_graphql/query_node"
-require_relative "active_shopify_graphql/fragment_builder"
-require_relative "active_shopify_graphql/query_tree"
-require_relative "active_shopify_graphql/response_mapper"
-require_relative "active_shopify_graphql/connection_loader"
-require_relative "active_shopify_graphql/page_info"
-require_relative "active_shopify_graphql/paginated_result"
-require_relative "active_shopify_graphql/query_scope"
+
+# Query building
+require_relative "active_shopify_graphql/query/fragment_builder"
+require_relative "active_shopify_graphql/query/node"
+require_relative "active_shopify_graphql/query/tree"
+require_relative "active_shopify_graphql/query/relation"
+require_relative "active_shopify_graphql/query/scope"
+
+# Response handling
+require_relative "active_shopify_graphql/response/response_mapper"
+require_relative "active_shopify_graphql/response/page_info"
+require_relative "active_shopify_graphql/response/paginated_result"
+
+# Connections
+require_relative "active_shopify_graphql/connections/connection_loader"
+require_relative "active_shopify_graphql/connections/connection_proxy"
+
+# Loaders
 require_relative "active_shopify_graphql/loader"
 require_relative "active_shopify_graphql/loaders/admin_api_loader"
 require_relative "active_shopify_graphql/loaders/customer_account_api_loader"
-require_relative "active_shopify_graphql/loader_switchable"
-require_relative "active_shopify_graphql/finder_methods"
-require_relative "active_shopify_graphql/associations"
+
+# Model concerns
+require_relative "active_shopify_graphql/model/graphql_type_resolver"
+require_relative "active_shopify_graphql/model/loader_switchable"
+require_relative "active_shopify_graphql/model/finder_methods"
+require_relative "active_shopify_graphql/model/associations"
+require_relative "active_shopify_graphql/model/connections"
+require_relative "active_shopify_graphql/model/attributes"
+require_relative "active_shopify_graphql/model/metafield_attributes"
+
+# AR/PORO associations to GraphQL
 require_relative "active_shopify_graphql/graphql_associations"
-require_relative "active_shopify_graphql/includes_scope"
-require_relative "active_shopify_graphql/connections"
-require_relative "active_shopify_graphql/attributes"
-require_relative "active_shopify_graphql/metafield_attributes"
+
+# Search query
 require_relative "active_shopify_graphql/search_query"
+
+# Base module
 require_relative "active_shopify_graphql/base"
 
 module ActiveShopifyGraphQL

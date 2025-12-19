@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe ActiveShopifyGraphQL::Connections do
+RSpec.describe ActiveShopifyGraphQL::Model::Connections do
   describe ".connection" do
     it "defines connection metadata with inferred defaults" do
       customer_class = build_customer_class(with_orders: true)
@@ -206,16 +206,16 @@ RSpec.describe ActiveShopifyGraphQL::Connections do
   end
 
   describe ".includes" do
-    it "returns an IncludesScope for method chaining" do
+    it "returns a Relation for method chaining" do
       customer_class = build_customer_class(with_orders: true)
       stub_const("Customer", customer_class)
       stub_const("Order", build_order_class)
 
       scope = customer_class.includes(:orders)
 
-      expect(scope).to be_a(ActiveShopifyGraphQL::IncludesScope)
+      expect(scope).to be_a(ActiveShopifyGraphQL::Query::Relation)
       expect(scope.model_class).to eq(customer_class)
-      expect(scope.included_connections).to eq([:orders])
+      expect(scope.included_connections).to include(:orders)
     end
 
     it "validates connection names" do
@@ -232,9 +232,9 @@ RSpec.describe ActiveShopifyGraphQL::Connections do
       stub_const("Order", build_order_class)
       stub_const("Address", build_address_class)
 
-      included_class = customer_class.includes(:orders, :addresses)
+      included_relation = customer_class.includes(:orders, :addresses)
 
-      expect(included_class.instance_variable_get(:@included_connections)).to eq(%i[orders addresses])
+      expect(included_relation.included_connections).to include(:orders, :addresses)
     end
 
     it "supports nested includes syntax" do
