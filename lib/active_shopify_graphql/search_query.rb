@@ -72,13 +72,26 @@ module ActiveShopifyGraphQL
 
     # Formats a string condition with proper quoting
     def format_string_condition(key, value)
-      # Handle special string values and escape quotes
-      if value.include?(" ") && !value.start_with?('"')
-        # Multi-word values should be quoted
-        "#{key}:\"#{value.gsub('"', '\\"')}\""
-      else
-        "#{key}:#{value}"
-      end
+      escaped_value = sanitize_value(value)
+
+      # Always wrap string values in single quotes
+      "#{key}:'#{escaped_value}'"
+    end
+
+    # Sanitizes a value by escaping special characters for Shopify search syntax
+    # @param value [String] The value to sanitize
+    # @return [String] The sanitized value
+    def sanitize_value(value)
+      value
+        .gsub('\\', '\\\\\\\\') # Escape backslashes first: \ becomes \\
+        .gsub('"', '\\"') # Escape double quotes with a single backslash
+        # Escape single quotes: O'Reilly becomes O\\'Reilly
+        # Why 4 backslashes? The escaping happens in layers:
+        # 1. Ruby string literal: "\\\\\\\\''" = literal string "\\\\''"
+        # 2. String interpolation in "#{key}:'#{escaped_value}'": the \\\' becomes \\'
+        # 3. Final GraphQL query: customers(query: "title:'O\\'Reilly'")
+        # The double backslash is required by Shopify's search syntax to properly escape the single quote
+        .gsub("'", "\\\\\\\\'")
     end
 
     # Formats a range condition (e.g., { created_at: { gte: '2024-01-01' } })

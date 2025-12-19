@@ -84,7 +84,7 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
       expect(mock_client).to receive(:execute) do |_query, **variables|
-        expect(variables[:query]).to eq("email:john@example.com")
+        expect(variables[:query]).to eq("email:'john@example.com'")
         expect(variables[:first]).to eq(1)
         { "data" => { "customers" => { "nodes" => [
           { "id" => "gid://shopify/Customer/123", "displayName" => "John", "email" => "john@example.com" }
@@ -116,7 +116,7 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
       expect(mock_client).to receive(:execute) do |_query, **variables|
-        expect(variables[:query]).to eq("email:john@example.com AND first_name:John")
+        expect(variables[:query]).to eq("email:'john@example.com' AND first_name:'John'")
         expect(variables[:first]).to eq(1)
         { "data" => { "customers" => { "nodes" => [
           { "id" => "gid://shopify/Customer/123", "displayName" => "John", "email" => "john@example.com" }
@@ -213,7 +213,7 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
       expect(mock_client).to receive(:execute) do |_query, **variables|
-        expect(variables[:query]).to eq("email:john@example.com AND first_name:John")
+        expect(variables[:query]).to eq("email:'john@example.com' AND first_name:'John'")
         { "data" => { "customers" => { "nodes" => [
           { "id" => "gid://shopify/Customer/123", "displayName" => "John", "email" => "john@example.com" }
         ] } } }
@@ -265,7 +265,7 @@ RSpec.describe ActiveShopifyGraphQL::FinderMethods do
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
       expect(mock_client).to receive(:execute) do |_query, **variables|
-        expect(variables[:query]).to eq('first_name:"John Doe"')
+        expect(variables[:query]).to eq("first_name:'John Doe'")
         { "data" => { "customers" => { "nodes" => [] } } }
       end
 
