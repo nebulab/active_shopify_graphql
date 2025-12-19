@@ -234,7 +234,7 @@ customer = Customer.with_loader(MyCustomLoader).find(id)
 Use the `where` method to query multiple records using Shopify's search syntax:
 
 ```ruby
-# Simple conditions
+# Hash-based queries (safe, with automatic escaping)
 customers = Customer.where(email: "john@example.com")
 
 # Range queries
@@ -247,6 +247,32 @@ customers = Customer.where(first_name: "John Doe")
 # With limits
 customers = Customer.where({ email: "john@example.com" }, limit: 100)
 ```
+
+#### String-based Queries for Advanced Syntax
+
+For advanced queries like wildcard matching, use string-based queries:
+
+```ruby
+# Raw string queries (user responsible for proper escaping)
+variants = ProductVariant.where("sku:*")  # Wildcard matching
+customers = Customer.where("email:*@example.com AND orders_count:>5")
+
+# String queries with parameter binding (safe, with automatic escaping)
+# Positional parameters
+variants = ProductVariant.where("sku:? AND product_id:?", "Test's Product", 123)
+
+# Named parameters (as hash)
+customers = Customer.where("email::email AND first_name::name",
+                          { email: "test@example.com", name: "John" })
+
+# Named parameters (as keyword arguments - more convenient!)
+variants = ProductVariant.where("sku::sku", sku: "Test's Product")
+```
+
+**Query safety levels:**
+- **Hash queries**: Fully safe, all values are automatically escaped (wildcards become literals)
+- **String with binding**: Safe, bound parameters are automatically escaped
+- **Raw strings**: User responsible for escaping; allows advanced syntax like wildcards
 
 The `where` method automatically converts Ruby conditions into Shopify's GraphQL query syntax and validates that the query fields are supported by Shopify.
 
