@@ -11,8 +11,6 @@ module ActiveShopifyGraphQL
       #     }
       #   }
       class SingleRecord < Node
-        STRING_KEYS_NEEDING_QUOTES = %i[query after before].freeze
-
         attr_reader :model_type, :query_name, :fragment_name, :fragments
 
         def initialize(model_type:, query_name:, fragment_name:, fragments: [])

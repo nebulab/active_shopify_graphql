@@ -28,9 +28,6 @@ module ActiveShopifyGraphQL
       #     }
       #   }
       class Collection < Node
-        PAGE_INFO_FIELDS = "pageInfo { hasNextPage hasPreviousPage startCursor endCursor }"
-        STRING_KEYS_NEEDING_QUOTES = %i[query after before].freeze
-
         attr_reader :model_type, :query_name, :fragment_name, :variables, :fragments, :include_page_info
 
         def initialize(model_type:, query_name:, fragment_name:, variables: {}, fragments: [], include_page_info: false)
