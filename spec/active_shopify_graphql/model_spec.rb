@@ -2,12 +2,10 @@
 
 require "spec_helper"
 
-RSpec.describe ActiveShopifyGraphQL::Base do
+RSpec.describe ActiveShopifyGraphQL::Model do
   describe "#initialize" do
     it "accepts attributes hash and assigns them" do
-      model_class = Class.new do
-        include ActiveShopifyGraphQL::Base
-
+      model_class = Class.new(ActiveShopifyGraphQL::Model) do
         attribute :id
         attribute :name
         define_singleton_method(:name) { "TestModel" }
@@ -22,9 +20,7 @@ RSpec.describe ActiveShopifyGraphQL::Base do
     end
 
     it "extracts connection cache from attributes if present" do
-      model_class = Class.new do
-        include ActiveShopifyGraphQL::Base
-
+      model_class = Class.new(ActiveShopifyGraphQL::Model) do
         attribute :id
         define_singleton_method(:name) { "TestModel" }
         define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, "TestModel") }
@@ -40,9 +36,7 @@ RSpec.describe ActiveShopifyGraphQL::Base do
     end
 
     it "works with empty attributes" do
-      model_class = Class.new do
-        include ActiveShopifyGraphQL::Base
-
+      model_class = Class.new(ActiveShopifyGraphQL::Model) do
         attribute :id
         define_singleton_method(:name) { "TestModel" }
         define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, "TestModel") }

@@ -5,9 +5,7 @@ module GraphQLModelFactories
   module_function
 
   def build_customer_class(graphql_type: "Customer", with_orders: false, with_addresses: false)
-    klass = Class.new do
-      include ActiveShopifyGraphQL::Base
-
+    klass = Class.new(ActiveShopifyGraphQL::Model) do
       attribute :id
       attribute :email
       attribute :display_name, path: "displayName"
@@ -23,9 +21,7 @@ module GraphQLModelFactories
   end
 
   def build_order_class(graphql_type: "Order", with_line_items: false)
-    klass = Class.new do
-      include ActiveShopifyGraphQL::Base
-
+    klass = Class.new(ActiveShopifyGraphQL::Model) do
       attribute :id
       attribute :name
       attribute :created_at, path: "createdAt", type: :datetime
@@ -41,9 +37,7 @@ module GraphQLModelFactories
   end
 
   def build_line_item_class(graphql_type: "LineItem", with_variant: false)
-    klass = Class.new do
-      include ActiveShopifyGraphQL::Base
-
+    klass = Class.new(ActiveShopifyGraphQL::Model) do
       attribute :id
       attribute :quantity
 
@@ -57,9 +51,7 @@ module GraphQLModelFactories
   end
 
   def build_product_class(graphql_type: "Product", with_variants: false)
-    klass = Class.new do
-      include ActiveShopifyGraphQL::Base
-
+    klass = Class.new(ActiveShopifyGraphQL::Model) do
       attribute :id
       attribute :title
 
@@ -73,9 +65,7 @@ module GraphQLModelFactories
   end
 
   def build_product_variant_class(graphql_type: "ProductVariant")
-    klass = Class.new do
-      include ActiveShopifyGraphQL::Base
-
+    klass = Class.new(ActiveShopifyGraphQL::Model) do
       attribute :id
       attribute :sku
       attribute :price
@@ -89,9 +79,7 @@ module GraphQLModelFactories
   end
 
   def build_address_class(graphql_type: "MailingAddress")
-    klass = Class.new do
-      include ActiveShopifyGraphQL::Base
-
+    klass = Class.new(ActiveShopifyGraphQL::Model) do
       attribute :id
       attribute :address1
       attribute :city
@@ -113,9 +101,7 @@ module GraphQLModelFactories
 
   # Build a minimal model class for simple tests
   def build_minimal_model(name:, graphql_type:, attributes: [:id])
-    klass = Class.new do
-      include ActiveShopifyGraphQL::Base
-
+    klass = Class.new(ActiveShopifyGraphQL::Model) do
       define_singleton_method(:name) { name }
       define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, name) }
     end
