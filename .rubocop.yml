@@ -64,3 +64,6 @@ Naming/BlockForwarding:
 
 Lint/DuplicateBranch:
   Enabled: false
+
+Style/ClassAndModuleChildren:
+  Enabled: false
