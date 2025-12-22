@@ -17,6 +17,9 @@ module ActiveShopifyGraphQL
     #   - Node::NestedConnection - Nested connection queries
     #   - Node::RootConnection - Root-level connection queries
     class Node
+      # Shared constants for query formatting
+      PAGE_INFO_FIELDS = "pageInfo { hasNextPage hasPreviousPage startCursor endCursor }"
+      STRING_KEYS_NEEDING_QUOTES = %i[query after before].freeze
       attr_reader :name, :alias_name, :arguments, :children
 
       # @param name [String] The field name (e.g., 'id', 'displayName', 'orders')
