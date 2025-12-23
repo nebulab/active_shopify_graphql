@@ -767,9 +767,10 @@ Connection queries use the same error handling as regular model queries. If a co
 - [x] Support `Model.where(param: value)` proxying params to the GraphQL query attribute
 - [x] Query optimization with `select` method
 - [x] GraphQL connections with lazy and eager loading via `Customer.includes(:orders).find(id)`
-- [ ] Support for paginating query results with cursors
+- [x] Support for paginating query results with cursors
 - [ ] Better error handling and retry mechanisms for GraphQL API calls
 - [ ] Caching layer for frequently accessed data
+- [ ] Multiple `.where` chaining with possibility of using `.not`
 
 ## Development
 

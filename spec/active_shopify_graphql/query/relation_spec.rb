@@ -117,6 +117,17 @@ RSpec.describe ActiveShopifyGraphQL::Query::Relation do
       expect(result).to be_a(described_class)
       expect(result.conditions).to eq(["sku::sku", { sku: "ABC-123" }])
     end
+
+    it "raises an error when chaining multiple where clauses" do
+      product_class = build_product_class
+      stub_const("Product", product_class)
+
+      relation = described_class.new(product_class)
+
+      expect do
+        relation.where(title: "Test").where(status: "active")
+      end.to raise_error(ArgumentError, /Chaining multiple where clauses is not supported/)
+    end
   end
 
   describe "#find_by" do

@@ -54,10 +54,16 @@ module ActiveShopifyGraphQL
       # Add conditions to the query
       # @param conditions_or_first_condition [Hash, String] Conditions to filter by
       # @return [Relation] A new relation with conditions applied
+      # @raise [ArgumentError] If where is called on a relation that already has conditions
       def where(conditions_or_first_condition = {}, *args, **options)
         new_conditions = build_conditions(conditions_or_first_condition, args, options)
 
-        spawn(conditions: merge_conditions(@conditions, new_conditions))
+        if has_conditions? && !new_conditions.empty?
+          raise ArgumentError, "Chaining multiple where clauses is not supported. " \
+                               "Combine conditions in a single where call instead."
+        end
+
+        spawn(conditions: new_conditions)
       end
 
       # Find a single record by conditions
@@ -313,6 +319,15 @@ module ActiveShopifyGraphQL
         @loader ||= build_loader
       end
 
+      def has_conditions?
+        case @conditions
+        when Hash then @conditions.any?
+        when String then !@conditions.empty?
+        when Array then @conditions.any?
+        else false
+        end
+      end
+
       def build_loader
         klass = @loader_class || @model_class.send(:default_loader_class)
 
@@ -332,26 +347,25 @@ module ActiveShopifyGraphQL
         end
       end
 
-      # Build conditions from various input formats
+      # Build conditions from various input formats:
+      # - Hash: where(email: "test") => {email: "test"}
+      # - String with positional params: where("sku:?", "ABC") => ["sku:?", "ABC"]
+      # - String with named params: where("sku::sku", sku: "ABC") => ["sku::sku", {sku: "ABC"}]
       def build_conditions(conditions_or_first_condition, args, options)
-        if conditions_or_first_condition.is_a?(String)
-          binding_params = args.empty? && options.any? ? [options] : args
-          binding_params.empty? ? conditions_or_first_condition : [conditions_or_first_condition, *binding_params]
-        elsif conditions_or_first_condition.is_a?(Hash) && !conditions_or_first_condition.empty?
-          conditions_or_first_condition
+        case conditions_or_first_condition
+        when String
+          if args.any?
+            [conditions_or_first_condition, *args]
+          elsif options.any?
+            [conditions_or_first_condition, options]
+          else
+            conditions_or_first_condition
+          end
+        when Hash
+          conditions_or_first_condition.empty? ? options : conditions_or_first_condition
         else
           options
         end
-      end
-
-      # Merge existing conditions with new conditions
-      def merge_conditions(existing, new_conditions)
-        # If conditions are the same type, merge appropriately
-        return new_conditions if existing.nil? || (existing.is_a?(Hash) && existing.empty?)
-
-        # For string-based conditions or mixed types, keep the new ones
-        # (In real GraphQL queries, we'd need smarter merging)
-        new_conditions
       end
 
       # Build a Query::Scope for backward compatibility with PaginatedResult
@@ -368,30 +382,21 @@ module ActiveShopifyGraphQL
       def validate_includes_connections!(connection_names)
         return unless @model_class.respond_to?(:connections)
 
+        available = @model_class.connections.keys
         connection_names.each do |name|
           if name.is_a?(Hash)
             # Nested includes: { line_items: :variant }
-            name.each do |key, nested_value|
-              unless @model_class.connections.key?(key.to_sym)
-                available = @model_class.connections.keys
-                raise ArgumentError, "Invalid connection for #{@model_class.name}: #{key}. " \
-                                     "Available connections: #{available.join(', ')}"
-              end
+            name.each_key do |key|
+              next if available.include?(key.to_sym)
 
-              # Recursively validate nested connections
-              target_class = @model_class.connections[key.to_sym][:class_name].constantize
-              next unless target_class.respond_to?(:connections)
-
-              nested_names = nested_value.is_a?(Array) ? nested_value : [nested_value]
-              nested_relation = Query::Relation.new(target_class)
-              nested_relation.send(:validate_includes_connections!, nested_names)
-            end
-          else
-            unless @model_class.connections.key?(name.to_sym)
-              available = @model_class.connections.keys
-              raise ArgumentError, "Invalid connection for #{@model_class.name}: #{name}. " \
+              raise ArgumentError, "Invalid connection for #{@model_class.name}: #{key}. " \
                                    "Available connections: #{available.join(', ')}"
             end
+          else
+            next if available.include?(name.to_sym)
+
+            raise ArgumentError, "Invalid connection for #{@model_class.name}: #{name}. " \
+                                 "Available connections: #{available.join(', ')}"
           end
         end
       end
