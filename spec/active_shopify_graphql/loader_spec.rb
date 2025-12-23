@@ -3,33 +3,13 @@
 require "spec_helper"
 
 RSpec.describe ActiveShopifyGraphQL::Loader do
-  describe ".graphql_type" do
-    it "allows setting graphql_type at class level" do
-      loader_class = Class.new(described_class) do
-        graphql_type "TestModel"
-      end
-
-      expect(loader_class.graphql_type).to eq("TestModel")
-    end
-
-    it "raises error when graphql_type is not set" do
-      loader_class = Class.new(described_class)
-
-      expect { loader_class.graphql_type }.to raise_error(NotImplementedError)
-    end
-
-    it "gets graphql_type from associated model class when available" do
-      model_class = Class.new do
-        define_singleton_method(:graphql_type_for_loader) { |_| "ModelType" }
-      end
-      loader_class = Class.new(described_class)
-      loader_class.model_class = model_class
-
-      expect(loader_class.graphql_type).to eq("ModelType")
-    end
-  end
-
   describe "#initialize" do
+    it "requires model_class parameter" do
+      loader_class = Class.new(described_class)
+
+      expect { loader_class.new }.to raise_error(ArgumentError, /wrong number of arguments/)
+    end
+
     it "accepts model_class parameter" do
       model_class = Class.new do
         define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
@@ -39,7 +19,7 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
 
       loader = loader_class.new(model_class)
 
-      expect(loader.graphql_type).to eq("TestModel")
+      expect(loader.context.graphql_type).to eq("TestModel")
     end
 
     it "accepts selected_attributes parameter" do
@@ -96,8 +76,8 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
     end
   end
 
-  describe "#query_name" do
-    it "returns lowerCamelCase graphql_type" do
+  describe "#context" do
+    it "provides query_name as lowerCamelCase graphql_type" do
       model_class = Class.new do
         define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
         define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
@@ -105,12 +85,10 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
       loader_class = Class.new(described_class)
       loader = loader_class.new(model_class)
 
-      expect(loader.query_name).to eq("testModel")
+      expect(loader.context.query_name).to eq("testModel")
     end
-  end
 
-  describe "#fragment_name" do
-    it "returns graphql_type with Fragment suffix" do
+    it "provides fragment_name with Fragment suffix" do
       model_class = Class.new do
         define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
         define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
@@ -118,7 +96,7 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
       loader_class = Class.new(described_class)
       loader = loader_class.new(model_class)
 
-      expect(loader.fragment_name).to eq("TestModelFragment")
+      expect(loader.context.fragment_name).to eq("TestModelFragment")
     end
   end
 

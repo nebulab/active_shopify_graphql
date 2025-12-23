@@ -405,18 +405,11 @@ module ActiveShopifyGraphQL
       end
 
       def available_select_attributes
-        attrs = []
-
-        # Get attributes from the model class
         loader_klass = @loader_class || @model_class.send(:default_loader_class)
         model_attrs = @model_class.attributes_for_loader(loader_klass)
-        attrs.concat(model_attrs.keys) if model_attrs
+        return [] unless model_attrs
 
-        # Get attributes from the loader class
-        loader_attrs = loader_klass.defined_attributes
-        attrs.concat(loader_attrs.keys) if loader_attrs
-
-        attrs.map(&:to_sym).uniq.sort
+        model_attrs.keys.map(&:to_sym).uniq.sort
       end
     end
   end

@@ -36,7 +36,7 @@ RSpec.describe ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader do
 
       loader = described_class.new(model_class, "test_token")
 
-      expect(loader.graphql_type).to eq("Customer")
+      expect(loader.context.graphql_type).to eq("Customer")
     end
 
     it "accepts included_connections parameter" do
@@ -48,13 +48,13 @@ RSpec.describe ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader do
     end
   end
 
-  describe "#graphql_type" do
+  describe "#context" do
     it "gets graphql_type from model class" do
       model_class = build_customer_class
 
       loader = described_class.new(model_class, "fake_token")
 
-      expect(loader.graphql_type).to eq("Customer")
+      expect(loader.context.graphql_type).to eq("Customer")
     end
   end
 

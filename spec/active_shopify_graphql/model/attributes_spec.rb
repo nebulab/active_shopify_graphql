@@ -6,7 +6,7 @@ RSpec.describe ActiveShopifyGraphQL::Model::Attributes do
   describe ".attribute" do
     it "defines an attribute with default path inference" do
       model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [:display_name])
-      loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
+      loader_class = Class.new(ActiveShopifyGraphQL::Loader)
 
       attrs = model_class.attributes_for_loader(loader_class)
 
@@ -16,7 +16,7 @@ RSpec.describe ActiveShopifyGraphQL::Model::Attributes do
     it "allows custom path" do
       model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [])
       model_class.attribute :total, path: "totalPriceSet.shopMoney.amount"
-      loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
+      loader_class = Class.new(ActiveShopifyGraphQL::Loader)
 
       attrs = model_class.attributes_for_loader(loader_class)
 
@@ -26,7 +26,7 @@ RSpec.describe ActiveShopifyGraphQL::Model::Attributes do
     it "stores type information" do
       model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [])
       model_class.attribute :count, type: :integer
-      loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
+      loader_class = Class.new(ActiveShopifyGraphQL::Loader)
 
       attrs = model_class.attributes_for_loader(loader_class)
 
@@ -35,7 +35,7 @@ RSpec.describe ActiveShopifyGraphQL::Model::Attributes do
 
     it "defaults type to :string" do
       model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [:name])
-      loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
+      loader_class = Class.new(ActiveShopifyGraphQL::Loader)
 
       attrs = model_class.attributes_for_loader(loader_class)
 
@@ -45,7 +45,7 @@ RSpec.describe ActiveShopifyGraphQL::Model::Attributes do
     it "stores null constraint" do
       model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [])
       model_class.attribute :required_field, null: false
-      loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
+      loader_class = Class.new(ActiveShopifyGraphQL::Loader)
 
       attrs = model_class.attributes_for_loader(loader_class)
 
@@ -54,7 +54,7 @@ RSpec.describe ActiveShopifyGraphQL::Model::Attributes do
 
     it "defaults null to true" do
       model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [:optional_field])
-      loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
+      loader_class = Class.new(ActiveShopifyGraphQL::Loader)
 
       attrs = model_class.attributes_for_loader(loader_class)
 
@@ -64,7 +64,7 @@ RSpec.describe ActiveShopifyGraphQL::Model::Attributes do
     it "stores default value" do
       model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [])
       model_class.attribute :status, default: "pending"
-      loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
+      loader_class = Class.new(ActiveShopifyGraphQL::Loader)
 
       attrs = model_class.attributes_for_loader(loader_class)
 
@@ -75,7 +75,7 @@ RSpec.describe ActiveShopifyGraphQL::Model::Attributes do
       transform_fn = ->(v) { v&.upcase }
       model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [])
       model_class.attribute :name, transform: transform_fn
-      loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
+      loader_class = Class.new(ActiveShopifyGraphQL::Loader)
 
       attrs = model_class.attributes_for_loader(loader_class)
 
@@ -86,7 +86,7 @@ RSpec.describe ActiveShopifyGraphQL::Model::Attributes do
       raw_gql = 'metafield(namespace: "custom", key: "roaster") { reference { ... on MetaObject { id } } }'
       model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [])
       model_class.attribute :roaster, raw_graphql: raw_gql
-      loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
+      loader_class = Class.new(ActiveShopifyGraphQL::Loader)
 
       attrs = model_class.attributes_for_loader(loader_class)
 
@@ -106,7 +106,7 @@ RSpec.describe ActiveShopifyGraphQL::Model::Attributes do
   describe ".attributes_for_loader" do
     it "returns all defined attributes" do
       model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: %i[id name email])
-      loader_class = Class.new(ActiveShopifyGraphQL::Loader) { graphql_type "TestModel" }
+      loader_class = Class.new(ActiveShopifyGraphQL::Loader)
 
       attrs = model_class.attributes_for_loader(loader_class)
 
