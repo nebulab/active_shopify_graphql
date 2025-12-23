@@ -15,22 +15,7 @@ module ActiveShopifyGraphQL::Model::FinderMethods
     # @param loader [ActiveShopifyGraphQL::Loader] The loader to use for fetching data (deprecated, use Relation chain)
     # @return [Object] The model instance
     # @raise [ActiveShopifyGraphQL::ObjectNotFoundError] If the record is not found
-    def find(id, loader: nil)
-      # For backward compatibility: if loader is provided, use old behavior
-      if loader
-        gid = ActiveShopifyGraphQL::GidHelper.normalize_gid(id, model_name.name.demodulize)
-        result = if loader.has_included_connections?
-                   loader.load_with_instance(gid, self)
-                 else
-                   attributes = loader.load_attributes(gid)
-                   attributes.nil? ? nil : new(attributes)
-                 end
-        raise ObjectNotFoundError, "Couldn't find #{name} with id=#{id}" if result.nil?
-
-        return result
-      end
-
-      # New behavior: delegate to Relation
+    def find(id)
       all.find(id)
     end
 

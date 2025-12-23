@@ -62,26 +62,35 @@ module ActiveShopifyGraphQL
       @included_connections&.any?
     end
 
-    # Load and construct an instance with proper inverse_of support for included connections
-    def load_with_instance(id, model_class)
-      query = Query::QueryBuilder.build_single_record_query(context)
-      response_data = execute_query(query, id: id)
-      return nil if response_data.nil?
-
-      mapper = create_response_mapper
-      attributes = mapper.map_response(response_data)
-      instance = model_class.new(attributes)
-      cache_connections(mapper, response_data, target: instance, parent_instance: instance)
-      instance
-    end
-
     # Executes the GraphQL query and returns the mapped attributes hash
+    # @param id [String] The GID of the record to load
+    # @return [Hash, nil] Attribute hash with connection cache, or nil if not found
     def load_attributes(id)
       query = Query::QueryBuilder.build_single_record_query(context)
       response_data = execute_query(query, id: id)
       return nil if response_data.nil?
 
       map_response_to_attributes(response_data)
+    end
+
+    # Cache connections on an already-instantiated model instance
+    # Useful when you need inverse_of associations to work properly
+    # @param instance [Object] The model instance to cache connections on
+    # @param attributes [Hash] The attributes hash that may contain :_connection_cache
+    def cache_connections_on_instance(instance, attributes)
+      return unless attributes.is_a?(Hash) && attributes.key?(:_connection_cache)
+
+      instance.instance_variable_set(:@_connection_cache, attributes[:_connection_cache])
+    end
+
+    # Build a model instance from attributes with connection caching
+    # @param attributes [Hash] The attribute hash (may contain :_connection_cache)
+    # @param model_class [Class] The model class to instantiate (defaults to @model_class)
+    # @return [Object] The instantiated model with cached connections
+    def build_instance(attributes, model_class = @model_class)
+      instance = model_class.new(attributes)
+      cache_connections_on_instance(instance, attributes)
+      instance
     end
 
     # Executes a paginated collection query that returns a PaginatedResult with cursor info
@@ -178,13 +187,6 @@ module ActiveShopifyGraphQL
       raise ArgumentError, "Shopify query validation failed: #{messages.join(', ')}"
     end
 
-    def map_collection_response(response_data, collection_query_name)
-      nodes = response_data.dig("data", collection_query_name, "nodes")
-      return [] unless nodes&.any?
-
-      nodes.filter_map { |node_data| map_node_to_attributes(node_data) }
-    end
-
     def execute_query(query, **variables)
       perform_graphql_query(query, **variables)
     end
@@ -225,7 +227,7 @@ module ActiveShopifyGraphQL
       nodes = connection_data["nodes"] || []
       records = nodes.filter_map do |node_data|
         attributes = map_node_to_attributes(node_data)
-        @model_class.new(attributes)
+        build_instance(attributes)
       end
 
       Response::PaginatedResult.new(

@@ -60,21 +60,6 @@ RSpec.describe ActiveShopifyGraphQL::Model::FinderMethods do
 
       expect { customer_class.find(999) }.to raise_error(ActiveShopifyGraphQL::ObjectNotFoundError, "Couldn't find Customer with id=999")
     end
-
-    it "allows custom loader" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
-      customer_class = build_customer_class
-      stub_const("Customer", customer_class)
-      custom_loader = ActiveShopifyGraphQL::Loaders::AdminApiLoader.new(customer_class)
-      expect(mock_client).to receive(:execute).and_return(
-        { "data" => { "customer" => { "id" => "gid://shopify/Customer/123", "email" => "test@example.com" } } }
-      )
-
-      customer = customer_class.find(123, loader: custom_loader)
-
-      expect(customer).not_to be_nil
-    end
   end
 
   describe ".find_by" do

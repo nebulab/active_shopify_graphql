@@ -65,17 +65,11 @@ module ActiveShopifyGraphQL
       # @raise [ObjectNotFoundError] If the record is not found
       def find(id)
         gid = GidHelper.normalize_gid(id, @model_class.model_name.name.demodulize)
+        attributes = loader.load_attributes(gid)
 
-        result = if has_included_connections?
-                   loader.load_with_instance(gid, @model_class)
-                 else
-                   attributes = loader.load_attributes(gid)
-                   attributes.nil? ? nil : @model_class.new(attributes)
-                 end
+        raise ObjectNotFoundError, "Couldn't find #{@model_class.name} with id=#{id}" if attributes.nil?
 
-        raise ObjectNotFoundError, "Couldn't find #{@model_class.name} with id=#{id}" if result.nil?
-
-        result
+        loader.build_instance(attributes, @model_class)
       end
 
       # Include connections for eager loading
