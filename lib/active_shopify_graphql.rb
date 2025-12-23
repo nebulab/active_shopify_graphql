@@ -19,4 +19,19 @@ loader.setup
 module ActiveShopifyGraphQL
   class Error < StandardError; end
   class ObjectNotFoundError < Error; end
+
+  class << self
+    def configuration
+      @configuration ||= Configuration.new
+    end
+
+    def configure
+      yield(configuration)
+    end
+
+    # Reset configuration (useful for testing)
+    def reset_configuration!
+      @configuration = Configuration.new
+    end
+  end
 end
