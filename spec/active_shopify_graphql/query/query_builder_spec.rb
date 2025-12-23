@@ -469,12 +469,13 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "generates alias when connection original_name differs from query_name" do
-      order_class = Class.new do
+      order_class = Class.new(ActiveShopifyGraphQL::Model) do
+        attribute :id
         define_singleton_method(:name) { "Order" }
         define_singleton_method(:connections) { {} }
       end
+      order_class.graphql_type("Order")
       stub_const("Order", order_class)
-      order_class.define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
 
       model_class = Class.new do
         define_singleton_method(:connections) do
@@ -503,12 +504,13 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "does not generate alias when original_name matches query_name" do
-      order_class = Class.new do
+      order_class = Class.new(ActiveShopifyGraphQL::Model) do
+        attribute :id
         define_singleton_method(:name) { "Order" }
         define_singleton_method(:connections) { {} }
       end
+      order_class.graphql_type("Order")
       stub_const("Order", order_class)
-      order_class.define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
 
       model_class = Class.new do
         define_singleton_method(:connections) do
@@ -538,12 +540,13 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "handles multiple connections with same query_name but different aliases" do
-      order_class = Class.new do
+      order_class = Class.new(ActiveShopifyGraphQL::Model) do
+        attribute :id
         define_singleton_method(:name) { "Order" }
         define_singleton_method(:connections) { {} }
       end
+      order_class.graphql_type("Order")
       stub_const("Order", order_class)
-      order_class.define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
 
       model_class = Class.new do
         define_singleton_method(:connections) do

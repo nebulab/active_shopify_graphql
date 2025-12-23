@@ -273,7 +273,7 @@ module ActiveShopifyGraphQL
       def build_target_field_nodes(target_context, nested_includes)
         # Build attribute nodes
         attribute_nodes = if target_context.defined_attributes.any?
-                            QueryBuilder.new(target_context.with_connections([])).build_field_nodes
+                            QueryBuilder.new(target_context.for_model(target_context.model_class, new_connections: [])).build_field_nodes
                           else
                             [Node::Field.new(name: "id")]
                           end

@@ -50,25 +50,6 @@ RSpec.describe ActiveShopifyGraphQL::LoaderContext do
     end
   end
 
-  describe "#with_connections" do
-    it "creates new context with different connections" do
-      model_class = Class.new { define_singleton_method(:connections) { {} } }
-      original_context = described_class.new(
-        graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-        defined_attributes: { id: { path: "id", type: :string } },
-        model_class: model_class,
-        included_connections: [:orders]
-      )
-
-      new_context = original_context.with_connections([:addresses])
-
-      expect(new_context.included_connections).to eq([:addresses])
-      expect(new_context.graphql_type).to eq("Customer")
-      expect(original_context.included_connections).to eq([:orders])
-    end
-  end
-
   describe "#for_model" do
     it "creates new context for different model" do
       model_class1 = Class.new do
