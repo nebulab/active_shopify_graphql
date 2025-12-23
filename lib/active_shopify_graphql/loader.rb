@@ -134,6 +134,17 @@ module ActiveShopifyGraphQL
       Response::ResponseMapper.new(context)
     end
 
+    def should_log?
+      ActiveShopifyGraphQL.configuration.log_queries && ActiveShopifyGraphQL.configuration.logger
+    end
+
+    def log_query(api_name, query, variables)
+      return unless should_log?
+
+      ActiveShopifyGraphQL.configuration.logger.info("ActiveShopifyGraphQL Query (#{api_name}):\n#{query}")
+      ActiveShopifyGraphQL.configuration.logger.info("ActiveShopifyGraphQL Variables:\n#{variables}")
+    end
+
     def cache_connections(mapper, response_data, target:, parent_instance: nil)
       return unless @included_connections.any?
 

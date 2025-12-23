@@ -19,10 +19,8 @@ module ActiveShopifyGraphQL
 
       # Override load_attributes to handle the Customer case
       def load_attributes(id = nil)
-        query = graphql_query
-
         variables = context.graphql_type == 'Customer' ? {} : { id: id }
-        response_data = perform_graphql_query(query, **variables)
+        response_data = execute_query(graphql_query, **variables)
 
         return nil if response_data.nil?
 
@@ -37,20 +35,8 @@ module ActiveShopifyGraphQL
       end
 
       def perform_graphql_query(query, **variables)
-        log_query(query, variables) if should_log?
+        log_query("Customer Account API", query, variables)
         client.query(query, variables)
-      end
-
-      private
-
-      def should_log?
-        ActiveShopifyGraphQL.configuration.log_queries && ActiveShopifyGraphQL.configuration.logger
-      end
-
-      def log_query(query, variables)
-        logger = ActiveShopifyGraphQL.configuration.logger
-        logger.info("ActiveShopifyGraphQL Query (Customer Account API):\n#{query}")
-        logger.info("ActiveShopifyGraphQL Variables:\n#{variables}")
       end
     end
   end
