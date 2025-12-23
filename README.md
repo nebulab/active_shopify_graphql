@@ -79,7 +79,7 @@ For consistency and to share common behavior across all your Shopify GraphQL mod
 
 ```ruby
 # app/models/application_shopify_gql_record.rb
-class ApplicationShopifyGqlRecord < ActiveShopifyGraphQL::Model
+class ApplicationShopifyRecord < ActiveShopifyGraphQL::Model
   # Extract numeric ID from Shopify GID
   attribute :id, transform: ->(id) { id.split("/").last }
   # Keep the original GID available
@@ -90,7 +90,7 @@ end
 Then inherit from this base class in your models:
 
 ```ruby
-class Customer < ApplicationShopifyGqlRecord
+class Customer < ApplicationShopifyRecord
   graphql_type "Customer"
 
   attribute :name, path: "displayName"
