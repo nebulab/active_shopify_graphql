@@ -4,48 +4,31 @@ require 'active_model/type'
 require 'global_id'
 
 module ActiveShopifyGraphQL
-  # Base loader class that orchestrates GraphQL query execution and response mapping.
-  # Refactored to use LoaderContext for cleaner parameter management.
+  # The Loader acts as a stateless orchestrator that:
+  # - Receives a model class and delegates to it for GraphQL type and attribute definitions
+  # - Builds a LoaderContext that encapsulates all query-building parameters
+  # - Delegates query construction to Query::QueryBuilder
+  # - Delegates response mapping to Response::ResponseMapper
+  # - Executes GraphQL queries via subclass-specific implementations (perform_graphql_query)
+  #
+  # == Subclass Requirements
+  #
+  # Subclasses must implement:
+  # - +perform_graphql_query(query, **variables)+ - Execute the query against the appropriate API
+  #
+  # == Usage
+  #
+  #   loader = AdminApiLoader.new(Customer, selected_attributes: [:id, :email])
+  #   attributes = loader.load_attributes("gid://shopify/Customer/123")
+  #   customer = Customer.new(attributes)
+  #
+  # @see LoaderContext For query-building context management
+  # @see Query::QueryBuilder For GraphQL query construction
+  # @see Response::ResponseMapper For response-to-attribute mapping
   class Loader
-    class << self
-      # Set or get the GraphQL type for this loader
-      def graphql_type(type = nil)
-        return @graphql_type = type if type
-
-        # Try to get GraphQL type from associated model class first
-        return model_class.graphql_type_for_loader(self) if model_class
-
-        @graphql_type || raise(NotImplementedError, "#{self} must define graphql_type")
-      end
-
-      # Get the model class associated with this loader
-      def model_class
-        @model_class ||= infer_model_class
-      end
-
-      attr_writer :model_class
-
-      # Get attributes from the model class for this loader
-      def defined_attributes
-        return {} unless model_class
-
-        model_class.attributes_for_loader(self)
-      end
-
-      private
-
-      def infer_model_class
-        return nil unless @graphql_type
-
-        Object.const_get(@graphql_type)
-      rescue NameError
-        nil
-      end
-    end
-
-    # Initialize loader with optional model class and configuration
-    def initialize(model_class = nil, selected_attributes: nil, included_connections: nil, **)
-      @model_class = model_class || self.class.model_class
+    # Initialize loader with model class and configuration
+    def initialize(model_class, selected_attributes: nil, included_connections: nil, **)
+      @model_class = model_class
       @selected_attributes = selected_attributes&.map(&:to_sym)
       @included_connections = included_connections || []
     end
@@ -53,7 +36,7 @@ module ActiveShopifyGraphQL
     # Build the LoaderContext for this loader instance
     def context
       @context ||= LoaderContext.new(
-        graphql_type: graphql_type,
+        graphql_type: resolve_graphql_type,
         loader_class: self.class,
         defined_attributes: defined_attributes,
         model_class: @model_class,
@@ -61,51 +44,23 @@ module ActiveShopifyGraphQL
       )
     end
 
-    # Get GraphQL type for this loader instance
-    def graphql_type
-      Model::GraphqlTypeResolver.resolve(model_class: @model_class, loader_class: self.class)
-    end
-
     # Get defined attributes for this loader instance
     def defined_attributes
-      attrs = if @model_class
-                @model_class.attributes_for_loader(self.class)
-              else
-                self.class.defined_attributes
-              end
-
-      filter_selected_attributes(attrs)
+      filter_selected_attributes(@model_class.attributes_for_loader(self.class))
     end
 
-    # Returns the complete GraphQL fragment
-    def fragment
-      Query::QueryBuilder.new(context).build_fragment
-    end
-
-    # Delegate query building methods
-    def query_name(model_type = nil)
-      (model_type || graphql_type).camelize(:lower)
-    end
-
-    def fragment_name(model_type = nil)
-      "#{model_type || graphql_type}Fragment"
-    end
-
-    def graphql_query(_model_type = nil)
-      Query::QueryBuilder.build_single_record_query(context)
+    # Returns the arguments needed to initialize a new loader of the same type
+    # Subclasses should override this if they require additional initialization arguments
+    # @return [Array] Array of arguments to pass to the loader initializer
+    def initialization_args
+      []
     end
 
     # Map the GraphQL response to model attributes
     def map_response_to_attributes(response_data, parent_instance: nil)
-      mapper = Response::ResponseMapper.new(context)
+      mapper = create_response_mapper
       attributes = mapper.map_response(response_data)
-
-      # If we have included connections, extract and cache them
-      if @included_connections.any?
-        connection_data = mapper.extract_connection_data(response_data, parent_instance: parent_instance)
-        attributes[:_connection_cache] = connection_data unless connection_data.empty?
-      end
-
+      cache_connections(mapper, response_data, target: attributes, parent_instance: parent_instance)
       attributes
     end
 
@@ -114,72 +69,29 @@ module ActiveShopifyGraphQL
       @included_connections&.any?
     end
 
-    # Load and construct an instance with proper inverse_of support for included connections
-    def load_with_instance(id, model_class)
-      query = graphql_query
-      response_data = perform_graphql_query(query, id: id)
-
-      return nil if response_data.nil?
-
-      # First, extract just the attributes (without connections)
-      mapper = Response::ResponseMapper.new(context)
-      attributes = mapper.map_response(response_data)
-
-      # Create the instance with basic attributes
-      instance = model_class.new(attributes)
-
-      # Now extract connection data with the instance as parent to support inverse_of
-      if @included_connections.any?
-        connection_data = mapper.extract_connection_data(response_data, parent_instance: instance)
-        unless connection_data.empty?
-          # Manually set the connection cache on the instance
-          instance.instance_variable_set(:@_connection_cache, connection_data)
-        end
-      end
-
-      instance
-    end
-
     # Executes the GraphQL query and returns the mapped attributes hash
+    # @param id [String] The GID of the record to load
+    # @return [Hash, nil] Attribute hash with connection cache, or nil if not found
     def load_attributes(id)
-      query = graphql_query
-      response_data = perform_graphql_query(query, id: id)
-
+      query = Query::QueryBuilder.build_single_record_query(context)
+      response_data = execute_query(query, id: id)
       return nil if response_data.nil?
 
       map_response_to_attributes(response_data)
     end
 
-    # Executes a collection query using Shopify's search syntax
-    def load_collection(conditions = {}, limit: 250)
-      search_query = SearchQuery.new(conditions)
-      collection_query_name = query_name.pluralize
-      variables = { query: search_query.to_s, first: limit }
-
-      query = Query::QueryBuilder.build_collection_query(
-        context,
-        query_name: collection_query_name,
-        variables: variables
-      )
-
-      response = perform_graphql_query(query, **variables)
-      validate_search_response(response)
-      map_collection_response(response, collection_query_name)
-    end
-
-    # Executes a paginated collection query that returns a PaginatedResult with cursor info
+    # Executes a paginated collection query that returns attributes and page info
+    # Executes a paginated collection query that returns attributes and page info
     # @param conditions [Hash] Search conditions
     # @param per_page [Integer] Number of records per page
     # @param after [String, nil] Cursor to fetch records after
     # @param before [String, nil] Cursor to fetch records before
     # @param query_scope [Query::Scope] The query scope for navigation
-    # @return [PaginatedResult] A paginated result with records and page info
+    # @return [PaginatedResult] A paginated result with attribute hashes and page info
     def load_paginated_collection(conditions:, per_page:, query_scope:, after: nil, before: nil)
-      search_query = SearchQuery.new(conditions)
-      collection_query_name = query_name.pluralize
-
-      variables = build_pagination_variables(
-        query: search_query.to_s,
+      collection_query_name = context.query_name.pluralize
+      variables = build_collection_variables(
+        conditions,
         per_page: per_page,
         after: after,
         before: before
@@ -191,8 +103,7 @@ module ActiveShopifyGraphQL
         variables: variables
       )
 
-      response = perform_graphql_query(query, **variables)
-      validate_search_response(response)
+      response = execute_query_and_validate_search_response(query, **variables)
       map_paginated_response(response, collection_query_name, query_scope)
     end
 
@@ -209,6 +120,41 @@ module ActiveShopifyGraphQL
 
     private
 
+    def create_response_mapper
+      Response::ResponseMapper.new(context)
+    end
+
+    def should_log?
+      ActiveShopifyGraphQL.configuration.log_queries && ActiveShopifyGraphQL.configuration.logger
+    end
+
+    def log_query(api_name, query, variables)
+      return unless should_log?
+
+      ActiveShopifyGraphQL.configuration.logger.info("ActiveShopifyGraphQL Query (#{api_name}):\n#{query}")
+      ActiveShopifyGraphQL.configuration.logger.info("ActiveShopifyGraphQL Variables:\n#{variables}")
+    end
+
+    def cache_connections(mapper, response_data, target:, parent_instance: nil)
+      return unless @included_connections.any?
+
+      connection_data = mapper.extract_connection_data(response_data, parent_instance: parent_instance)
+      return if connection_data.empty?
+
+      case target
+      when Hash
+        target[:_connection_cache] = connection_data
+      else
+        target.instance_variable_set(:@_connection_cache, connection_data)
+      end
+    end
+
+    def resolve_graphql_type
+      raise ArgumentError, "#{self.class} requires a model_class" unless @model_class
+
+      @model_class.graphql_type_for_loader(self.class)
+    end
+
     def filter_selected_attributes(attrs)
       return attrs unless @selected_attributes
 
@@ -219,7 +165,7 @@ module ActiveShopifyGraphQL
       selected
     end
 
-    def validate_search_response(response)
+    def validate_search_query_response(response)
       return unless response.dig("extensions", "search")
 
       warnings = response["extensions"]["search"].flat_map { |s| s["warnings"] || [] }
@@ -229,30 +175,34 @@ module ActiveShopifyGraphQL
       raise ArgumentError, "Shopify query validation failed: #{messages.join(', ')}"
     end
 
-    def map_collection_response(response_data, collection_query_name)
-      nodes = response_data.dig("data", collection_query_name, "nodes")
-      return [] unless nodes&.any?
-
-      nodes.filter_map do |node_data|
-        single_response = { "data" => { query_name => node_data } }
-        map_response_to_attributes(single_response)
-      end
+    def execute_query(query, **variables)
+      perform_graphql_query(query, **variables)
     end
 
-    def build_pagination_variables(query:, per_page:, after: nil, before: nil)
-      variables = { query: query }
+    def execute_query_and_validate_search_response(query, **variables)
+      response = execute_query(query, **variables)
+      validate_search_query_response(response)
+      response
+    end
+
+    def build_collection_variables(conditions, per_page:, after: nil, before: nil)
+      search_query = SearchQuery.new(conditions)
+      variables = { query: search_query.to_s }
 
       if before
-        # Paginating backwards
         variables[:last] = per_page
         variables[:before] = before
       else
-        # Paginating forwards (default)
         variables[:first] = per_page
         variables[:after] = after if after
       end
 
       variables.compact
+    end
+
+    def map_node_to_attributes(node_data)
+      single_response = { "data" => { context.query_name => node_data } }
+      map_response_to_attributes(single_response)
     end
 
     def map_paginated_response(response_data, collection_query_name, query_scope)
@@ -263,14 +213,11 @@ module ActiveShopifyGraphQL
       page_info = Response::PageInfo.new(page_info_data)
 
       nodes = connection_data["nodes"] || []
-      records = nodes.filter_map do |node_data|
-        single_response = { "data" => { query_name => node_data } }
-        attributes = map_response_to_attributes(single_response)
-        @model_class.new(attributes)
-      end
+      attributes_array = nodes.filter_map { |node_data| map_node_to_attributes(node_data) }
 
       Response::PaginatedResult.new(
-        records: records,
+        attributes: attributes_array,
+        model_class: @model_class,
         page_info: page_info,
         query_scope: query_scope
       )
@@ -278,7 +225,8 @@ module ActiveShopifyGraphQL
 
     def empty_paginated_result(query_scope)
       Response::PaginatedResult.new(
-        records: [],
+        attributes: [],
+        model_class: @model_class,
         page_info: Response::PageInfo.new,
         query_scope: query_scope
       )

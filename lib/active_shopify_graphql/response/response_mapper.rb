@@ -68,6 +68,7 @@ module ActiveShopifyGraphQL
       end
 
       # Map nested connection response (when loading via parent query)
+      # Returns attributes instead of instances
       def map_nested_connection_response(response_data, connection_field_name, parent, connection_config = nil)
         parent_type = parent.class.graphql_type_for_loader(@context.loader_class)
         parent_query_name = parent_type.camelize(:lower)
@@ -77,18 +78,19 @@ module ActiveShopifyGraphQL
           node_data = response_data.dig("data", parent_query_name, connection_field_name)
           return nil unless node_data
 
-          build_model_instance(node_data)
+          map_node_to_attributes(node_data)
         else
           nodes = response_data.dig("data", parent_query_name, connection_field_name, "nodes")
           return [] unless nodes
 
           nodes.filter_map do |node_data|
-            build_model_instance(node_data) if node_data
+            map_node_to_attributes(node_data) if node_data
           end
         end
       end
 
       # Map root connection response
+      # Returns attributes instead of instances
       def map_connection_response(response_data, query_name, connection_config = nil)
         connection_type = connection_config&.dig(:type) || :connection
 
@@ -96,13 +98,13 @@ module ActiveShopifyGraphQL
           node_data = response_data.dig("data", query_name)
           return nil unless node_data
 
-          build_model_instance(node_data)
+          map_node_to_attributes(node_data)
         else
           nodes = response_data.dig("data", query_name, "nodes")
           return [] unless nodes
 
           nodes.filter_map do |node_data|
-            build_model_instance(node_data) if node_data
+            map_node_to_attributes(node_data) if node_data
           end
         end
       end
@@ -175,7 +177,6 @@ module ActiveShopifyGraphQL
         response_key = connection_config[:original_name].to_s
         connection_type = connection_config[:type] || :connection
         target_class = connection_config[:class_name].constantize
-        connection_name = connection_config[:original_name]
 
         if connection_type == :singular
           item_data = node_data[response_key]
@@ -183,7 +184,6 @@ module ActiveShopifyGraphQL
 
           build_nested_model_instance(item_data, target_class, nested_includes,
                                       parent_instance: parent_instance,
-                                      parent_connection_name: connection_name,
                                       connection_config: connection_config)
         else
           nodes = node_data.dig(response_key, "nodes")
@@ -193,21 +193,15 @@ module ActiveShopifyGraphQL
             if item_data
               build_nested_model_instance(item_data, target_class, nested_includes,
                                           parent_instance: parent_instance,
-                                          parent_connection_name: connection_name,
                                           connection_config: connection_config)
             end
           end
         end
       end
 
-      def build_model_instance(node_data)
-        return nil unless node_data
-
-        attributes = map_node_to_attributes(node_data)
-        @context.model_class.new(attributes)
-      end
-
-      def build_nested_model_instance(node_data, target_class, nested_includes, parent_instance: nil, parent_connection_name: nil, connection_config: nil) # rubocop:disable Lint/UnusedMethodArgument
+      # Build a nested model instance with inverse_of wiring
+      # Used for eager-loaded connections that go into the connection cache
+      def build_nested_model_instance(node_data, target_class, nested_includes, parent_instance: nil, connection_config: nil)
         nested_context = @context.for_model(target_class, new_connections: nested_includes)
         nested_mapper = ResponseMapper.new(nested_context)
 

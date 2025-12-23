@@ -8,23 +8,15 @@ module ActiveShopifyGraphQL
         @token = token
       end
 
-      # Override to handle Customer queries that don't need an ID
-      def graphql_query(model_type = nil)
-        type = model_type || graphql_type
-        if type == 'Customer'
-          Query::QueryBuilder.build_current_customer_query(context)
-        else
-          super(type)
-        end
-      end
-
       # Override load_attributes to handle the Customer case
       def load_attributes(id = nil)
-        type = graphql_type
-        query = graphql_query(type)
-
-        variables = type == 'Customer' ? {} : { id: id }
-        response_data = perform_graphql_query(query, **variables)
+        query = if context.graphql_type == 'Customer'
+                  Query::QueryBuilder.build_current_customer_query(context)
+                else
+                  Query::QueryBuilder.build_single_record_query(context)
+                end
+        variables = context.graphql_type == 'Customer' ? {} : { id: id }
+        response_data = execute_query(query, **variables)
 
         return nil if response_data.nil?
 
@@ -39,20 +31,12 @@ module ActiveShopifyGraphQL
       end
 
       def perform_graphql_query(query, **variables)
-        log_query(query, variables) if should_log?
+        log_query("Customer Account API", query, variables)
         client.query(query, variables)
       end
 
-      private
-
-      def should_log?
-        ActiveShopifyGraphQL.configuration.log_queries && ActiveShopifyGraphQL.configuration.logger
-      end
-
-      def log_query(query, variables)
-        logger = ActiveShopifyGraphQL.configuration.logger
-        logger.info("ActiveShopifyGraphQL Query (Customer Account API):\n#{query}")
-        logger.info("ActiveShopifyGraphQL Variables:\n#{variables}")
+      def initialization_args
+        [@token]
       end
     end
   end

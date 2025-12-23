@@ -13,17 +13,4 @@ module ActiveShopifyGraphQL
       @max_objects_per_paginated_query = 250
     end
   end
-
-  def self.configuration
-    @configuration ||= Configuration.new
-  end
-
-  def self.configure
-    yield(configuration)
-  end
-
-  # Reset configuration (useful for testing)
-  def self.reset_configuration!
-    @configuration = Configuration.new
-  end
 end

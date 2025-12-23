@@ -52,12 +52,10 @@ end
 
 ### Basic Model Setup
 
-Create a model that includes `ActiveShopifyGraphQL::Base` and define attributes directly:
+Create a model that inherits from `ActiveShopifyGraphQL::Model` and define attributes directly:
 
 ```ruby
-class Customer
-  include ActiveShopifyGraphQL::Base
-
+class Customer < ActiveShopifyGraphQL::Model
   # Define the GraphQL type
   graphql_type "Customer"
 
@@ -75,6 +73,37 @@ class Customer
 end
 ```
 
+### Application Base Class (Recommended)
+
+For consistency and to share common behavior across all your Shopify GraphQL models, we recommend creating an `ApplicationShopifyGqlRecord` base class, similar to Rails' `ApplicationRecord`:
+
+```ruby
+# app/models/application_shopify_gql_record.rb
+class ApplicationShopifyRecord < ActiveShopifyGraphQL::Model
+  # Extract numeric ID from Shopify GID
+  attribute :id, transform: ->(id) { id.split("/").last }
+  # Keep the original GID available
+  attribute :gid, path: "id"
+end
+```
+
+Then inherit from this base class in your models:
+
+```ruby
+class Customer < ApplicationShopifyRecord
+  graphql_type "Customer"
+
+  attribute :name, path: "displayName"
+  attribute :email, path: "defaultEmailAddress.emailAddress"
+  attribute :created_at, type: :datetime
+end
+```
+
+This pattern provides:
+- **Consistent ID handling**: All models automatically get a numeric `id` and full `gid`
+- **Shared behavior**: Add validations, methods, or transformations once for all models
+- **Clear inheritance**: The class definition line clearly shows the persistence layer
+
 ### Defining Attributes
 
 Attributes are now defined directly in the model class using the `attribute` method. The GraphQL fragments and response mapping are automatically generated!
@@ -82,9 +111,7 @@ Attributes are now defined directly in the model class using the `attribute` met
 #### Basic Attribute Definition
 
 ```ruby
-class Customer
-  include ActiveShopifyGraphQL::Base
-
+class Customer < ActiveShopifyGraphQL::Model
   graphql_type "Customer"
 
   # Define attributes with automatic GraphQL path inference and type coercion
@@ -124,9 +151,7 @@ attribute :name,
 Shopify metafields can be easily accessed using the `metafield_attribute` method:
 
 ```ruby
-class Product
-  include ActiveShopifyGraphQL::Base
-
+class Product < ActiveShopifyGraphQL::Model
   graphql_type "Product"
 
   # Regular attributes
@@ -148,9 +173,7 @@ The metafield attributes automatically generate the correct GraphQL syntax and h
 For advanced GraphQL features not yet fully supported by the gem (like union types with `... on` syntax), you can inject raw GraphQL directly into the query using the `raw_graphql` option:
 
 ```ruby
-class Product
-  include ActiveShopifyGraphQL::Base
-
+class Product < ActiveShopifyGraphQL::Model
   graphql_type "Product"
 
   attribute :id, type: :string
@@ -175,9 +198,7 @@ end
 For models that need different attributes depending on the API being used, you can define loader-specific overrides:
 
 ```ruby
-class Customer
-  include ActiveShopifyGraphQL::Base
-
+class Customer < ActiveShopifyGraphQL::Model
   graphql_type "Customer"
 
   # Default attributes (used by all loaders)
@@ -375,9 +396,7 @@ ActiveShopifyGraphQL provides ActiveRecord-like associations to define relations
 Use `has_many` to define one-to-many relationships:
 
 ```ruby
-class Customer
-  include ActiveShopifyGraphQL::Base
-
+class Customer < ActiveShopifyGraphQL::Model
   graphql_type "Customer"
 
   attribute :id, type: :string
@@ -412,9 +431,7 @@ customer.rewards
 Use `has_one` to define one-to-one relationships:
 
 ```ruby
-class Order
-  include ActiveShopifyGraphQL::Base
-
+class Order < ActiveShopifyGraphQL::Model
   has_one :billing_address, class_name: 'Address'
 end
 ```
@@ -459,9 +476,7 @@ ActiveShopifyGraphQL supports GraphQL connections for loading related data from 
 Use the `connection` class method to define connections to other ActiveShopifyGraphQL models:
 
 ```ruby
-class Customer
-  include ActiveShopifyGraphQL::Base
-
+class Customer < ActiveShopifyGraphQL::Model
   graphql_type 'Customer'
 
   attribute :id
@@ -494,9 +509,7 @@ class Customer
     }
 end
 
-class Order
-  include ActiveShopifyGraphQL::Base
-
+class Order < ActiveShopifyGraphQL::Model
   graphql_type 'Order'
 
   attribute :id
@@ -585,9 +598,7 @@ puts customer.orders.loaded?    # => This won't be a proxy since data was eager 
 For connections that should always be loaded, you can use the `eager_load: true` parameter when defining the connection. This will automatically include the connection in all find and where queries without needing to explicitly use `includes`:
 
 ```ruby
-class Customer
-  include ActiveShopifyGraphQL::Base
-
+class Customer < ActiveShopifyGraphQL::Model
   graphql_type 'Customer'
 
   attribute :id
@@ -681,9 +692,7 @@ When you have bidirectional relationships between models, you can use the `inver
 #### Basic Usage
 
 ```ruby
-class Product
-  include ActiveShopifyGraphQL::Base
-
+class Product < ActiveShopifyGraphQL::Model
   graphql_type 'Product'
 
   attribute :id
@@ -696,9 +705,7 @@ class Product
     default_arguments: { first: 10 }
 end
 
-class ProductVariant
-  include ActiveShopifyGraphQL::Base
-
+class ProductVariant < ActiveShopifyGraphQL::Model
   graphql_type 'ProductVariant'
 
   attribute :id
@@ -760,9 +767,10 @@ Connection queries use the same error handling as regular model queries. If a co
 - [x] Support `Model.where(param: value)` proxying params to the GraphQL query attribute
 - [x] Query optimization with `select` method
 - [x] GraphQL connections with lazy and eager loading via `Customer.includes(:orders).find(id)`
-- [ ] Support for paginating query results with cursors
+- [x] Support for paginating query results with cursors
 - [ ] Better error handling and retry mechanisms for GraphQL API calls
 - [ ] Caching layer for frequently accessed data
+- [ ] Multiple `.where` chaining with possibility of using `.not`
 
 ## Development
 

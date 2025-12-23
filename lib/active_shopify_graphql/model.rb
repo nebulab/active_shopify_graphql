@@ -1,25 +1,39 @@
 # frozen_string_literal: true
 
 module ActiveShopifyGraphQL
-  module Base
-    extend ActiveSupport::Concern
+  # Base class for all GraphQL-backed models.
+  #
+  # Models should inherit from this class (typically via an ApplicationShopifyGqlRecord
+  # intermediate class) to gain ActiveRecord-like functionality for Shopify GraphQL APIs.
+  #
+  # @example Creating an ApplicationShopifyGqlRecord base class
+  #   class ApplicationShopifyGqlRecord < ActiveShopifyGraphQL::Model
+  #     attribute :id, transform: ->(id) { id.split("/").last }
+  #     attribute :gid, path: "id"
+  #   end
+  #
+  # @example Defining a model
+  #   class Customer < ApplicationShopifyGqlRecord
+  #     graphql_type "Customer"
+  #
+  #     attribute :first_name
+  #     attribute :email, path: "defaultEmailAddress.emailAddress"
+  #   end
+  #
+  class Model
+    include ActiveModel::AttributeAssignment
+    include ActiveModel::Validations
+    extend ActiveModel::Naming
 
-    included do
-      include ActiveModel::AttributeAssignment
-      include ActiveModel::Validations
-      extend ActiveModel::Naming
-      include ActiveShopifyGraphQL::Model::GraphqlTypeResolver
-      include ActiveShopifyGraphQL::Model::FinderMethods
-      include ActiveShopifyGraphQL::Model::Associations
-      include ActiveShopifyGraphQL::Model::Connections
-      include ActiveShopifyGraphQL::Model::Attributes
-      include ActiveShopifyGraphQL::Model::MetafieldAttributes
-      include ActiveShopifyGraphQL::Model::LoaderSwitchable
-    end
+    include GraphqlTypeResolver
+    include FinderMethods
+    include Associations
+    include Connections
+    include Attributes
+    include MetafieldAttributes
+    include LoaderSwitchable
 
     def initialize(attributes = {})
-      super()
-
       # Extract connection cache if present and populate inverse caches
       if attributes.key?(:_connection_cache)
         @_connection_cache = attributes.delete(:_connection_cache)
