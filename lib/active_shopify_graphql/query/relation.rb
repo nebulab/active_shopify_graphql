@@ -69,7 +69,7 @@ module ActiveShopifyGraphQL
 
         raise ObjectNotFoundError, "Couldn't find #{@model_class.name} with id=#{id}" if attributes.nil?
 
-        loader.build_instance(attributes, @model_class)
+        ModelBuilder.build(@model_class, attributes)
       end
 
       # Include connections for eager loading

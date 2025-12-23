@@ -444,9 +444,10 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
 
       result = mapper.map_nested_connection_response(response_data, "product", parent, { type: :singular })
 
-      expect(result).to be_a(Product)
-      expect(result.id).to eq("gid://shopify/Product/123")
-      expect(result.title).to eq("Test Product")
+      # ResponseMapper now returns attributes, not instances
+      expect(result).to be_a(Hash)
+      expect(result[:id]).to eq("gid://shopify/Product/123")
+      expect(result[:title]).to eq("Test Product")
     end
   end
 

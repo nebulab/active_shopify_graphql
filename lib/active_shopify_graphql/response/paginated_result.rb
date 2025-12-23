@@ -3,6 +3,7 @@
 module ActiveShopifyGraphQL
   module Response
     # Represents a page of results from a paginated GraphQL query.
+    # Lazily builds model instances from attribute hashes on access.
     # Provides methods to navigate between pages and access pagination metadata.
     #
     # @example Manual pagination
@@ -17,33 +18,40 @@ module ActiveShopifyGraphQL
     class PaginatedResult
       include Enumerable
 
-      attr_reader :records, :page_info, :query_scope
+      attr_reader :page_info, :query_scope
 
-      def initialize(records:, page_info:, query_scope:)
-        @records = records
+      def initialize(attributes:, model_class:, page_info:, query_scope:)
+        @attributes = attributes
+        @model_class = model_class
         @page_info = page_info
         @query_scope = query_scope
+        @records = nil # Lazily built
+      end
+
+      # Get the records for this page (builds instances on first access)
+      def records
+        @records ||= ModelBuilder.build_many(@model_class, @attributes)
       end
 
       # Iterate over records in this page
       def each(&block)
-        @records.each(&block)
+        records.each(&block)
       end
 
       # Access records by index
       def [](index)
-        @records[index]
+        records[index]
       end
 
       # Number of records in this page
       def size
-        @records.size
+        @attributes.size
       end
       alias length size
 
       # Check if this page has records
       def empty?
-        @records.empty?
+        @attributes.empty?
       end
 
       # Check if there is a next page
@@ -84,14 +92,14 @@ module ActiveShopifyGraphQL
 
       # Convert to array (useful for compatibility)
       def to_a
-        @records.dup
+        records.dup
       end
 
       # Return all records across all pages
       # Warning: This will make multiple API calls if there are many pages
       # @return [Array] All records from all pages
       def all_records
-        all = @records.dup
+        all = records.dup
         current = self
 
         while current.has_next_page?

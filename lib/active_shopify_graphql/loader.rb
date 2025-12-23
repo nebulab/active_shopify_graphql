@@ -73,33 +73,14 @@ module ActiveShopifyGraphQL
       map_response_to_attributes(response_data)
     end
 
-    # Cache connections on an already-instantiated model instance
-    # Useful when you need inverse_of associations to work properly
-    # @param instance [Object] The model instance to cache connections on
-    # @param attributes [Hash] The attributes hash that may contain :_connection_cache
-    def cache_connections_on_instance(instance, attributes)
-      return unless attributes.is_a?(Hash) && attributes.key?(:_connection_cache)
-
-      instance.instance_variable_set(:@_connection_cache, attributes[:_connection_cache])
-    end
-
-    # Build a model instance from attributes with connection caching
-    # @param attributes [Hash] The attribute hash (may contain :_connection_cache)
-    # @param model_class [Class] The model class to instantiate (defaults to @model_class)
-    # @return [Object] The instantiated model with cached connections
-    def build_instance(attributes, model_class = @model_class)
-      instance = model_class.new(attributes)
-      cache_connections_on_instance(instance, attributes)
-      instance
-    end
-
-    # Executes a paginated collection query that returns a PaginatedResult with cursor info
+    # Executes a paginated collection query that returns attributes and page info
+    # Executes a paginated collection query that returns attributes and page info
     # @param conditions [Hash] Search conditions
     # @param per_page [Integer] Number of records per page
     # @param after [String, nil] Cursor to fetch records after
     # @param before [String, nil] Cursor to fetch records before
     # @param query_scope [Query::Scope] The query scope for navigation
-    # @return [PaginatedResult] A paginated result with records and page info
+    # @return [PaginatedResult] A paginated result with attribute hashes and page info
     def load_paginated_collection(conditions:, per_page:, query_scope:, after: nil, before: nil)
       collection_query_name = context.query_name.pluralize
       variables = build_collection_variables(
@@ -225,13 +206,11 @@ module ActiveShopifyGraphQL
       page_info = Response::PageInfo.new(page_info_data)
 
       nodes = connection_data["nodes"] || []
-      records = nodes.filter_map do |node_data|
-        attributes = map_node_to_attributes(node_data)
-        build_instance(attributes)
-      end
+      attributes_array = nodes.filter_map { |node_data| map_node_to_attributes(node_data) }
 
       Response::PaginatedResult.new(
-        records: records,
+        attributes: attributes_array,
+        model_class: @model_class,
         page_info: page_info,
         query_scope: query_scope
       )
@@ -239,7 +218,8 @@ module ActiveShopifyGraphQL
 
     def empty_paginated_result(query_scope)
       Response::PaginatedResult.new(
-        records: [],
+        attributes: [],
+        model_class: @model_class,
         page_info: Response::PageInfo.new,
         query_scope: query_scope
       )
