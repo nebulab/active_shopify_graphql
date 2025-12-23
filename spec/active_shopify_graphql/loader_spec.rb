@@ -100,41 +100,6 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
     end
   end
 
-  describe "#fragment" do
-    it "builds fragment from model attributes" do
-      model_class = Class.new do
-        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
-        define_singleton_method(:attributes_for_loader) do |_|
-          {
-            id: { path: "id", type: :string },
-            name: { path: "displayName", type: :string }
-          }
-        end
-        define_singleton_method(:connections) { {} }
-      end
-      loader_class = Class.new(described_class)
-      loader = loader_class.new(model_class)
-
-      fragment = loader.fragment.to_s
-
-      expect(fragment).to include("fragment TestModelFragment on TestModel")
-      expect(fragment).to include("id")
-      expect(fragment).to include("displayName")
-    end
-
-    it "raises error when attributes are empty" do
-      model_class = Class.new do
-        define_singleton_method(:graphql_type_for_loader) { |_| "NoAttrs" }
-        define_singleton_method(:attributes_for_loader) { |_| {} }
-        define_singleton_method(:connections) { {} }
-      end
-      loader_class = Class.new(described_class)
-      loader = loader_class.new(model_class)
-
-      expect { loader.fragment.to_s }.to raise_error(NotImplementedError, /must define attributes/)
-    end
-  end
-
   describe "#map_response_to_attributes" do
     it "maps GraphQL response to attribute hash" do
       model_class = Class.new do

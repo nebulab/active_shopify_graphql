@@ -509,7 +509,7 @@ RSpec.describe ActiveShopifyGraphQL::Model::FinderMethods do
 
       selected_relation = customer_class.select(:email)
       loader = selected_relation.send(:loader)
-      fragment = loader.fragment.to_s
+      fragment = ActiveShopifyGraphQL::Query::QueryBuilder.new(loader.context).build_fragment.to_s
 
       expect(fragment).to include("id")
       expect(fragment).to include("email")

@@ -49,11 +49,6 @@ module ActiveShopifyGraphQL
       filter_selected_attributes(@model_class.attributes_for_loader(self.class))
     end
 
-    # Returns the complete GraphQL fragment
-    def fragment
-      Query::QueryBuilder.new(context).build_fragment
-    end
-
     # Map the GraphQL response to model attributes
     def map_response_to_attributes(response_data, parent_instance: nil)
       mapper = create_response_mapper
