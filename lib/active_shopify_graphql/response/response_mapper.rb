@@ -177,7 +177,6 @@ module ActiveShopifyGraphQL
         response_key = connection_config[:original_name].to_s
         connection_type = connection_config[:type] || :connection
         target_class = connection_config[:class_name].constantize
-        connection_name = connection_config[:original_name]
 
         if connection_type == :singular
           item_data = node_data[response_key]
