@@ -34,6 +34,10 @@ module ActiveShopifyGraphQL
         log_query("Customer Account API", query, variables)
         client.query(query, variables)
       end
+
+      def initialization_args
+        [@token]
+      end
     end
   end
 end

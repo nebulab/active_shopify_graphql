@@ -60,18 +60,8 @@ module ActiveShopifyGraphQL
       Query::Relation.new(
         @model_class,
         loader_class: @loader.class,
-        loader_extra_args: loader_extra_args
+        loader_extra_args: @loader.initialization_args
       )
-    end
-
-    # Returns extra arguments needed when creating a new loader of the same type
-    # For CustomerAccountApiLoader, this includes the token
-    def loader_extra_args
-      if @loader.is_a?(ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader)
-        [@loader.instance_variable_get(:@token)]
-      else
-        []
-      end
     end
   end
 end

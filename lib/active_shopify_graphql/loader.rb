@@ -49,6 +49,13 @@ module ActiveShopifyGraphQL
       filter_selected_attributes(@model_class.attributes_for_loader(self.class))
     end
 
+    # Returns the arguments needed to initialize a new loader of the same type
+    # Subclasses should override this if they require additional initialization arguments
+    # @return [Array] Array of arguments to pass to the loader initializer
+    def initialization_args
+      []
+    end
+
     # Map the GraphQL response to model attributes
     def map_response_to_attributes(response_data, parent_instance: nil)
       mapper = create_response_mapper
