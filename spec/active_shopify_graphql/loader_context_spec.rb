@@ -137,45 +137,4 @@ RSpec.describe ActiveShopifyGraphQL::LoaderContext do
       expect(context.connections).to eq({ orders: { class_name: "Order" } })
     end
   end
-
-  describe "equality" do
-    it "considers contexts with same values as equal" do
-      model_class = Class.new { define_singleton_method(:connections) { {} } }
-      attrs = { id: { path: "id", type: :string } }
-      context1 = described_class.new(
-        graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-        defined_attributes: attrs,
-        model_class: model_class,
-        included_connections: [:orders]
-      )
-      context2 = described_class.new(
-        graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-        defined_attributes: attrs,
-        model_class: model_class,
-        included_connections: [:orders]
-      )
-
-      expect(context1).to eq(context2)
-    end
-
-    it "considers contexts with different values as not equal" do
-      model_class = Class.new { define_singleton_method(:connections) { {} } }
-      context1 = described_class.new(
-        graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-        defined_attributes: {},
-        model_class: model_class
-      )
-      context2 = described_class.new(
-        graphql_type: "Order",
-        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-        defined_attributes: {},
-        model_class: model_class
-      )
-
-      expect(context1).not_to eq(context2)
-    end
-  end
 end

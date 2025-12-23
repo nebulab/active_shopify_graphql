@@ -51,20 +51,6 @@ module ActiveShopifyGraphQL
       model_class.connections
     end
 
-    def ==(other)
-      other.is_a?(LoaderContext) &&
-        graphql_type == other.graphql_type &&
-        loader_class == other.loader_class &&
-        defined_attributes == other.defined_attributes &&
-        model_class == other.model_class &&
-        included_connections == other.included_connections
-    end
-    alias eql? ==
-
-    def hash
-      [graphql_type, loader_class, defined_attributes, model_class, included_connections].hash
-    end
-
     private
 
     def infer_graphql_type(klass)
