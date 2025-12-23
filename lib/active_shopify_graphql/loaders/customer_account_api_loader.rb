@@ -8,19 +8,15 @@ module ActiveShopifyGraphQL
         @token = token
       end
 
-      # Override to handle Customer queries that don't need an ID
-      def graphql_query
-        if context.graphql_type == 'Customer'
-          Query::QueryBuilder.build_current_customer_query(context)
-        else
-          super
-        end
-      end
-
       # Override load_attributes to handle the Customer case
       def load_attributes(id = nil)
+        query = if context.graphql_type == 'Customer'
+                  Query::QueryBuilder.build_current_customer_query(context)
+                else
+                  Query::QueryBuilder.build_single_record_query(context)
+                end
         variables = context.graphql_type == 'Customer' ? {} : { id: id }
-        response_data = execute_query(graphql_query, **variables)
+        response_data = execute_query(query, **variables)
 
         return nil if response_data.nil?
 

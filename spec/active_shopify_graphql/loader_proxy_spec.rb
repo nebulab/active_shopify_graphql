@@ -39,10 +39,13 @@ RSpec.describe ActiveShopifyGraphQL::LoaderProxy do
 
       result = proxy.includes(:orders)
       relation_loader = result.send(:loader)
-      query = relation_loader.graphql_query
+      allow(relation_loader).to receive(:perform_graphql_query).and_return({ "data" => { "customer" => { "id" => "gid://shopify/Customer/123", "orders" => { "nodes" => [] } } } })
+      relation_loader.load_attributes
 
-      expect(query).to include("orders(")
-      expect(query).to include("nodes {")
+      expect(relation_loader).to have_received(:perform_graphql_query) do |query, **_vars|
+        expect(query).to include("orders(")
+        expect(query).to include("nodes {")
+      end
     end
   end
 

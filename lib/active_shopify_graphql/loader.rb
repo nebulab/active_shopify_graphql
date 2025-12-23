@@ -54,10 +54,6 @@ module ActiveShopifyGraphQL
       Query::QueryBuilder.new(context).build_fragment
     end
 
-    def graphql_query
-      Query::QueryBuilder.build_single_record_query(context)
-    end
-
     # Map the GraphQL response to model attributes
     def map_response_to_attributes(response_data, parent_instance: nil)
       mapper = create_response_mapper
@@ -73,7 +69,8 @@ module ActiveShopifyGraphQL
 
     # Load and construct an instance with proper inverse_of support for included connections
     def load_with_instance(id, model_class)
-      response_data = execute_query(graphql_query, id: id)
+      query = Query::QueryBuilder.build_single_record_query(context)
+      response_data = execute_query(query, id: id)
       return nil if response_data.nil?
 
       mapper = create_response_mapper
@@ -85,7 +82,8 @@ module ActiveShopifyGraphQL
 
     # Executes the GraphQL query and returns the mapped attributes hash
     def load_attributes(id)
-      response_data = execute_query(graphql_query, id: id)
+      query = Query::QueryBuilder.build_single_record_query(context)
+      response_data = execute_query(query, id: id)
       return nil if response_data.nil?
 
       map_response_to_attributes(response_data)

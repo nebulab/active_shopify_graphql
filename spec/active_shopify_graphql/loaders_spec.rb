@@ -58,16 +58,19 @@ RSpec.describe ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader do
     end
   end
 
-  describe "#graphql_query" do
-    it "uses Query::Tree.build_current_customer_query for Customer type" do
+  describe "#load_attributes" do
+    it "builds current customer query for Customer type" do
       model_class = build_customer_class
       loader = described_class.new(model_class, "fake_token")
+      allow(loader).to receive(:perform_graphql_query).and_return({ "data" => { "customer" => { "id" => "gid://shopify/Customer/123" } } })
 
-      query = loader.graphql_query
+      loader.load_attributes
 
-      expect(query).to include("query getCurrentCustomer")
-      expect(query).not_to include("$id")
-      expect(query).to include("customer {")
+      expect(loader).to have_received(:perform_graphql_query) do |query, **_vars|
+        expect(query).to include("query getCurrentCustomer")
+        expect(query).not_to include("$id")
+        expect(query).to include("customer {")
+      end
     end
 
     it "includes connection fields when included_connections is set" do
@@ -75,22 +78,28 @@ RSpec.describe ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader do
       stub_const("Order", order_class)
       model_class = build_customer_class(with_orders: true)
       loader = described_class.new(model_class, "fake_token", included_connections: [:orders])
+      allow(loader).to receive(:perform_graphql_query).and_return({ "data" => { "customer" => { "id" => "gid://shopify/Customer/123", "orders" => { "nodes" => [] } } } })
 
-      query = loader.graphql_query
+      loader.load_attributes
 
-      expect(query).to include("query getCurrentCustomer")
-      expect(query).to include("orders(")
-      expect(query).to include("nodes {")
+      expect(loader).to have_received(:perform_graphql_query) do |query, **_vars|
+        expect(query).to include("query getCurrentCustomer")
+        expect(query).to include("orders(")
+        expect(query).to include("nodes {")
+      end
     end
 
-    it "uses Query::Tree.build_single_record_query for non-Customer types" do
+    it "builds single record query for non-Customer types" do
       model_class = build_order_class
       loader = described_class.new(model_class, "fake_token")
+      allow(loader).to receive(:perform_graphql_query).and_return({ "data" => { "order" => { "id" => "gid://shopify/Order/123" } } })
 
-      query = loader.graphql_query
+      loader.load_attributes("gid://shopify/Order/123")
 
-      expect(query).to include("query getOrder($id: ID!)")
-      expect(query).to include("order(id: $id)")
+      expect(loader).to have_received(:perform_graphql_query) do |query, **_vars|
+        expect(query).to include("query getOrder($id: ID!)")
+        expect(query).to include("order(id: $id)")
+      end
     end
   end
 end

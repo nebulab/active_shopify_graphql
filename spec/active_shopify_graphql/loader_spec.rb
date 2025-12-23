@@ -135,26 +135,6 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
     end
   end
 
-  describe "#graphql_query" do
-    it "generates correct GraphQL query structure" do
-      model_class = Class.new do
-        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
-        define_singleton_method(:attributes_for_loader) do |_|
-          { id: { path: "id", type: :string }, name: { path: "name", type: :string } }
-        end
-        define_singleton_method(:connections) { {} }
-      end
-      loader_class = Class.new(described_class)
-      loader = loader_class.new(model_class)
-
-      query = loader.graphql_query
-
-      expect(query).to include("query getTestModel($id: ID!)")
-      expect(query).to include("testModel(id: $id)")
-      expect(query).to include("...TestModelFragment")
-    end
-  end
-
   describe "#map_response_to_attributes" do
     it "maps GraphQL response to attribute hash" do
       model_class = Class.new do
