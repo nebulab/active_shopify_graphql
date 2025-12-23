@@ -25,15 +25,24 @@ module ActiveShopifyGraphQL
 
       attr_reader :model_class, :included_connections, :conditions, :total_limit, :per_page
 
-      def initialize(model_class, **options)
+      def initialize(
+        model_class,
+        conditions: {},
+        included_connections: [],
+        selected_attributes: nil,
+        total_limit: nil,
+        per_page: DEFAULT_PER_PAGE,
+        loader_class: nil,
+        loader_extra_args: []
+      )
         @model_class = model_class
-        @conditions = options[:conditions] || {}
-        @included_connections = options[:included_connections] || []
-        @selected_attributes = options[:selected_attributes]
-        @total_limit = options[:total_limit]
-        @per_page = [options[:per_page] || DEFAULT_PER_PAGE, ActiveShopifyGraphQL.configuration.max_objects_per_paginated_query].min
-        @loader_class = options[:loader_class]
-        @loader_extra_args = options[:loader_extra_args] || []
+        @conditions = conditions
+        @included_connections = included_connections
+        @selected_attributes = selected_attributes
+        @total_limit = total_limit
+        @per_page = [per_page, ActiveShopifyGraphQL.configuration.max_objects_per_paginated_query].min
+        @loader_class = loader_class
+        @loader_extra_args = loader_extra_args
         @loaded = false
         @records = nil
       end
