@@ -11,10 +11,7 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
     end
 
     it "accepts model_class parameter" do
-      model_class = Class.new do
-        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
-        define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
-      end
+      model_class = build_loader_protocol_class(graphql_type: "TestModel")
       loader_class = Class.new(described_class)
 
       loader = loader_class.new(model_class)
@@ -23,16 +20,14 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
     end
 
     it "accepts selected_attributes parameter" do
-      model_class = Class.new do
-        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
-        define_singleton_method(:attributes_for_loader) do |_|
-          {
-            id: { path: "id", type: :string },
-            name: { path: "name", type: :string },
-            email: { path: "email", type: :string }
-          }
-        end
-      end
+      model_class = build_loader_protocol_class(
+        graphql_type: "TestModel",
+        attributes: {
+          id: { path: "id", type: :string },
+          name: { path: "name", type: :string },
+          email: { path: "email", type: :string }
+        }
+      )
       loader_class = Class.new(described_class)
 
       loader = loader_class.new(model_class, selected_attributes: %i[id name])
@@ -41,15 +36,13 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
     end
 
     it "always includes id in selected_attributes" do
-      model_class = Class.new do
-        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
-        define_singleton_method(:attributes_for_loader) do |_|
-          {
-            id: { path: "id", type: :string },
-            name: { path: "name", type: :string }
-          }
-        end
-      end
+      model_class = build_loader_protocol_class(
+        graphql_type: "TestModel",
+        attributes: {
+          id: { path: "id", type: :string },
+          name: { path: "name", type: :string }
+        }
+      )
       loader_class = Class.new(described_class)
 
       loader = loader_class.new(model_class, selected_attributes: [:name])
@@ -60,11 +53,7 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
 
   describe "#context" do
     it "returns a LoaderContext with correct values" do
-      model_class = Class.new do
-        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
-        define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
-        define_singleton_method(:connections) { {} }
-      end
+      model_class = build_loader_protocol_class(graphql_type: "TestModel")
       loader_class = Class.new(described_class)
       loader = loader_class.new(model_class)
 
@@ -74,14 +63,9 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
       expect(context.graphql_type).to eq("TestModel")
       expect(context.model_class).to eq(model_class)
     end
-  end
 
-  describe "#context" do
     it "provides query_name as lowerCamelCase graphql_type" do
-      model_class = Class.new do
-        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
-        define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
-      end
+      model_class = build_loader_protocol_class(graphql_type: "TestModel")
       loader_class = Class.new(described_class)
       loader = loader_class.new(model_class)
 
@@ -89,10 +73,7 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
     end
 
     it "provides fragment_name with Fragment suffix" do
-      model_class = Class.new do
-        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
-        define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
-      end
+      model_class = build_loader_protocol_class(graphql_type: "TestModel")
       loader_class = Class.new(described_class)
       loader = loader_class.new(model_class)
 
@@ -102,16 +83,13 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
 
   describe "#map_response_to_attributes" do
     it "maps GraphQL response to attribute hash" do
-      model_class = Class.new do
-        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
-        define_singleton_method(:attributes_for_loader) do |_|
-          {
-            id: { path: "id", type: :string },
-            name: { path: "name", type: :string }
-          }
-        end
-        define_singleton_method(:connections) { {} }
-      end
+      model_class = build_loader_protocol_class(
+        graphql_type: "TestModel",
+        attributes: {
+          id: { path: "id", type: :string },
+          name: { path: "name", type: :string }
+        }
+      )
       loader_class = Class.new(described_class)
       loader = loader_class.new(model_class)
       response_data = {
@@ -134,13 +112,13 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
 
   describe "#load_attributes" do
     it "executes query and returns mapped attributes" do
-      model_class = Class.new do
-        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
-        define_singleton_method(:attributes_for_loader) do |_|
-          { id: { path: "id", type: :string }, name: { path: "name", type: :string } }
-        end
-        define_singleton_method(:connections) { {} }
-      end
+      model_class = build_loader_protocol_class(
+        graphql_type: "TestModel",
+        attributes: {
+          id: { path: "id", type: :string },
+          name: { path: "name", type: :string }
+        }
+      )
       loader_class = Class.new(described_class) do
         define_method(:perform_graphql_query) do |_query, **_variables|
           { "data" => { "testModel" => { "id" => "test-id", "name" => "Test Name" } } }
@@ -155,11 +133,7 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
     end
 
     it "returns nil when response is nil" do
-      model_class = Class.new do
-        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
-        define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
-        define_singleton_method(:connections) { {} }
-      end
+      model_class = build_loader_protocol_class(graphql_type: "TestModel")
       loader_class = Class.new(described_class) do
         define_method(:perform_graphql_query) { |_query, **_variables| nil }
       end
@@ -173,11 +147,7 @@ RSpec.describe ActiveShopifyGraphQL::Loader do
 
   describe "#perform_graphql_query" do
     it "raises NotImplementedError in base class" do
-      model_class = Class.new do
-        define_singleton_method(:graphql_type_for_loader) { |_| "TestModel" }
-        define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
-        define_singleton_method(:connections) { {} }
-      end
+      model_class = build_loader_protocol_class(graphql_type: "TestModel")
       loader_class = Class.new(described_class)
       loader = loader_class.new(model_class)
 

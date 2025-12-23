@@ -100,7 +100,7 @@ module GraphQLModelFactories
   end
 
   # Build a minimal model class for simple tests
-  def build_minimal_model(name:, graphql_type:, attributes: [:id])
+  def build_minimal_model(name:, graphql_type:, attributes: [:id], connections: {})
     klass = Class.new(ActiveShopifyGraphQL::Model) do
       define_singleton_method(:name) { name }
       define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, name) }
@@ -108,6 +108,65 @@ module GraphQLModelFactories
 
     klass.graphql_type(graphql_type)
     attributes.each { |attr| klass.attribute(attr) }
+
+    # Add connections if provided
+    connections.each do |conn_name, conn_options|
+      klass.connection(conn_name, **conn_options)
+    end
+
     klass
+  end
+
+  # Build a lightweight class for loader tests that implements the loader protocol.
+  # This is for testing Loader behavior without a full ActiveShopifyGraphQL::Model.
+  def build_loader_protocol_class(
+    graphql_type:,
+    attributes: { id: { path: "id", type: :string } },
+    connections: {}
+  )
+    frozen_graphql_type = graphql_type.dup.freeze
+    frozen_attributes = attributes.dup.freeze
+    frozen_connections = connections.dup.freeze
+
+    Class.new do
+      define_singleton_method(:graphql_type_for_loader) { |_| frozen_graphql_type }
+      define_singleton_method(:attributes_for_loader) { |_| frozen_attributes }
+      define_singleton_method(:connections) { frozen_connections }
+    end
+  end
+
+  # Build a simple PORO class for tests that don't need GraphQL model behavior.
+  # Useful for testing PaginatedResult, PageInfo, etc.
+  def build_simple_model_class(name: "TestModel", attributes: %i[id name])
+    frozen_name = name.dup.freeze
+
+    Class.new do
+      attributes.each { |attr| attr_accessor attr }
+
+      define_singleton_method(:name) { frozen_name }
+
+      define_method(:initialize) do |attrs = {}|
+        attrs.each { |key, value| send("#{key}=", value) if respond_to?("#{key}=") }
+      end
+    end
+  end
+
+  # Helper to build a LoaderContext for tests
+  def build_loader_context(
+    graphql_type: "Customer",
+    attributes: { id: { path: "id", type: :string } },
+    model_class: nil,
+    included_connections: [],
+    loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader
+  )
+    model_class ||= build_loader_protocol_class(graphql_type: graphql_type, attributes: attributes)
+
+    ActiveShopifyGraphQL::LoaderContext.new(
+      graphql_type: graphql_type,
+      loader_class: loader_class,
+      defined_attributes: attributes,
+      model_class: model_class,
+      included_connections: included_connections
+    )
   end
 end

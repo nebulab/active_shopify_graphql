@@ -5,13 +5,7 @@ require "spec_helper"
 RSpec.describe ActiveShopifyGraphQL::Model do
   describe "#initialize" do
     it "accepts attributes hash and assigns them" do
-      model_class = Class.new(ActiveShopifyGraphQL::Model) do
-        attribute :id
-        attribute :name
-        define_singleton_method(:name) { "TestModel" }
-        define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, "TestModel") }
-      end
-      model_class.graphql_type("TestModel")
+      model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: %i[id name])
 
       instance = model_class.new(id: "123", name: "Test")
 
@@ -20,12 +14,7 @@ RSpec.describe ActiveShopifyGraphQL::Model do
     end
 
     it "extracts connection cache from attributes if present" do
-      model_class = Class.new(ActiveShopifyGraphQL::Model) do
-        attribute :id
-        define_singleton_method(:name) { "TestModel" }
-        define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, "TestModel") }
-      end
-      model_class.graphql_type("TestModel")
+      model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [:id])
       stub_const("Order", build_order_class)
       model_class.has_many_connected :orders, default_arguments: { first: 10 }
       mock_orders = [build_order_class.new(id: "1")]
@@ -36,12 +25,7 @@ RSpec.describe ActiveShopifyGraphQL::Model do
     end
 
     it "works with empty attributes" do
-      model_class = Class.new(ActiveShopifyGraphQL::Model) do
-        attribute :id
-        define_singleton_method(:name) { "TestModel" }
-        define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, "TestModel") }
-      end
-      model_class.graphql_type("TestModel")
+      model_class = build_minimal_model(name: "TestModel", graphql_type: "TestModel", attributes: [:id])
 
       expect { model_class.new }.not_to raise_error
     end

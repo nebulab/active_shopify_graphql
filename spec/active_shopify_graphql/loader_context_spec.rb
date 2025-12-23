@@ -5,7 +5,7 @@ require "spec_helper"
 RSpec.describe ActiveShopifyGraphQL::LoaderContext do
   describe "#initialize" do
     it "stores all required parameters" do
-      model_class = Class.new { define_singleton_method(:connections) { {} } }
+      model_class = build_loader_protocol_class(graphql_type: "Customer")
 
       context = described_class.new(
         graphql_type: "Customer",
@@ -23,7 +23,7 @@ RSpec.describe ActiveShopifyGraphQL::LoaderContext do
     end
 
     it "defaults included_connections to empty array" do
-      model_class = Class.new { define_singleton_method(:connections) { {} } }
+      model_class = build_loader_protocol_class(graphql_type: "Customer")
 
       context = described_class.new(
         graphql_type: "Customer",
@@ -36,7 +36,7 @@ RSpec.describe ActiveShopifyGraphQL::LoaderContext do
     end
 
     it "wraps single connection in array" do
-      model_class = Class.new { define_singleton_method(:connections) { {} } }
+      model_class = build_loader_protocol_class(graphql_type: "Customer")
 
       context = described_class.new(
         graphql_type: "Customer",
@@ -52,16 +52,11 @@ RSpec.describe ActiveShopifyGraphQL::LoaderContext do
 
   describe "#for_model" do
     it "creates new context for different model" do
-      model_class1 = Class.new do
-        define_singleton_method(:connections) { {} }
-        define_singleton_method(:graphql_type_for_loader) { |_| "Customer" }
-        define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string } } }
-      end
-      model_class2 = Class.new do
-        define_singleton_method(:connections) { {} }
-        define_singleton_method(:graphql_type_for_loader) { |_| "Order" }
-        define_singleton_method(:attributes_for_loader) { |_| { id: { path: "id", type: :string }, name: { path: "name", type: :string } } }
-      end
+      model_class1 = build_loader_protocol_class(graphql_type: "Customer")
+      model_class2 = build_loader_protocol_class(
+        graphql_type: "Order",
+        attributes: { id: { path: "id", type: :string }, name: { path: "name", type: :string } }
+      )
       original_context = described_class.new(
         graphql_type: "Customer",
         loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
@@ -79,7 +74,7 @@ RSpec.describe ActiveShopifyGraphQL::LoaderContext do
 
   describe "#query_name" do
     it "returns lowercase graphql_type" do
-      model_class = Class.new { define_singleton_method(:connections) { {} } }
+      model_class = build_loader_protocol_class(graphql_type: "Customer")
       context = described_class.new(
         graphql_type: "Customer",
         loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
@@ -93,7 +88,7 @@ RSpec.describe ActiveShopifyGraphQL::LoaderContext do
 
   describe "#fragment_name" do
     it "returns graphql_type with Fragment suffix" do
-      model_class = Class.new { define_singleton_method(:connections) { {} } }
+      model_class = build_loader_protocol_class(graphql_type: "Customer")
       context = described_class.new(
         graphql_type: "Customer",
         loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
@@ -107,7 +102,10 @@ RSpec.describe ActiveShopifyGraphQL::LoaderContext do
 
   describe "#connections" do
     it "returns model class connections" do
-      model_class = Class.new { define_singleton_method(:connections) { { orders: { class_name: "Order" } } } }
+      model_class = build_loader_protocol_class(
+        graphql_type: "Customer",
+        connections: { orders: { class_name: "Order" } }
+      )
       context = described_class.new(
         graphql_type: "Customer",
         loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,

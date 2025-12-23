@@ -3,25 +3,9 @@
 require "spec_helper"
 
 RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
-  def build_context(graphql_type: "Customer", attributes: {}, model_class: nil, included_connections: [])
-    model_class ||= Class.new do
-      define_singleton_method(:connections) { {} }
-    end
-
-    default_attrs = attributes.empty? ? { id: { path: "id", type: :string } } : attributes
-
-    ActiveShopifyGraphQL::LoaderContext.new(
-      graphql_type: graphql_type,
-      loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-      defined_attributes: default_attrs,
-      model_class: model_class,
-      included_connections: included_connections
-    )
-  end
-
   describe ".build_single_record_query" do
     it "generates query with correct structure" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Customer",
         attributes: { id: { path: "id", type: :string }, email: { path: "email", type: :string } }
       )
@@ -34,7 +18,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "includes fragment definition" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Customer",
         attributes: { id: { path: "id", type: :string } }
       )
@@ -47,7 +31,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
 
   describe ".build_collection_query" do
     it "generates collection query with correct structure" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Customer",
         attributes: { id: { path: "id", type: :string } }
       )
@@ -60,7 +44,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "uses nodes connection type by default" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Customer",
         attributes: { id: { path: "id", type: :string } }
       )
@@ -74,7 +58,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
 
   describe ".build_connection_query" do
     it "generates connection query with correct structure" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Order",
         attributes: { id: { path: "id", type: :string } }
       )
@@ -88,7 +72,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "supports nested queries with parent_query" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Order",
         attributes: { id: { path: "id", type: :string } }
       )
@@ -108,7 +92,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
 
   describe ".build_current_customer_query" do
     it "generates query without ID parameter" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Customer",
         attributes: { id: { path: "id", type: :string }, email: { path: "email", type: :string } }
       )
@@ -122,7 +106,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "includes fragment definition" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Customer",
         attributes: { id: { path: "id", type: :string } }
       )
@@ -133,37 +117,30 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "includes connection fields when included_connections is set" do
-      order_class = Class.new do
-        define_singleton_method(:graphql_type_for_loader) { |_| "Order" }
-        define_singleton_method(:attributes_for_loader) do |_|
-          {
-            id: { path: "id", type: :string },
-            name: { path: "name", type: :string }
-          }
-        end
-        define_singleton_method(:connections) { {} }
-      end
+      order_class = build_loader_protocol_class(
+        graphql_type: "Order",
+        attributes: {
+          id: { path: "id", type: :string },
+          name: { path: "name", type: :string }
+        }
+      )
       stub_const("Order", order_class)
-      model_class = Class.new do
-        define_singleton_method(:graphql_type_for_loader) { |_| "Customer" }
-        define_singleton_method(:attributes_for_loader) do |_|
-          {
-            id: { path: "id", type: :string },
-            email: { path: "email", type: :string }
+      model_class = build_loader_protocol_class(
+        graphql_type: "Customer",
+        attributes: {
+          id: { path: "id", type: :string },
+          email: { path: "email", type: :string }
+        },
+        connections: {
+          orders: {
+            class_name: "Order",
+            query_name: "orders",
+            type: :connection,
+            default_arguments: { first: 10, sort_key: "CREATED_AT" }
           }
-        end
-        define_singleton_method(:connections) do
-          {
-            orders: {
-              class_name: "Order",
-              query_name: "orders",
-              type: :connection,
-              default_arguments: { first: 10, sort_key: "CREATED_AT" }
-            }
-          }
-        end
-      end
-      context = build_context(
+        }
+      )
+      context = build_loader_context(
         graphql_type: "Customer",
         attributes: { id: { path: "id", type: :string }, email: { path: "email", type: :string } },
         model_class: model_class,
@@ -178,7 +155,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "allows custom query_name override" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Customer",
         attributes: { id: { path: "id", type: :string } }
       )
@@ -191,7 +168,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
 
   describe ".build_paginated_collection_query" do
     it "generates paginated collection query with pageInfo" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "ProductVariant",
         attributes: { id: { path: "id", type: :string }, sku: { path: "sku", type: :string } }
       )
@@ -211,7 +188,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "includes query parameter in field signature" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Customer",
         attributes: { id: { path: "id", type: :string } }
       )
@@ -224,7 +201,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "includes after cursor when provided" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Customer",
         attributes: { id: { path: "id", type: :string } }
       )
@@ -236,7 +213,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "includes before cursor when provided" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Customer",
         attributes: { id: { path: "id", type: :string } }
       )
@@ -248,7 +225,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "properly quotes cursor values" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "ProductVariant",
         attributes: { id: { path: "id", type: :string } }
       )
@@ -269,7 +246,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
 
   describe "#build_fragment" do
     it "creates fragment with correct type" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Customer",
         attributes: { id: { path: "id", type: :string } }
       )
@@ -281,7 +258,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "includes simple field nodes from attributes" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Customer",
         attributes: {
           id: { path: "id", type: :string },
@@ -297,7 +274,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "generates aliased fields for simple paths where attr_name differs from path" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Customer",
         attributes: {
           id: { path: "id", type: :string },
@@ -312,7 +289,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "does not generate alias when attr_name matches path" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Customer",
         attributes: {
           id: { path: "id", type: :string }
@@ -327,7 +304,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "includes nested field nodes from dotted paths" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Order",
         attributes: {
           id: { path: "id", type: :string },
@@ -344,12 +321,9 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "raises error when attributes are empty" do
-      empty_context = ActiveShopifyGraphQL::LoaderContext.new(
+      empty_context = build_loader_context(
         graphql_type: "Empty",
-        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-        defined_attributes: {},
-        model_class: Class.new { define_singleton_method(:connections) { {} } },
-        included_connections: []
+        attributes: {}
       )
       builder = described_class.new(empty_context)
 
@@ -359,7 +333,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
 
   describe "#build_field_nodes" do
     it "returns array of Query::Node subclasses" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Customer",
         attributes: { id: { path: "id", type: :string } }
       )
@@ -372,7 +346,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "handles metafield attributes with correct alias syntax" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Product",
         attributes: {
           id: { path: "id", type: :string },
@@ -396,7 +370,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "uses jsonValue field for json type metafields" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Product",
         attributes: {
           id: { path: "id", type: :string },
@@ -419,7 +393,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
 
     it "includes raw GraphQL string with alias in fragment" do
       raw_gql = 'metafield(namespace: "custom", key: "roaster") { reference { ... on MetaObject { id } } }'
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Product",
         attributes: {
           id: { path: "id", type: :string },
@@ -437,7 +411,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     it "handles multiple raw GraphQL attributes with aliases" do
       raw_gql1 = 'metafield(namespace: "custom", key: "roaster") { reference { ... on MetaObject { id } } }'
       raw_gql2 = 'metafield(namespace: "custom", key: "origin") { value }'
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Product",
         attributes: {
           id: { path: "id", type: :string },
@@ -456,7 +430,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
 
   describe "#build_connection_nodes" do
     it "returns empty array when no connections are included" do
-      context = build_context(
+      context = build_loader_context(
         graphql_type: "Customer",
         attributes: { id: { path: "id", type: :string } },
         included_connections: []
@@ -469,28 +443,22 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "generates alias when connection original_name differs from query_name" do
-      order_class = Class.new(ActiveShopifyGraphQL::Model) do
-        attribute :id
-        define_singleton_method(:name) { "Order" }
-        define_singleton_method(:connections) { {} }
-      end
-      order_class.graphql_type("Order")
+      order_class = build_minimal_model(name: "Order", graphql_type: "Order", attributes: [:id])
       stub_const("Order", order_class)
 
-      model_class = Class.new do
-        define_singleton_method(:connections) do
-          {
-            recent_orders: {
-              class_name: "Order",
-              query_name: "orders",
-              original_name: :recent_orders,
-              type: :connection,
-              default_arguments: { first: 5, reverse: true }
-            }
+      model_class = build_loader_protocol_class(
+        graphql_type: "Customer",
+        connections: {
+          recent_orders: {
+            class_name: "Order",
+            query_name: "orders",
+            original_name: :recent_orders,
+            type: :connection,
+            default_arguments: { first: 5, reverse: true }
           }
-        end
-      end
-      context = build_context(
+        }
+      )
+      context = build_loader_context(
         graphql_type: "Customer",
         attributes: { id: { path: "id", type: :string } },
         model_class: model_class,
@@ -504,28 +472,22 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "does not generate alias when original_name matches query_name" do
-      order_class = Class.new(ActiveShopifyGraphQL::Model) do
-        attribute :id
-        define_singleton_method(:name) { "Order" }
-        define_singleton_method(:connections) { {} }
-      end
-      order_class.graphql_type("Order")
+      order_class = build_minimal_model(name: "Order", graphql_type: "Order", attributes: [:id])
       stub_const("Order", order_class)
 
-      model_class = Class.new do
-        define_singleton_method(:connections) do
-          {
-            orders: {
-              class_name: "Order",
-              query_name: "orders",
-              original_name: :orders,
-              type: :connection,
-              default_arguments: { first: 10 }
-            }
+      model_class = build_loader_protocol_class(
+        graphql_type: "Customer",
+        connections: {
+          orders: {
+            class_name: "Order",
+            query_name: "orders",
+            original_name: :orders,
+            type: :connection,
+            default_arguments: { first: 10 }
           }
-        end
-      end
-      context = build_context(
+        }
+      )
+      context = build_loader_context(
         graphql_type: "Customer",
         attributes: { id: { path: "id", type: :string } },
         model_class: model_class,
@@ -540,35 +502,29 @@ RSpec.describe ActiveShopifyGraphQL::Query::QueryBuilder do
     end
 
     it "handles multiple connections with same query_name but different aliases" do
-      order_class = Class.new(ActiveShopifyGraphQL::Model) do
-        attribute :id
-        define_singleton_method(:name) { "Order" }
-        define_singleton_method(:connections) { {} }
-      end
-      order_class.graphql_type("Order")
+      order_class = build_minimal_model(name: "Order", graphql_type: "Order", attributes: [:id])
       stub_const("Order", order_class)
 
-      model_class = Class.new do
-        define_singleton_method(:connections) do
-          {
-            orders: {
-              class_name: "Order",
-              query_name: "orders",
-              original_name: :orders,
-              type: :connection,
-              default_arguments: { first: 2 }
-            },
-            recent_orders: {
-              class_name: "Order",
-              query_name: "orders",
-              original_name: :recent_orders,
-              type: :connection,
-              default_arguments: { first: 5, reverse: true, sort_key: "CREATED_AT" }
-            }
+      model_class = build_loader_protocol_class(
+        graphql_type: "Customer",
+        connections: {
+          orders: {
+            class_name: "Order",
+            query_name: "orders",
+            original_name: :orders,
+            type: :connection,
+            default_arguments: { first: 2 }
+          },
+          recent_orders: {
+            class_name: "Order",
+            query_name: "orders",
+            original_name: :recent_orders,
+            type: :connection,
+            default_arguments: { first: 5, reverse: true, sort_key: "CREATED_AT" }
           }
-        end
-      end
-      context = build_context(
+        }
+      )
+      context = build_loader_context(
         graphql_type: "Customer",
         attributes: { id: { path: "id", type: :string } },
         model_class: model_class,

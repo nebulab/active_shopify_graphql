@@ -3,23 +3,9 @@
 require "spec_helper"
 
 RSpec.describe ActiveShopifyGraphQL::Response::PaginatedResult do
-  # Simple test model for specs
-  let(:test_model_class) do
-    Class.new do
-      attr_accessor :id, :name
-
-      def initialize(attributes = {})
-        attributes.each { |key, value| send("#{key}=", value) if respond_to?("#{key}=") }
-      end
-
-      def self.name
-        "TestModel"
-      end
-    end
-  end
-
   describe "#initialize" do
     it "stores attributes, model_class, page_info, and query_scope" do
+      test_model_class = build_simple_model_class(name: "TestModel", attributes: %i[id name])
       attributes = [{ id: 1 }, { id: 2 }]
       page_info = ActiveShopifyGraphQL::Response::PageInfo.new("hasNextPage" => true)
       query_scope = double("query_scope")
@@ -39,6 +25,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::PaginatedResult do
 
   describe "Enumerable behavior" do
     it "iterates over records" do
+      test_model_class = build_simple_model_class(name: "TestModel", attributes: %i[id name])
       attributes = [{ id: 1 }, { id: 2 }]
       page_info = ActiveShopifyGraphQL::Response::PageInfo.new
       paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
@@ -54,6 +41,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::PaginatedResult do
     end
 
     it "supports map" do
+      test_model_class = build_simple_model_class(name: "TestModel", attributes: %i[id name])
       attributes = [{ id: 1 }, { id: 2 }]
       page_info = ActiveShopifyGraphQL::Response::PageInfo.new
       paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
@@ -71,6 +59,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::PaginatedResult do
 
   describe "#[]" do
     it "provides array-like access to records" do
+      test_model_class = build_simple_model_class(name: "TestModel", attributes: %i[id name])
       attributes = [{ id: 1 }, { id: 2 }]
       page_info = ActiveShopifyGraphQL::Response::PageInfo.new
       paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
@@ -87,6 +76,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::PaginatedResult do
 
   describe "#size and #length" do
     it "returns the number of records in this page" do
+      test_model_class = build_simple_model_class(name: "TestModel", attributes: %i[id name])
       attributes = [{ id: 1 }, { id: 2 }, { id: 3 }]
       page_info = ActiveShopifyGraphQL::Response::PageInfo.new
       paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
@@ -103,6 +93,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::PaginatedResult do
 
   describe "#empty?" do
     it "returns true when no records" do
+      test_model_class = build_simple_model_class(name: "TestModel", attributes: %i[id name])
       paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         attributes: [],
         model_class: test_model_class,
@@ -114,6 +105,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::PaginatedResult do
     end
 
     it "returns false when records exist" do
+      test_model_class = build_simple_model_class(name: "TestModel", attributes: %i[id name])
       paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         attributes: [{ id: 1 }],
         model_class: test_model_class,
@@ -127,6 +119,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::PaginatedResult do
 
   describe "pagination delegation" do
     it "delegates has_next_page? to page_info" do
+      test_model_class = build_simple_model_class(name: "TestModel", attributes: %i[id name])
       page_info = ActiveShopifyGraphQL::Response::PageInfo.new("hasNextPage" => true)
       paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         attributes: [],
@@ -139,6 +132,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::PaginatedResult do
     end
 
     it "delegates has_previous_page? to page_info" do
+      test_model_class = build_simple_model_class(name: "TestModel", attributes: %i[id name])
       page_info = ActiveShopifyGraphQL::Response::PageInfo.new("hasPreviousPage" => true)
       paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         attributes: [],
@@ -151,6 +145,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::PaginatedResult do
     end
 
     it "exposes start_cursor from page_info" do
+      test_model_class = build_simple_model_class(name: "TestModel", attributes: %i[id name])
       page_info = ActiveShopifyGraphQL::Response::PageInfo.new("startCursor" => "start123")
       paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         attributes: [],
@@ -163,6 +158,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::PaginatedResult do
     end
 
     it "exposes end_cursor from page_info" do
+      test_model_class = build_simple_model_class(name: "TestModel", attributes: %i[id name])
       page_info = ActiveShopifyGraphQL::Response::PageInfo.new("endCursor" => "end456")
       paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         attributes: [],
@@ -177,6 +173,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::PaginatedResult do
 
   describe "#next_page" do
     it "returns nil when no next page exists" do
+      test_model_class = build_simple_model_class(name: "TestModel", attributes: %i[id name])
       page_info = ActiveShopifyGraphQL::Response::PageInfo.new("hasNextPage" => false)
       paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         attributes: [],
@@ -189,6 +186,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::PaginatedResult do
     end
 
     it "fetches the next page when one exists" do
+      test_model_class = build_simple_model_class(name: "TestModel", attributes: %i[id name])
       page_info = ActiveShopifyGraphQL::Response::PageInfo.new(
         "hasNextPage" => true,
         "endCursor" => "cursor123"
@@ -211,6 +209,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::PaginatedResult do
 
   describe "#previous_page" do
     it "returns nil when no previous page exists" do
+      test_model_class = build_simple_model_class(name: "TestModel", attributes: %i[id name])
       page_info = ActiveShopifyGraphQL::Response::PageInfo.new("hasPreviousPage" => false)
       paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         attributes: [],
@@ -223,6 +222,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::PaginatedResult do
     end
 
     it "fetches the previous page when one exists" do
+      test_model_class = build_simple_model_class(name: "TestModel", attributes: %i[id name])
       page_info = ActiveShopifyGraphQL::Response::PageInfo.new(
         "hasPreviousPage" => true,
         "startCursor" => "cursor456"
@@ -245,6 +245,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::PaginatedResult do
 
   describe "#to_a" do
     it "returns a copy of the records array" do
+      test_model_class = build_simple_model_class(name: "TestModel", attributes: %i[id name])
       attributes = [{ id: 1 }, { id: 2 }]
       paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         attributes: attributes,

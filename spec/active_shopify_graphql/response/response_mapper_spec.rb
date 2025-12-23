@@ -3,27 +3,13 @@
 require "spec_helper"
 
 RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
-  def build_context(graphql_type: "Customer", attributes: {}, model_class: nil, included_connections: [])
-    model_class ||= Class.new(ActiveShopifyGraphQL::Model) do
-      define_singleton_method(:connections) { {} }
-    end
-
-    ActiveShopifyGraphQL::LoaderContext.new(
-      graphql_type: graphql_type,
-      loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-      defined_attributes: attributes,
-      model_class: model_class,
-      included_connections: included_connections
-    )
-  end
-
   describe "#map_response" do
     it "maps simple flat attributes from response" do
       attributes = {
         id: { path: "id", type: :string, null: false },
         email: { path: "email", type: :string, null: true }
       }
-      context = build_context(attributes: attributes)
+      context = build_loader_context(attributes: attributes)
       mapper = described_class.new(context)
       response_data = {
         "data" => {
@@ -47,7 +33,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
         id: { path: "id", type: :string, null: false },
         amount: { path: "totalPriceSet.shopMoney.amount", type: :string, null: true }
       }
-      context = build_context(graphql_type: "Order", attributes: attributes)
+      context = build_loader_context(graphql_type: "Order", attributes: attributes)
       mapper = described_class.new(context)
       response_data = {
         "data" => {
@@ -73,7 +59,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
         id: { path: "id", type: :string, null: false },
         count: { path: "orderCount", type: :integer, null: true }
       }
-      context = build_context(attributes: attributes)
+      context = build_loader_context(attributes: attributes)
       mapper = described_class.new(context)
       # Response uses aliased key 'count' (attr_name) since query generates: count: orderCount
       response_data = {
@@ -95,7 +81,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
         id: { path: "id", type: :string, null: false },
         active: { path: "active", type: :boolean, null: true }
       }
-      context = build_context(attributes: attributes)
+      context = build_loader_context(attributes: attributes)
       mapper = described_class.new(context)
       response_data = {
         "data" => {
@@ -116,7 +102,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
         id: { path: "id", type: :string, null: false },
         tags: { path: "tags", type: :string, null: true, transform: ->(v) { v&.join(", ") } }
       }
-      context = build_context(attributes: attributes)
+      context = build_loader_context(attributes: attributes)
       mapper = described_class.new(context)
       response_data = {
         "data" => {
@@ -137,7 +123,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
         id: { path: "id", type: :string, null: false },
         status: { path: "status", type: :string, null: true, default: "pending" }
       }
-      context = build_context(attributes: attributes)
+      context = build_loader_context(attributes: attributes)
       mapper = described_class.new(context)
       response_data = {
         "data" => {
@@ -158,7 +144,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
         id: { path: "id", type: :string, null: false },
         tags: { path: "tags", type: :string, null: true }
       }
-      context = build_context(attributes: attributes)
+      context = build_loader_context(attributes: attributes)
       mapper = described_class.new(context)
       response_data = {
         "data" => {
@@ -178,7 +164,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
       attributes = {
         required_field: { path: "requiredField", type: :string, null: false }
       }
-      context = build_context(attributes: attributes)
+      context = build_loader_context(attributes: attributes)
       mapper = described_class.new(context)
       response_data = {
         "data" => {
@@ -195,7 +181,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
       attributes = {
         id: { path: "id", type: :string, null: false }
       }
-      context = build_context(attributes: attributes)
+      context = build_loader_context(attributes: attributes)
       mapper = described_class.new(context)
       response_data = { "data" => { "customer" => nil } }
 
@@ -211,7 +197,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
         id: { path: "id", type: :string, null: false },
         name: { path: "displayName", type: :string, null: true }
       }
-      context = build_context(attributes: attributes)
+      context = build_loader_context(attributes: attributes)
       mapper = described_class.new(context)
       # Response uses aliased key 'name' (attr_name) since query generates: name: displayName
       node_data = {
@@ -231,7 +217,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
       attributes = {
         id: { path: "id", type: :string, null: false }
       }
-      context = build_context(attributes: attributes)
+      context = build_loader_context(attributes: attributes)
       mapper = described_class.new(context)
 
       result = mapper.map_node_to_attributes(nil)
@@ -242,32 +228,24 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
 
   describe "#extract_connection_data" do
     it "extracts connection data using original_name as response key" do
-      order_class = Class.new(ActiveShopifyGraphQL::Model) do
-        attribute :id
-
-        define_singleton_method(:name) { "Order" }
-        define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, "Order") }
-      end
-      order_class.graphql_type("Order")
+      order_class = build_order_class
       stub_const("Order", order_class)
 
-      model_class = Class.new(ActiveShopifyGraphQL::Model) do
-        define_singleton_method(:connections) do
-          {
-            recent_orders: {
-              class_name: "Order",
-              query_name: "orders",
-              original_name: :recent_orders,
-              type: :connection,
-              default_arguments: { first: 5 }
-            }
-          }
-        end
-      end
-      context = ActiveShopifyGraphQL::LoaderContext.new(
+      model_class = build_loader_protocol_class(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-        defined_attributes: { id: { path: "id", type: :string } },
+        connections: {
+          recent_orders: {
+            class_name: "Order",
+            query_name: "orders",
+            original_name: :recent_orders,
+            type: :connection,
+            default_arguments: { first: 5 }
+          }
+        }
+      )
+      context = build_loader_context(
+        graphql_type: "Customer",
+        attributes: { id: { path: "id", type: :string } },
         model_class: model_class,
         included_connections: [:recent_orders]
       )
@@ -294,39 +272,31 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
     end
 
     it "handles multiple connections with same query_name using different aliases" do
-      order_class = Class.new(ActiveShopifyGraphQL::Model) do
-        attribute :id
-
-        define_singleton_method(:name) { "Order" }
-        define_singleton_method(:model_name) { ActiveModel::Name.new(self, nil, "Order") }
-      end
-      order_class.graphql_type("Order")
+      order_class = build_order_class
       stub_const("Order", order_class)
 
-      model_class = Class.new(ActiveShopifyGraphQL::Model) do
-        define_singleton_method(:connections) do
-          {
-            orders: {
-              class_name: "Order",
-              query_name: "orders",
-              original_name: :orders,
-              type: :connection,
-              default_arguments: { first: 2 }
-            },
-            recent_orders: {
-              class_name: "Order",
-              query_name: "orders",
-              original_name: :recent_orders,
-              type: :connection,
-              default_arguments: { first: 5, reverse: true }
-            }
-          }
-        end
-      end
-      context = ActiveShopifyGraphQL::LoaderContext.new(
+      model_class = build_loader_protocol_class(
         graphql_type: "Customer",
-        loader_class: ActiveShopifyGraphQL::Loaders::AdminApiLoader,
-        defined_attributes: { id: { path: "id", type: :string } },
+        connections: {
+          orders: {
+            class_name: "Order",
+            query_name: "orders",
+            original_name: :orders,
+            type: :connection,
+            default_arguments: { first: 2 }
+          },
+          recent_orders: {
+            class_name: "Order",
+            query_name: "orders",
+            original_name: :recent_orders,
+            type: :connection,
+            default_arguments: { first: 5, reverse: true }
+          }
+        }
+      )
+      context = build_loader_context(
+        graphql_type: "Customer",
+        attributes: { id: { path: "id", type: :string } },
         model_class: model_class,
         included_connections: %i[orders recent_orders]
       )
@@ -370,7 +340,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
         # Use path to dig into the value field
         roaster: { path: "roaster.value", type: :string, raw_graphql: raw_gql }
       }
-      context = build_context(attributes: attributes)
+      context = build_loader_context(attributes: attributes)
       mapper = described_class.new(context)
       # Response has aliased key "roaster" (from "roaster: metafield(...)")
       response_data = {
@@ -396,7 +366,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
         id: { path: "id", type: :string },
         roaster_id: { path: "roaster_id.reference.id", type: :string, raw_graphql: raw_gql }
       }
-      context = build_context(attributes: attributes)
+      context = build_loader_context(attributes: attributes)
       mapper = described_class.new(context)
       # Response has aliased key "roaster_id"
       response_data = {
@@ -423,7 +393,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::ResponseMapper do
       product_class = build_product_class
       stub_const("Product", product_class)
 
-      context = build_context(graphql_type: "Product", attributes: { id: { path: "id", type: :string }, title: { path: "title", type: :string } }, model_class: product_class)
+      context = build_loader_context(graphql_type: "Product", attributes: { id: { path: "id", type: :string }, title: { path: "title", type: :string } }, model_class: product_class)
       mapper = described_class.new(context)
 
       parent_class = build_product_variant_class
