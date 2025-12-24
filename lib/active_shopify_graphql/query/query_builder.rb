@@ -239,6 +239,11 @@ module ActiveShopifyGraphQL
       end
 
       def build_connection_node(connection_config, nested_includes)
+        connection_type = connection_config[:type] || :connection
+
+        # Handle metaobject reference connections differently
+        return build_metaobject_reference_node(connection_config, nested_includes) if connection_type == :metaobject_reference
+
         target_class = connection_config[:class_name].constantize
         target_context = @context.for_model(target_class, new_connections: nested_includes)
 
@@ -247,7 +252,6 @@ module ActiveShopifyGraphQL
 
         query_name = connection_config[:query_name]
         original_name = connection_config[:original_name]
-        connection_type = connection_config[:type] || :connection
         formatted_args = (connection_config[:default_arguments] || {}).transform_keys(&:to_sym)
 
         # Add alias if the connection name differs from the query name
@@ -284,6 +288,68 @@ module ActiveShopifyGraphQL
         nested_builder = QueryBuilder.new(target_context)
         nested_connection_nodes = nested_builder.build_connection_nodes
         attribute_nodes + nested_connection_nodes
+      end
+
+      def build_metaobject_reference_node(connection_config, nested_includes)
+        target_class = connection_config[:class_name].constantize
+        original_name = connection_config[:original_name]
+
+        # Build the metaobject fields
+        metaobject_fields = build_metaobject_fields(target_class, nested_includes)
+
+        # Build the reference fragment: reference { ... on Metaobject { fields } }
+        reference_children = [
+          Node::InlineFragment.new(
+            arguments: { on: "Metaobject" },
+            children: metaobject_fields
+          )
+        ]
+
+        reference_node = Node::Field.new(name: "reference", children: reference_children)
+
+        # Build the metafield query with the reference
+        Node::Field.new(
+          name: "metafield",
+          alias_name: original_name.to_s,
+          arguments: {
+            namespace: connection_config[:metafield_namespace],
+            key: connection_config[:metafield_key]
+          },
+          children: [reference_node]
+        )
+      end
+
+      def build_metaobject_fields(target_class, _nested_includes)
+        # Core metaobject fields
+        core_fields = [
+          Node::Field.new(name: "id"),
+          Node::Field.new(name: "handle"),
+          Node::Field.new(name: "type"),
+          Node::Field.new(name: "displayName")
+        ]
+
+        # Get metaobject attributes from the target class
+        metaobject_attributes = target_class.metaobject_attributes
+
+        # Build field queries for each attribute
+        field_nodes = metaobject_attributes.map do |_attr_name, config|
+          field_key = config[:key]
+          aliased_key = field_key.gsub(/[^a-zA-Z0-9_]/, '_')
+
+          # Build: aliased_key: field(key: "field_key") { key value jsonValue }
+          Node::Field.new(
+            name: "field",
+            alias_name: aliased_key,
+            arguments: { key: field_key },
+            children: [
+              Node::Field.new(name: "key"),
+              Node::Field.new(name: "value"),
+              Node::Field.new(name: "jsonValue")
+            ]
+          )
+        end
+
+        core_fields + field_nodes
       end
     end
   end
