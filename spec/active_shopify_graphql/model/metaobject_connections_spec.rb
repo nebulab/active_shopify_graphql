@@ -120,12 +120,101 @@ RSpec.describe "Metaobject Connections Integration" do
   end
 
   describe "lazy loading" do
-    it "raises NotImplementedError when accessing without includes" do
+    it "loads metaobject connection on-demand with single query" do
+      mock_client = instance_double("ShopifyClient")
+      allow(ActiveShopifyGraphQL.configuration).to receive(:admin_api_client).and_return(mock_client)
+
+      # Should make only ONE query that fetches all metaobject data
+      expect(mock_client).to receive(:execute).once.with(
+        include("getMetafieldReference"),
+        id: "gid://shopify/Product/123"
+      ).and_return(
+        {
+          "data" => {
+            "product" => {
+              "metafield" => {
+                "reference" => {
+                  "id" => "gid://shopify/Metaobject/456",
+                  "handle" => "acme-corp",
+                  "type" => "provider",
+                  "displayName" => "Acme Corp",
+                  "name" => { "key" => "name", "value" => "Acme Corp", "jsonValue" => nil },
+                  "description" => { "key" => "description", "value" => "Best provider", "jsonValue" => nil },
+                  "rating" => { "key" => "rating", "value" => "5", "jsonValue" => nil }
+                }
+              }
+            }
+          }
+        }
+      )
+
+      product = Product.new(id: "gid://shopify/Product/123")
+      provider = product.provider
+
+      expect(provider).to be_a(Provider)
+      expect(provider.id).to eq("gid://shopify/Metaobject/456")
+      expect(provider.name).to eq("Acme Corp")
+    end
+
+    it "returns nil when metafield reference is nil" do
+      mock_client = instance_double("ShopifyClient")
+      allow(ActiveShopifyGraphQL.configuration).to receive(:admin_api_client).and_return(mock_client)
+
+      # Mock the metafield query returning nil reference
+      expect(mock_client).to receive(:execute).with(
+        include("getMetafieldReference"),
+        id: "gid://shopify/Product/123"
+      ).and_return(
+        {
+          "data" => {
+            "product" => {
+              "metafield" => nil
+            }
+          }
+        }
+      )
+
       product = Product.new(id: "gid://shopify/Product/123")
 
-      expect do
-        product.provider
-      end.to raise_error(NotImplementedError, /Lazy loading for metaobject connections not yet implemented/)
+      expect(product.provider).to be_nil
+    end
+
+    it "caches the loaded metaobject" do
+      mock_client = instance_double("ShopifyClient")
+      allow(ActiveShopifyGraphQL.configuration).to receive(:admin_api_client).and_return(mock_client)
+
+      # Should only query once
+      expect(mock_client).to receive(:execute).once.with(
+        include("getMetafieldReference"),
+        id: "gid://shopify/Product/123"
+      ).and_return(
+        {
+          "data" => {
+            "product" => {
+              "metafield" => {
+                "reference" => {
+                  "id" => "gid://shopify/Metaobject/456",
+                  "handle" => "acme-corp",
+                  "type" => "provider",
+                  "displayName" => "Acme Corp",
+                  "name" => { "key" => "name", "value" => "Acme Corp", "jsonValue" => nil },
+                  "description" => { "key" => "description", "value" => "Best", "jsonValue" => nil },
+                  "rating" => { "key" => "rating", "value" => "5", "jsonValue" => nil }
+                }
+              }
+            }
+          }
+        }
+      )
+
+      product = Product.new(id: "gid://shopify/Product/123")
+
+      # Access twice - should only query once
+      provider1 = product.provider
+      provider2 = product.provider
+
+      expect(provider1).to eq(provider2)
+      expect(provider1.name).to eq("Acme Corp")
     end
   end
 

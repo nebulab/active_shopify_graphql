@@ -300,6 +300,7 @@ module ActiveShopifyGraphQL
         # Build the reference fragment: reference { ... on Metaobject { fields } }
         reference_children = [
           Node::InlineFragment.new(
+            name: "inline",
             arguments: { on: "Metaobject" },
             children: metaobject_fields
           )
