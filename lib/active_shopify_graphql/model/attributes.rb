@@ -19,10 +19,17 @@ module ActiveShopifyGraphQL::Model::Attributes
 
       if @current_loader_context
         # Store in loader-specific context
+        @loader_contexts ||= {}
+        @loader_contexts[@current_loader_context] ||= {}
         @loader_contexts[@current_loader_context][name] = config
       else
-        # Store in base attributes
-        @base_attributes ||= {}
+        # Store in base attributes, inheriting from parent if needed
+        @base_attributes ||= if superclass.respond_to?(:instance_variable_get) &&
+                                superclass.instance_variable_defined?(:@base_attributes)
+                               superclass.instance_variable_get(:@base_attributes).dup
+                             else
+                               {}
+                             end
         @base_attributes[name] = config
       end
 

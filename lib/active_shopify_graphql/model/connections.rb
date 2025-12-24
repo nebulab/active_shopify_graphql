@@ -6,7 +6,12 @@ module ActiveShopifyGraphQL::Model::Connections
   included do
     class << self
       def connections
-        @connections ||= {}
+        # Inherit connections from parent class if it responds to connections
+        @connections ||= if superclass.respond_to?(:connections)
+                           superclass.connections.dup
+                         else
+                           {}
+                         end
       end
 
       attr_writer :connections
