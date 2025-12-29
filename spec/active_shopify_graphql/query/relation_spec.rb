@@ -130,6 +130,65 @@ RSpec.describe ActiveShopifyGraphQL::Query::Relation do
     end
   end
 
+  describe "#find" do
+    it "fetches current customer without id when using Customer Account API" do
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+      mock_client = instance_double("CustomerAccountClient")
+      allow(mock_client).to receive(:query).and_return({
+                                                         "data" => {
+                                                           "customer" => {
+                                                             "id" => "gid://shopify/Customer/123",
+                                                             "email" => "current@customer.com"
+                                                           }
+                                                         }
+                                                       })
+      customer_account_client_class = class_double("CustomerAccountClient")
+      allow(customer_account_client_class).to receive(:from_config).with("test_token").and_return(mock_client)
+      ActiveShopifyGraphQL.configure { |c| c.customer_account_client_class = customer_account_client_class }
+
+      relation = described_class.new(
+        customer_class,
+        loader_class: ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader,
+        loader_extra_args: ["test_token"]
+      )
+      result = relation.find
+
+      expect(result).not_to be_nil
+      expect(result.id).to eq("gid://shopify/Customer/123")
+      expect(result.email).to eq("current@customer.com")
+    end
+
+    it "raises ArgumentError when called without id using Admin API" do
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+
+      relation = described_class.new(customer_class)
+
+      expect { relation.find }.to raise_error(ArgumentError, "find requires an ID argument unless using Customer Account API")
+    end
+
+    it "raises ObjectNotFoundError when current customer is not found" do
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+      mock_client = instance_double("CustomerAccountClient")
+      allow(mock_client).to receive(:query).and_return(nil)
+      customer_account_client_class = class_double("CustomerAccountClient")
+      allow(customer_account_client_class).to receive(:from_config).with("test_token").and_return(mock_client)
+      ActiveShopifyGraphQL.configure { |c| c.customer_account_client_class = customer_account_client_class }
+
+      relation = described_class.new(
+        customer_class,
+        loader_class: ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader,
+        loader_extra_args: ["test_token"]
+      )
+
+      expect { relation.find }.to raise_error(ActiveShopifyGraphQL::ObjectNotFoundError, "Couldn't find current customer")
+    end
+  end
+
   describe "#find_by" do
     it "returns nil when no records match" do
       product_class = build_product_class

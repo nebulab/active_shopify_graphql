@@ -60,6 +60,70 @@ RSpec.describe ActiveShopifyGraphQL::Model::FinderMethods do
 
       expect { customer_class.find(999) }.to raise_error(ActiveShopifyGraphQL::ObjectNotFoundError, "Couldn't find Customer with id=999")
     end
+
+    it "raises ArgumentError when called without id using Admin API" do
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+
+      expect { customer_class.find }.to raise_error(ArgumentError, "find requires an ID argument unless using Customer Account API")
+    end
+
+    it "fetches current customer when called without id using Customer Account API" do
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+      mock_client = instance_double("CustomerAccountClient")
+      allow(mock_client).to receive(:query).and_return({
+                                                         "data" => {
+                                                           "customer" => {
+                                                             "id" => "gid://shopify/Customer/123",
+                                                             "email" => "current@customer.com"
+                                                           }
+                                                         }
+                                                       })
+      customer_account_client_class = class_double("CustomerAccountClient")
+      allow(customer_account_client_class).to receive(:from_config).with("test_token").and_return(mock_client)
+      ActiveShopifyGraphQL.configure { |c| c.customer_account_client_class = customer_account_client_class }
+
+      customer = customer_class.with_customer_account_api("test_token").find
+
+      expect(customer).not_to be_nil
+      expect(customer.id).to eq("gid://shopify/Customer/123")
+      expect(customer.email).to eq("current@customer.com")
+    end
+
+    it "fetches current customer with includes when using Customer Account API" do
+      order_class = build_order_class
+      stub_const("Order", order_class)
+      customer_class = build_customer_class(with_orders: true)
+      stub_const("Customer", customer_class)
+      mock_client = instance_double("CustomerAccountClient")
+      allow(mock_client).to receive(:query).and_return({
+                                                         "data" => {
+                                                           "customer" => {
+                                                             "id" => "gid://shopify/Customer/123",
+                                                             "email" => "current@customer.com",
+                                                             "orders" => {
+                                                               "nodes" => [
+                                                                 { "id" => "gid://shopify/Order/456", "name" => "#1001" }
+                                                               ]
+                                                             }
+                                                           }
+                                                         }
+                                                       })
+      customer_account_client_class = class_double("CustomerAccountClient")
+      allow(customer_account_client_class).to receive(:from_config).with("test_token").and_return(mock_client)
+      ActiveShopifyGraphQL.configure { |c| c.customer_account_client_class = customer_account_client_class }
+
+      customer = customer_class.with_customer_account_api("test_token").includes(:orders).find
+
+      expect(customer).not_to be_nil
+      expect(customer.id).to eq("gid://shopify/Customer/123")
+      expect(customer.email).to eq("current@customer.com")
+      expect(customer.orders).not_to be_empty
+      expect(customer.orders.first.name).to eq("#1001")
+    end
   end
 
   describe ".find_by" do
