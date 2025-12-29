@@ -11,11 +11,13 @@ module ActiveShopifyGraphQL::Model::FinderMethods
     end
 
     # Find a single record by ID
-    # @param id [String, Integer] The record ID (will be converted to GID automatically)
+    # For Customer Account API, if no ID is provided, fetches the current customer
+    # @param id [String, Integer, nil] The record ID (will be converted to GID automatically)
     # @param loader [ActiveShopifyGraphQL::Loader] The loader to use for fetching data (deprecated, use Relation chain)
     # @return [Object] The model instance
     # @raise [ActiveShopifyGraphQL::ObjectNotFoundError] If the record is not found
-    def find(id)
+    # @raise [ArgumentError] If id is nil and not using Customer Account API loader
+    def find(id = nil)
       all.find(id)
     end
 

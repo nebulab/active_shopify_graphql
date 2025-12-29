@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    active_shopify_graphql (0.5.1)
+    active_shopify_graphql (0.5.2)
       activemodel (>= 7.0)
       activesupport (>= 7.0)
       globalid (~> 1.3)

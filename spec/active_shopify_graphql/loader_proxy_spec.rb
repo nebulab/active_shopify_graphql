@@ -81,6 +81,51 @@ RSpec.describe ActiveShopifyGraphQL::LoaderProxy do
     end
   end
 
+  describe "#find" do
+    it "fetches current customer without id when using Customer Account API" do
+      model_class = build_customer_class
+      stub_const("Customer", model_class)
+      mock_client = instance_double("CustomerAccountClient")
+      allow(mock_client).to receive(:query).and_return({
+                                                         "data" => {
+                                                           "customer" => {
+                                                             "id" => "gid://shopify/Customer/123",
+                                                             "email" => "current@customer.com"
+                                                           }
+                                                         }
+                                                       })
+      customer_account_client_class = class_double("CustomerAccountClient")
+      allow(customer_account_client_class).to receive(:from_config).with("test_token").and_return(mock_client)
+      ActiveShopifyGraphQL.configure { |c| c.customer_account_client_class = customer_account_client_class }
+
+      loader = ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader.new(model_class, "test_token")
+      proxy = described_class.new(model_class, loader)
+
+      result = proxy.find
+
+      expect(result).not_to be_nil
+      expect(result.id).to eq("gid://shopify/Customer/123")
+      expect(result.email).to eq("current@customer.com")
+    end
+
+    it "returns nil when current customer is not found" do
+      model_class = build_customer_class
+      stub_const("Customer", model_class)
+      mock_client = instance_double("CustomerAccountClient")
+      allow(mock_client).to receive(:query).and_return(nil)
+      customer_account_client_class = class_double("CustomerAccountClient")
+      allow(customer_account_client_class).to receive(:from_config).with("test_token").and_return(mock_client)
+      ActiveShopifyGraphQL.configure { |c| c.customer_account_client_class = customer_account_client_class }
+
+      loader = ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader.new(model_class, "test_token")
+      proxy = described_class.new(model_class, loader)
+
+      result = proxy.find
+
+      expect(result).to be_nil
+    end
+  end
+
   describe "#where" do
     it "returns a Relation with conditions" do
       model_class = build_customer_class
