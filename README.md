@@ -1,160 +1,241 @@
+<div align="center">
+
 # ActiveShopifyGraphQL
 
-Bringing domain object peace of mind to the world of Shopify GraphQL APIs.
+**Bringing Read Only (for now) ActiveRecord-like domain modeling to Shopify GraphQL APIs**
 
-An ActiveRecord-like interface for Shopify's GraphQL APIs, supporting both Admin API and Customer Account API with automatic query building and response mapping.
+[![Gem Version](https://badge.fury.io/rb/active_shopify_graphql.svg)](https://badge.fury.io/rb/active_shopify_graphql)
+[![Spec](https://github.com/nebulab/active_shopify_graphql/actions/workflows/test.yml/badge.svg)](https://github.com/nebulab/active_shopify_graphql/actions/workflows/test.yml)
+[![Lint](https://github.com/nebulab/active_shopify_graphql/actions/workflows/lint.yml/badge.svg)](https://github.com/nebulab/active_shopify_graphql/actions/workflows/lint.yml)
 
-## The problem it solves
+</div>
 
-GraphQL is excellent to provide the exact data for each specific place it's used. However this can be difficult to reason with where you have to deal with very similar payloads across your application. Using hashes or OpenStructs resulting from raw query responses can be cumbersome, as they may have different shapes if they are coming from a query or another.
+<div align="center">
+Support for both Admin and Customer Account APIs with automatic query building, response mapping, and N+1-free connections.
+</div>
 
-This becomes even more complex when Shopify itself has different GraphQL schemas for the same types: good luck matching two `Customer` objects where one is coming from the [Admin API](https://shopify.dev/docs/api/admin-graphql/latest) and the other from the [Customer Account API](https://shopify.dev/docs/api/customer/latest).
+---
 
-This library moves the focus away from the raw query responses, bringing it back to the application domain with actual models. In this way, models present a stable interface, independent of the underlying schema they're coming from.
+## 🚀 Quick Start
 
-This library brings a Convention over Configuration approach to organize your custom data loaders, along with many ActiveRecord inspired features.
+```bash
+gem install active_shopify_graphql
+```
+
+```ruby
+# Configure in pure Ruby
+ActiveShopifyGraphQL.configure do |config|
+  config.admin_api_client = ShopifyGraphQL::Client
+  config.customer_account_client_class = Shopify::Account::Client
+end
+
+# Or define a Rails initializer
+Rails.configuration.to_prepare do
+  ActiveShopifyGraphQL.configure do |config|
+    config.admin_api_client = ShopifyGraphQL::Client
+    config.customer_account_client_class = Shopify::Account::Client
+  end
+end
+
+# Define your model
+class Customer < ActiveShopifyGraphQL::Model
+  graphql_type "Customer" # Optional as it's auto inferred
+
+  attribute :id, type: :string
+  attribute :name, path: "displayName", type: :string
+  attribute :email, path: "defaultEmailAddress.emailAddress", type: :string
+  attribute :created_at, type: :datetime
+
+  has_many_connected :orders, default_arguments: { first: 10 }
+end
+
+# Use it like ActiveRecord
+customer = Customer.find(123456789)
+customer.name                         # => "John Doe"
+customer.orders.to_a                  # => [#<Order:0x...>, ...]
+
+Customer.where(email: "@example.com")
+Customer.includes(:orders).find(id)
+```
+
+---
+
+## ✨ Why?
+
+### The Problem
+
+GraphQL is powerful, but dealing with raw responses is painful:
+
+```ruby
+# Before: The struggle
+response = shopify_client.execute(query)
+customer = response["data"]["customer"]
+email = customer["defaultEmailAddress"]["emailAddress"]
+created_at = Time.parse(customer["createdAt"])
+orders = customer["orders"]["nodes"].map { |o| parse_order(o) }
+# Different API? Different field names. Good luck!
+```
+
+**Problems:**
+- ❌ Different schemas for Admin API vs any other API
+- ❌ Inconsistent data shapes across queries
+- ❌ Manual type conversions everywhere
+- ❌ N+1 query problems with connections
+- ❌ No validation or business logic layer
+
+### The Solution
+
+```ruby
+# After: Peace of mind
+customer = Customer.includes(:orders).find(123456789)
+customer.email                # => "john@example.com"
+customer.created_at           # => #<DateTime>
+customer.orders.to_a          # Lazily loaded as a single query
+```
+
+**Benefits:**
+- ✅ **Single source of truth** — Models, not hashes
+- ✅ **Type-safe attributes** — Automatic coercion
+- ✅ **Unified across APIs** — Same model, different loaders
+- ✅ **Optional eager loading** — Save points by default, eager load when needed
+- ✅ **ActiveRecord-like** — Familiar, idiomatic Ruby and Rails
+
+---
+
+## 📚 Table of Contents
+
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Core Concepts](#core-concepts)
+- [Features](#features)
+- [API Reference](#api-reference)
+- [Advanced Topics](#advanced-topics)
+- [Development](#development)
+
+---
 
 ## Installation
 
-Add this line to your application's Gemfile:
+Add to your Gemfile:
 
 ```ruby
-gem 'active_shopify_graphql'
+gem "active_shopify_graphql"
 ```
 
-And then execute:
+Or install globally:
 
-    $ bundle install
+```bash
+gem install active_shopify_graphql
+```
 
-Or install it yourself as:
-
-    $ gem install active_shopify_graphql
+---
 
 ## Configuration
 
-Before using ActiveShopifyGraphQL, you need to configure the API clients:
+Configure your Shopify GraphQL clients:
 
 ```ruby
 # config/initializers/active_shopify_graphql.rb
 Rails.configuration.to_prepare do
   ActiveShopifyGraphQL.configure do |config|
-    # Configure the Admin API client (must respond to #execute(query, **variables))
+    # Admin API (must respond to #execute(query, **variables))
     config.admin_api_client = ShopifyGraphQL::Client
 
-    # Configure the Customer Account API client class (must have .from_config(token) class method)
-    # and respond to #execute(query, **variables)
+    # Customer Account API (must have .from_config(token) and #execute)
     config.customer_account_client_class = Shopify::Account::Client
   end
 end
 ```
 
-## Usage
+---
 
-### Basic Model Setup
+## Core Concepts
 
-Create a model that inherits from `ActiveShopifyGraphQL::Model` and define attributes directly:
+### Models
 
-```ruby
-class Customer < ActiveShopifyGraphQL::Model
-  # Define the GraphQL type
-  graphql_type "Customer"
+Models are the heart of ActiveShopifyGraphQL. They define:
 
-  # Define attributes with automatic GraphQL path inference and type coercion
-  attribute :id, type: :string
-  attribute :name, path: "displayName", type: :string
-  attribute :email, path: "defaultEmailAddress.emailAddress", type: :string
-  attribute :created_at, type: :datetime
+- **GraphQL type** → Which Shopify schema type they map to
+- **Attributes** → Fields to fetch and their types
+- **Associations** → Relationships to other models
+- **Connections** → GraphQL connections for related data
+- **Business logic** → Validations, methods, transformations
 
-  validates :id, presence: true
+### Attributes
 
-  def first_name
-    name.split(" ").first
-  end
-end
-```
-
-### Application Base Class (Recommended)
-
-For consistency and to share common behavior across all your Shopify GraphQL models, we recommend creating an `ApplicationShopifyGqlRecord` base class, similar to Rails' `ApplicationRecord`:
-
-```ruby
-# app/models/application_shopify_gql_record.rb
-class ApplicationShopifyRecord < ActiveShopifyGraphQL::Model
-  # Extract numeric ID from Shopify GID
-  attribute :id, transform: ->(id) { id.split("/").last }
-  # Keep the original GID available
-  attribute :gid, path: "id"
-end
-```
-
-Then inherit from this base class in your models:
-
-```ruby
-class Customer < ApplicationShopifyRecord
-  graphql_type "Customer"
-
-  attribute :name, path: "displayName"
-  attribute :email, path: "defaultEmailAddress.emailAddress"
-  attribute :created_at, type: :datetime
-end
-```
-
-This pattern provides:
-- **Consistent ID handling**: All models automatically get a numeric `id` and full `gid`
-- **Shared behavior**: Add validations, methods, or transformations once for all models
-- **Clear inheritance**: The class definition line clearly shows the persistence layer
-
-### Defining Attributes
-
-Attributes are now defined directly in the model class using the `attribute` method. The GraphQL fragments and response mapping are automatically generated!
-
-#### Basic Attribute Definition
+Attributes auto-generate GraphQL fragments and handle response mapping:
 
 ```ruby
 class Customer < ActiveShopifyGraphQL::Model
   graphql_type "Customer"
 
-  # Define attributes with automatic GraphQL path inference and type coercion
-  attribute :id, type: :string
-  attribute :name, path: "displayName", type: :string
-  attribute :email, path: "defaultEmailAddress.emailAddress", type: :string
-  attribute :created_at, type: :datetime
+  # Auto-inferred path: displayName
+  attribute :name, type: :string
 
-  # Custom transform example
-  attribute :tags, type: :string, transform: ->(tags_array) { tags_array.join(", ") }
+  # Custom path with dot notation
+  attribute :email, path: "defaultEmailAddress.emailAddress", type: :string
+
+  # Custom transformation
+  attribute :plain_id, path: "id", transform: ->(gid) { gid.split("/").last }
 end
 ```
 
-#### Attribute Definition Options
+### Connections
 
-The `attribute` method supports several options for flexibility:
+Connections to related Shopify data with lazy/eager loading:
 
 ```ruby
-attribute :name,
-  path: "displayName",                    # Custom GraphQL path (auto-inferred if omitted)
-  type: :string,                          # Type coercion (:string, :integer, :float, :boolean, :datetime)
-  null: false,                            # Whether the attribute can be null (default: true)
-  default: "a default value",             # The value to assign in case it's nil (default: nil)
-  transform: ->(value) { value.upcase }   # Custom transformation block
+class Customer < ActiveShopifyGraphQL::Model
+  # Lazy by default — loaded on first access
+  has_many_connected :orders
+
+  # Always eager load — no N+1 queries
+  has_many_connected :addresses, eager_load: true, default_arguments: { first: 5 }
+
+  # Scoped connection with custom arguments
+  has_many_connected :recent_orders,
+    query_name: "orders",
+    default_arguments: { first: 5, reverse: true, sort_key: "CREATED_AT" }
+end
 ```
 
-**Auto-inference:** When `path` is omitted, it's automatically inferred by converting snake_case to camelCase (e.g., `display_name` → `displayName`).
+---
 
-**Nested paths:** Use dot notation for nested GraphQL fields (e.g., `"defaultEmailAddress.emailAddress"`).
+## Features
 
-**Type coercion:** Automatic conversion using ActiveModel types ensures type safety.
+### 🏗️ Attribute Definition
 
-**Array handling:** Arrays are automatically preserved regardless of the specified type.
-
-#### Metafield Attributes
-
-Shopify metafields can be easily accessed using the `metafield_attribute` method:
+Define attributes with automatic GraphQL generation:
 
 ```ruby
 class Product < ActiveShopifyGraphQL::Model
   graphql_type "Product"
 
-  # Regular attributes
+  # Simple attribute (path auto-inferred as "title")
+  attribute :title, type: :string
+
+  # Custom path
+  attribute :price, path: "priceRange.minVariantPrice.amount", type: :float
+
+  # With default
+  attribute :description, type: :string, default: "No description"
+
+  # Custom transformation
+  attribute :slug, path: "handle", transform: ->(handle) { handle.parameterize }
+
+  # Nullable validation
+  attribute :vendor, type: :string, null: false
+end
+```
+
+#### Metafields
+
+Easy access to Shopify metafields:
+
+```ruby
+class Product < ActiveShopifyGraphQL::Model
+  graphql_type "Product"
+
   attribute :id, type: :string
   attribute :title, type: :string
 
@@ -162,624 +243,353 @@ class Product < ActiveShopifyGraphQL::Model
   metafield_attribute :boxes_available, namespace: 'custom', key: 'available_boxes', type: :integer
   metafield_attribute :seo_description, namespace: 'seo', key: 'meta_description', type: :string
   metafield_attribute :product_data, namespace: 'custom', key: 'data', type: :json
-  metafield_attribute :is_featured, namespace: 'custom', key: 'featured', type: :boolean, null: false
 end
 ```
 
-The metafield attributes automatically generate the correct GraphQL syntax and handle value extraction from either `value` or `jsonValue` fields based on the type.
+#### Raw GraphQL
 
-#### Raw GraphQL Attributes
-
-For advanced GraphQL features not yet fully supported by the gem (like union types with `... on` syntax), you can inject raw GraphQL directly into the query using the `raw_graphql` option:
+For advanced features like union types:
 
 ```ruby
 class Product < ActiveShopifyGraphQL::Model
   graphql_type "Product"
 
-  attribute :id, type: :string
-  attribute :title, type: :string
-
-  # Raw GraphQL for accessing metaobject references with union types
+  # Raw GraphQL injection for union types
   attribute :provider_id,
-    path: "roaster.reference.id",  # Path to extract from the response
+    path: "provider_id.reference.id", # first part must match the attribute name as the field is aliased to that
     type: :string,
     raw_graphql: 'metafield(namespace: "custom", key: "provider") { reference { ... on Metaobject { id } } }'
-
-  # Another example with complex nested queries not warranting full blown models
-  attribute :product_bundle,
-    path: "bundle",  # The alias will be used as the response key
-    type: :json,
-    raw_graphql: 'metafield(namespace: "bundles", key: "items") { references(first: 10) { nodes { ... on Product { id title } } } }'
 end
 ```
 
 #### API-Specific Attributes
 
-For models that need different attributes depending on the API being used, you can define loader-specific overrides:
+Different fields per API:
 
 ```ruby
 class Customer < ActiveShopifyGraphQL::Model
   graphql_type "Customer"
 
-  # Default attributes (used by all loaders)
   attribute :id, type: :string
   attribute :name, path: "displayName", type: :string
 
+  # Admin API specific
   for_loader ActiveShopifyGraphQL::Loaders::AdminApiLoader do
     attribute :email, path: "defaultEmailAddress.emailAddress", type: :string
-    attribute :created_at, type: :datetime
   end
 
-  # Customer Account API uses different field names
+  # Customer Account API specific
   for_loader ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader do
     attribute :email, path: "emailAddress.emailAddress", type: :string
-    attribute :created_at, path: "creationDate", type: :datetime
   end
 end
 ```
 
-### Finding Records
+### Querying
 
-Use the `find` method to retrieve records by ID:
+#### Finding Records
 
 ```ruby
-# Using Admin API (default)
+# By GID or numeric ID
 customer = Customer.find("gid://shopify/Customer/123456789")
-# You can also use just the ID number
 customer = Customer.find(123456789)
 
-# Using Customer Account API
-customer = Customer.with_customer_account_api(token).find
+# With specific API
+Customer.with_customer_account_api(token).find
+Customer.with_admin_api.find(123456789)
 ```
 
-### API Switching
-
-Switch between Admin API and Customer Account API:
+#### Filtering
 
 ```ruby
-# Use Admin API (default)
-customer = Customer.find(id)
-
-# Use Customer Account API with token
-customer = Customer.with_customer_account_api(token).find
-
-# Use Admin API explicitly
-customer = Customer.with_admin_api.find(id)
-
-# Use your own custom Loader
-customer = Customer.with_loader(MyCustomLoader).find(id)
-```
-
-### Querying Records
-
-Use the `where` method to query multiple records using Shopify's search syntax:
-
-```ruby
-# Hash-based queries (safe, with automatic escaping)
-customers = Customer.where(email: "john@example.com")
+# Hash queries (auto-escaped)
+Customer.where(email: "john@example.com")
 
 # Range queries
-customers = Customer.where(created_at: { gte: "2024-01-01", lt: "2024-02-01" })
-customers = Customer.where(orders_count: { gte: 5 })
+Customer.where(created_at: { gte: "2024-01-01", lt: "2024-02-01" })
+Customer.where(orders_count: { gte: 5 })
 
-# Multi-word values are automatically quoted
-customers = Customer.where(first_name: "John Doe")
+# Wildcards (string query)
+Customer.where("email:*@example.com")
+
+# Parameter binding (safe)
+Customer.where("email::email", email: "john@example.com")
 
 # With limits
-customers = Customer.where({ email: "john@example.com" }, limit: 100)
+Customer.where(email: "@gmail.com").limit(100)
 ```
 
-#### String-based Queries for Advanced Syntax
-
-For advanced queries like wildcard matching, use string-based queries:
+#### Query Optimization
 
 ```ruby
-# Raw string queries (user responsible for proper escaping)
-variants = ProductVariant.where("sku:*")  # Wildcard matching
-customers = Customer.where("email:*@example.com AND orders_count:>5")
+# Select only needed fields
+Customer.select(:id, :name).find(123)
 
-# String queries with parameter binding (safe, with automatic escaping)
-# Positional parameters
-variants = ProductVariant.where("sku:? AND product_id:?", "Test's Product", 123)
-
-# Named parameters (as hash)
-customers = Customer.where("email::email AND first_name::name",
-                          { email: "test@example.com", name: "John" })
-
-# Named parameters (as keyword arguments - more convenient!)
-variants = ProductVariant.where("sku::sku", sku: "Test's Product")
+# Combine with includes (N+1-free)
+Customer.includes(:orders).select(:id, :name).where(first_name: "Andrea")
 ```
-
-**Query safety levels:**
-- **Hash queries**: Fully safe, all values are automatically escaped (wildcards become literals)
-- **String with binding**: Safe, bound parameters are automatically escaped
-- **Raw strings**: User responsible for escaping; allows advanced syntax like wildcards
-
-The `where` method automatically converts Ruby conditions into Shopify's GraphQL query syntax and validates that the query fields are supported by Shopify.
 
 ### Pagination
 
-ActiveShopifyGraphQL supports cursor-based pagination for efficiently working with large result sets. Queries return a chainable `Query::Scope` that provides both automatic and manual pagination.
-
-#### Basic Pagination with Limits
-
-Use the `limit` method to control the total number of records fetched:
+Automatic cursor-based pagination:
 
 ```ruby
-# Fetch up to 100 records (automatically handles pagination behind the scenes)
-variants = ProductVariant.where(sku: "*").limit(100).to_a
+# Automatic pagination with limit
+# Query for non-empty SKUs
+ProductVariant.where("-sku:''").limit(100).to_a
 
-# Chainable with other query methods
-customers = Customer.where(email: "*@example.com").limit(500).to_a
-```
-
-#### Manual Pagination
-
-Use `in_pages` without a block to manually navigate through pages:
-
-```ruby
-# Get first page (50 records per page)
-page = ProductVariant.where(sku: "FRZ*").in_pages(of: 50)
-
-page.size              # => 50
+# Manual pagination
+page = ProductVariant.where("sku:FRZ*").in_pages(of: 50)
 page.has_next_page?    # => true
-page.end_cursor        # => "eyJsYXN0X2lk..."
-
-# Navigate to next page
 next_page = page.next_page
-next_page.size         # => 50
 
-# Navigate backwards
-prev_page = next_page.previous_page
-```
-
-#### Automatic Pagination with Blocks
-
-Process records in batches to control memory usage:
-
-```ruby
-# Process 10 records at a time
-ProductVariant.where(sku: "*").in_pages(of: 10) do |page|
-  page.each do |variant|
-    MemoryExpensiveThing.run(variant)
-  end
+# Batch processing
+ProductVariant.where("sku:FRZ*").in_pages(of: 10) do |page|
+  page.each { |variant| process(variant) }
 end
 
-# Combine with limit to stop after a certain number of records
-ProductVariant.where(sku: "*").limit(500).in_pages(of: 50) do |page|
-  # Processes 10 pages of 50 records each, then stops
-  process_batch(page.to_a)
-end
-```
-
-#### Lazy Enumeration
-
-The `Query::Scope` returned by `where` is enumerable and lazy-loads records:
-
-```ruby
-# These don't execute queries immediately
+# Lazy enumeration
 scope = Customer.where(email: "*@example.com")
-
-# Query executes when you iterate or convert to array
-scope.each { |customer| puts customer.email }
-scope.to_a    # Returns array of all records
-scope.first   # Fetches just the first record
-scope.empty?  # Checks if any records exist
+scope.each { |c| puts c.name }  # Executes query
+scope.first                      # Fetches just first
 ```
 
-**Note:** Shopify imposes a maximum of 250 records per page. The `in_pages(of: n)` method will cap `n` at 250.
+### Connections
 
-### Optimizing Queries with Select
-
-Use the `select` method to only fetch specific attributes, reducing GraphQL query size and improving performance:
+#### Lazy Loading
 
 ```ruby
-# Only fetch id, name, and email
-customer = Customer.select(:id, :name, :email).find(123)
+customer = Customer.find(123)
 
-# Works with where queries too
-customers = Customer.select(:id, :name).where(country: "Canada")
+# Not loaded yet
+customer.orders.loaded?    # => false
 
-# Always includes id even if not specified
-customer = Customer.select(:name).find(123)
-# This will still include :id in the GraphQL query
+# Loads on access (separate query)
+orders = customer.orders.to_a
+customer.orders.loaded?    # => true
+
+# Enumerable
+customer.orders.each { |order| puts order.name }
+customer.orders.size
+customer.orders.first
 ```
 
-The `select` method validates that the specified attributes exist and automatically includes the `id` field for proper object identification.
+#### Eager Loading
 
-## Associations
+```ruby
+# Load in single query (no N+1!)
+customer = Customer.includes(:orders, :addresses).find(123)
 
-ActiveShopifyGraphQL provides ActiveRecord-like associations to define relationships between the your own Shopify GraphQL backed ones and ActiveRecord objects.
+# Already loaded
+orders = customer.orders      # No additional query
+addresses = customer.addresses
+```
 
-### Has Many Associations
-
-Use `has_many` to define one-to-many relationships:
+#### Automatic Eager Loading
 
 ```ruby
 class Customer < ActiveShopifyGraphQL::Model
-  graphql_type "Customer"
+  # Always loaded without explicit includes
+  has_many_connected :orders, eager_load: true
+end
 
-  attribute :id, type: :string
-  attribute :plain_id, path: "id", type: :string, transform: ->(id) { id.split("/").last }
-  attribute :display_name, type: :string
-  attribute :email, path: "defaultEmailAddress.emailAddress", type: :string
-  attribute :created_at, type: :datetime
+customer = Customer.find(123)
+orders = customer.orders      # Already loaded
+```
 
-  # Define an association to one of your own ActiveRecord models
-  # foreign_key maps the id of the GraphQL powered model to the rewards.shopify_customer_id table
-  has_many :rewards, foreign_key: :shopify_customer_id
-  # primary_key specifies which attribute to use as the value for matching the ActiveRecord ID
-  has_many :referrals, primary_key: :plain_id, foreign_key: :shopify_id
+#### Runtime Parameters
 
-  validates :id, presence: true
+```ruby
+customer = Customer.find(123)
+
+# Override defaults
+customer.orders(first: 25, sort_key: 'UPDATED_AT', reverse: true).to_a
+```
+
+#### Inverse Relationships
+
+```ruby
+class Product < ActiveShopifyGraphQL::Model
+  has_many_connected :variants, inverse_of: :product
+end
+
+class ProductVariant < ActiveShopifyGraphQL::Model
+  has_one_connected :product, inverse_of: :variants
+end
+
+# Bidirectional caching — no redundant queries
+product = Product.includes(:variants).find(123)
+product.variants.each do |variant|
+  variant.product  # Uses cached parent, no query runs
 end
 ```
 
-#### Using the Association
+### ActiveRecord Associations
 
-```ruby
-customer = Customer.find("gid://shopify/Customer/123456789") # or Customer.find(123456789)
-
-# Access associated orders (lazy loaded)
-customer.rewards
-# => [#<Reward:0x... ]
-
-```
-
-### Has One Associations
-
-Use `has_one` to define one-to-one relationships:
-
-```ruby
-class Order < ActiveShopifyGraphQL::Model
-  has_one :billing_address, class_name: 'Address'
-end
-```
-
-The associations automatically handle Shopify GID format conversion, extracting numeric IDs when needed for querying related records.
-
-## Bridging ActiveRecord with GraphQL
-
-The `GraphQLAssociations` module allows ActiveRecord models (or duck-typed objects) to define associations to Shopify GraphQL models:
+Bridge between your ActiveRecord models and Shopify GraphQL:
 
 ```ruby
 class Reward < ApplicationRecord
   include ActiveShopifyGraphQL::GraphQLAssociations
 
-  belongs_to_graphql :customer                     # Expects shopify_customer_id column
-  has_one_graphql :primary_address,
-    class_name: "Address",
-    foreign_key: :customer_id
-  has_many_graphql :variants,
-    class_name: "ProductVariant"
+  belongs_to_graphql :customer
+  has_one_graphql :primary_address, class_name: "Address"
+  has_many_graphql :variants, class_name: "ProductVariant"
 end
 
 reward = Reward.find(1)
 reward.customer        # Loads Customer from shopify_customer_id
-reward.primary_address # Queries Address.where(customer_id: reward.shopify_customer_id).first
 reward.variants        # Queries ProductVariant.where({})
 ```
 
-**Available associations:**
-- `belongs_to_graphql` - Loads single GraphQL object via stored GID/ID
-- `has_one_graphql` - Queries first GraphQL object matching foreign key
-- `has_many_graphql` - Queries multiple GraphQL objects with optional filtering
+---
 
-All associations support `class_name`, `foreign_key`, `primary_key`, and `loader_class` options. Results are automatically cached and setter methods are provided for testing.
+## API Reference
 
-## GraphQL Connections
-
-ActiveShopifyGraphQL supports GraphQL connections for loading related data from Shopify APIs. Connections provide both lazy and eager loading patterns.
-
-### Defining Connections
-
-Use the `connection` class method to define connections to other ActiveShopifyGraphQL models:
+### Attribute Options
 
 ```ruby
-class Customer < ActiveShopifyGraphQL::Model
-  graphql_type 'Customer'
+attribute :name,
+  path: "displayName",                    # GraphQL path (auto-inferred if omitted)
+  type: :string,                          # Type coercion
+  null: false,                            # Can be null? (default: true)
+  default: "value",                       # Default value (default: nil)
+  transform: ->(v) { v.upcase }           # Custom transform
+```
 
-  attribute :id
-  attribute :display_name, path: "displayName"
-  attribute :email
+**Supported Types:** `:string`, `:integer`, `:float`, `:boolean`, `:datetime`
 
-  # Basic connection
-  has_many_connected :orders, default_arguments: { first: 10 }
+### Connection Options
 
-  # Connection with custom parameters
-  has_many_connected :addresses,
-    class_name: 'MailingAddress',    # Target model class (defaults to connection name)
-    query_name: 'customerAddresses', # GraphQL query field (defaults to pluralized name)
-    eager_load: true,                # Automatically eager load this connection (default: false)
-    default_arguments: {             # Default arguments for the GraphQL query
-      first: 5,                      # Number of records to fetch (default: 10)
-      sort_key: 'CREATED_AT',        # Sort key (default: 'CREATED_AT')
-      reverse: false                 # Sort direction (default: false for ascending)
-    }
+```ruby
+has_many_connected :orders,
+  class_name: "Order",                    # Target class (default: connection name)
+  query_name: "orders",                   # GraphQL field (default: pluralized)
+  default_arguments: {                    # Default query args
+    first: 10,
+    sort_key: 'CREATED_AT',
+    reverse: false
+  },
+  eager_load: true,                       # Auto eager load? (default: false)
+  inverse_of: :customer                   # Inverse connection (optional)
+```
 
-  # Example of a "scoped" connection
-  # Multiple connections can use the same query_name with different arguments
-  has_many_connected :recent_orders,
-    query_name: "orders",           # Uses the same GraphQL field as :orders
-    class_name: "Order",            # The class would be inferred to RecentOrder without this
-    default_arguments: {            # Different arguments for filtering
-      first: 5,
-      reverse: true,
-      sort_key: 'CREATED_AT'
-    }
+### Association Options
+
+```ruby
+has_many :rewards,
+  foreign_key: :shopify_customer_id       # ActiveRecord column
+  primary_key: :id                        # Model attribute (default: :id)
+
+has_one :billing_address,
+  class_name: "Address"
+```
+
+---
+
+## Advanced Topics
+
+### Application Base Class
+
+Create a base class for shared behavior:
+
+```ruby
+# app/models/application_shopify_gql_record.rb
+class ApplicationShopifyRecord < ActiveShopifyGraphQL::Model
+  attribute :id, transform: ->(gid) { gid.split("/").last }
+  attribute :gid, path: "id"
 end
 
-class Order < ActiveShopifyGraphQL::Model
-  graphql_type 'Order'
-
-  attribute :id
-  attribute :name
-  attribute :total_price, path: "totalPriceSet.shopMoney.amount"
+# Then inherit
+class Customer < ApplicationShopifyRecord
+  graphql_type "Customer"
+  attribute :name, path: "displayName"
 end
 ```
 
-**Connection Aliasing:** When multiple connections use the same `query_name` (like `orders` and `recent_orders` both using the "orders" field), the gem automatically generates GraphQL aliases to prevent conflicts:
+### Custom Loaders
 
-```graphql
-fragment CustomerFragment on Customer {
-  id
-  displayName
-  orders(first: 2) {
-    nodes { id name }
-  }
-  recent_orders: orders(first: 5, reverse: true, sortKey: CREATED_AT) {
-    nodes { id name }
-  }
-}
-```
-
-This allows you to have multiple "views" of the same connection with different filtering or sorting parameters, all in a single query.
-
-### Lazy Loading (Default Behavior)
-
-Connections are loaded lazily when accessed. A separate GraphQL query is fired when the connection is first accessed:
+Create your own loaders for specialized behavior:
 
 ```ruby
-customer = Customer.find(123456789)
+class MyCustomLoader < ActiveShopifyGraphQL::Loader
+  def fragment
+    # Return GraphQL fragment string
+  end
 
-# This creates a connection proxy but doesn't load data yet
-orders_proxy = customer.orders
-puts orders_proxy.loaded? # => false
-
-# This triggers the GraphQL query and loads the data
-orders = customer.orders.to_a
-puts customer.orders.loaded? # => true (for this specific proxy instance)
-
-# Connection proxies implement Enumerable
-customer.orders.each do |order|
-  puts order.name
+  def map_response_to_attributes(response)
+    # Map response to attribute hash
+  end
 end
 
-# Array-like access methods
-customer.orders.size        # Number of records
-customer.orders.first       # First record
-customer.orders.last        # Last record
-customer.orders[0]          # Access by index
-customer.orders.empty?      # Check if empty
+# Use it
+Customer.with_loader(MyCustomLoader).find(123)
 ```
 
-### Runtime Parameter Overrides
+### Testing
 
-You can override connection parameters at runtime:
+Mock data for tests:
 
 ```ruby
-customer = Customer.find(123456789)
-
-# Override default parameters for this call
-recent_orders = customer.orders(
-  first: 25,               # Fetch 25 records instead of default 10
-  sort_key: 'UPDATED_AT',  # Sort by update date instead of creation date
-  reverse: true            # Most recent first
-).to_a
-```
-
-### Eager Loading with `includes`
-
-Use `includes` to load connections in the same GraphQL query as the parent record, eliminating the N+1 query problem:
-
-```ruby
-# Load customer with orders and addresses in a single GraphQL query
-customer = Customer.includes(:orders, :addresses).find(123456789)
-
-# These connections are already loaded - no additional queries fired
-orders = customer.orders      # Uses cached data
-addresses = customer.addresses # Uses cached data
-
-puts customer.orders.loaded?    # => This won't be a proxy since data was eager loaded
-```
-
-### Automatic Eager Loading
-
-For connections that should always be loaded, you can use the `eager_load: true` parameter when defining the connection. This will automatically include the connection in all find and where queries without needing to explicitly use `includes`:
-
-```ruby
-class Customer < ActiveShopifyGraphQL::Model
-  graphql_type 'Customer'
-
-  attribute :id
-  attribute :display_name, path: "displayName"
-
-  # This connection will always be eager loaded
-  connection :orders, eager_load: true
-
-  # This connection will only be loaded lazily (default behavior)
-  connection :addresses
-end
-
-# The orders connection is automatically loaded
-customer = Customer.find(123456789)
-orders = customer.orders      # Uses cached data - no additional query fired
-
-# The addresses connection is lazy loaded
-addresses = customer.addresses # This will fire a GraphQL query when first accessed
-```
-
-This feature is perfect for connections that are frequently accessed and should be included in most queries to avoid N+1 problems.
-
-The `includes` method modifies the GraphQL fragment to include connection fields:
-
-```graphql
-query customer($id: ID!) {
-  customer(id: $id) {
-    # Regular customer fields
-    id
-    displayName
-
-    # Eager-loaded connections
-    orders(first: 10, sortKey: CREATED_AT, reverse: false) {
-      nodes {
-        id
-        name
-        totalPriceSet {
-          shopMoney {
-            amount
-          }
-        }
-      }
-    }
-    addresses(first: 5, sortKey: CREATED_AT, reverse: false) {
-      nodes {
-        id
-        address1
-        city
-      }
-    }
-  }
-}
-```
-
-### Method Chaining
-
-Connection methods support chaining with other query methods:
-
-```ruby
-# Chain includes with select for optimized queries
-Customer.includes(:orders).select(:id, :display_name).find(123456789)
-
-# Chain includes with where for filtered queries
-Customer.includes(:orders).where(email: "john@example.com").first
-```
-
-### Testing Support
-
-For testing, you can manually set connection data to avoid making real API calls:
-
-```ruby
-# In your tests
+# Mock associations
 customer = Customer.new(id: 'gid://shopify/Customer/123')
-mock_orders = [
-  Order.new(id: 'gid://shopify/Order/1', name: '#1001'),
-  Order.new(id: 'gid://shopify/Order/2', name: '#1002')
-]
+customer.orders = [Order.new(id: 'gid://shopify/Order/1')]
 
-# Set mock data
+# Mock connections
 customer.orders = mock_orders
-
-# Now customer.orders returns the mock data
-expect(customer.orders.size).to eq(2)
-expect(customer.orders.first.name).to eq('#1001')
+expect(customer.orders.size).to eq(1)
 ```
 
-### Inverse Relationships with `inverse_of`
-
-When you have bidirectional relationships between models, you can use the `inverse_of` parameter to avoid redundant GraphQL queries. This is similar to ActiveRecord's `inverse_of` option and automatically caches the parent object when loading children.
-
-#### Basic Usage
-
-```ruby
-class Product < ActiveShopifyGraphQL::Model
-  graphql_type 'Product'
-
-  attribute :id
-  attribute :title
-
-  # Define inverse relationship to avoid redundant queries
-  has_many_connected :variants,
-    class_name: "ProductVariant",
-    inverse_of: :product,  # Points to the inverse connection name
-    default_arguments: { first: 10 }
-end
-
-class ProductVariant < ActiveShopifyGraphQL::Model
-  graphql_type 'ProductVariant'
-
-  attribute :id
-  attribute :title
-
-  # Define inverse relationship back to Product
-  has_one_connected :product,
-    inverse_of: :variants  # Points back to the parent's connection
-end
-```
-
-#### With Eager Loading
-
-```ruby
-# Load product with variants in a single GraphQL query
-product = Product.includes(:variants).find(123)
-
-# Access variants - already loaded, no additional query
-product.variants.each do |variant|
-  # Access product from variant - uses cached parent, NO QUERY!
-  puts variant.product.title
-end
-```
-
-#### With Lazy Loading
-
-```ruby
-# Load product without preloading variants
-product = Product.find(123)
-
-# First access triggers a query to load variants
-variants = product.variants.to_a
-
-# Access product from variant - uses cached parent, NO QUERY!
-variant = variants.first
-puts variant.product.title  # Returns the same product instance
-```
-
-### Connection Configuration
-
-Connections automatically infer sensible defaults but can be customized:
-
-- **class_name**: Target model class name (defaults to connection name singularized and classified)
-- **query_name**: GraphQL query field name (defaults to connection name pluralized)
-- **foreign_key**: Field used to filter connection records (defaults to `{model_name}_id`)
-- **loader_class**: Custom loader class (defaults to model's default loader)
-- **eager_load**: Whether to automatically eager load this connection on find/where queries (default: false)
-- **inverse_of**: The name of the inverse connection on the target model (optional, enables automatic inverse caching)
-- **default_arguments**: Hash of default arguments to pass to the GraphQL query (e.g., `{ first: 10, sort_key: 'CREATED_AT' }`)
-
-### Error Handling
-
-Connection queries use the same error handling as regular model queries. If a connection query fails, an appropriate exception will be raised with details about the GraphQL error.
-
-## Next steps
-
-- [x] Attribute-based model definition with automatic GraphQL fragment generation
-- [x] Metafield attributes for easy access to Shopify metafields
-- [x] Support `Model.where(param: value)` proxying params to the GraphQL query attribute
-- [x] Query optimization with `select` method
-- [x] GraphQL connections with lazy and eager loading via `Customer.includes(:orders).find(id)`
-- [x] Support for paginating query results with cursors
-- [ ] Better error handling and retry mechanisms for GraphQL API calls
-- [ ] Caching layer for frequently accessed data
-- [ ] Multiple `.where` chaining with possibility of using `.not`
+---
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+```bash
+# Install dependencies
+bin/setup
+
+# Run tests
+bundle exec rake spec
+
+# Run console
+bin/console
+
+# Lint
+bundle exec rubocop
+```
+
+---
+
+## Roadmap
+
+- [x] Attribute-based model definition
+- [x] Metafield attributes
+- [x] Query optimization with `select`
+- [x] GraphQL connections with lazy/eager loading
+- [x] Cursor-based pagination
+- [ ] Metaobjects as models
+- [ ] Builtin instrumentation to track query costs
+- [ ] Advanced error handling and retry mechanisms
+- [ ] Caching layer
+- [ ] Chained `.where` with `.not` support
+- [ ] Basic mutation support
+
+---
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/nebulab/active_shopify_graphql.
+Bug reports and pull requests are welcome on GitHub at [nebulab/active_shopify_graphql](https://github.com/nebulab/active_shopify_graphql).
+
+---
 
 ## License
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+The gem is available as open source under the [MIT License](https://opensource.org/licenses/MIT).
+
+---
+
+<div align="center">
+
+Made by [Nebulab](https://nebulab.com)
+
+</div>
