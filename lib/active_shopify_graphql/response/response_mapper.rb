@@ -32,6 +32,15 @@ module ActiveShopifyGraphQL
           value = extract_and_transform_value(node_data, config, attr_name)
           result[attr_name] = value
         end
+
+        # Map metaobject fields if present
+        if @context.fields&.any?
+          @context.fields.each do |field_name, config|
+            value = extract_metaobject_field_value(node_data, field_name, config)
+            result[field_name] = value
+          end
+        end
+
         result
       end
 
@@ -110,6 +119,22 @@ module ActiveShopifyGraphQL
       end
 
       private
+
+      def extract_metaobject_field_value(node_data, field_name, config)
+        field_value = node_data[field_name.to_s]
+        return nil unless field_value
+
+        # Handle: { "jsonValue": "actual value" }
+        value = if field_value.is_a?(Hash) && field_value.key?("jsonValue")
+                  field_value["jsonValue"]
+                else
+                  field_value
+                end
+
+        value = apply_defaults_and_transforms(value, config)
+        validate_null_constraint!(value, config, field_name)
+        coerce_value(value, config[:type])
+      end
 
       def extract_and_transform_value(node_data, config, attr_name)
         path = config[:path]

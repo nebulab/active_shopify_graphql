@@ -43,14 +43,25 @@ module ActiveShopifyGraphQL
         builder = new(context)
         fragment = builder.build_fragment
 
-        Node::Collection.new(
-          model_type: context.graphql_type,
-          query_name: query_name,
-          fragment_name: context.fragment_name,
-          variables: variables,
-          fragments: [fragment],
-          include_page_info: include_page_info
-        ).to_s
+        if context.is_metaobject?
+          Node::MetaobjectRootConnection.new(
+            query_name: query_name,
+            fragment_name: context.fragment_name,
+            variables: variables,
+            fragments: [fragment],
+            metaobject_type: context.metaobject_type,
+            include_page_info: include_page_info
+          ).to_s
+        else
+          Node::Collection.new(
+            model_type: context.graphql_type,
+            query_name: query_name,
+            fragment_name: context.fragment_name,
+            variables: variables,
+            fragments: [fragment],
+            include_page_info: include_page_info
+          ).to_s
+        end
       end
 
       # Build a paginated collection query that includes pageInfo for cursor-based pagination
@@ -120,6 +131,9 @@ module ActiveShopifyGraphQL
         # Add field nodes from attributes
         build_field_nodes.each { |node| fragment_node.add_child(node) }
 
+        # Add metaobject field nodes if this is a metaobject
+        build_metaobject_field_nodes.each { |node| fragment_node.add_child(node) }
+
         # Add connection nodes
         build_connection_nodes.each { |node| fragment_node.add_child(node) }
 
@@ -153,6 +167,15 @@ module ActiveShopifyGraphQL
 
         # Convert tree to Node objects
         nodes_from_tree(path_tree) + aliased_field_nodes + metafield_nodes(metafield_aliases) + raw_graphql_nodes
+      end
+
+      # Build metaobject field nodes from field definitions
+      def build_metaobject_field_nodes
+        return [] unless @context.fields&.any?
+
+        @context.fields.map do |field_name, _config|
+          Node::MetaobjectField.new(name: field_name, key: infer_field_key(field_name))
+        end
       end
 
       # Build Node objects for all connections
@@ -224,6 +247,10 @@ module ActiveShopifyGraphQL
             Node::Field.new(name: key, children: children)
           end
         end
+      end
+
+      def infer_field_key(field_name)
+        field_name.to_s.underscore
       end
 
       def metafield_nodes(metafield_aliases)

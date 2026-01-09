@@ -31,6 +31,7 @@ module ActiveShopifyGraphQL
     include Connections
     include Attributes
     include MetafieldAttributes
+    include MetaobjectConnections
     include LoaderSwitchable
 
     def initialize(attributes = {})
