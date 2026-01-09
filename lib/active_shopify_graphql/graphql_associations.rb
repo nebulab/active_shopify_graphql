@@ -69,15 +69,12 @@ module ActiveShopifyGraphQL
           # Resolve the target class
           target_class = association_class_name.constantize
 
-          # Determine which loader to use
-          loader = if self.class.graphql_associations[name][:loader_class]
-                     self.class.graphql_associations[name][:loader_class].new(target_class)
-                   else
-                     target_class.default_loader
-                   end
+          # Determine which loader class to use (if custom specified)
+          custom_loader_class = self.class.graphql_associations[name][:loader_class]
 
-          # Load and cache the GraphQL object
-          @_graphql_association_cache[name] = target_class.find(gid_or_id, loader: loader)
+          # Load and cache the GraphQL object using a Relation with the appropriate loader
+          relation = Query::Relation.new(target_class, loader_class: custom_loader_class)
+          @_graphql_association_cache[name] = relation.find(gid_or_id)
         end
 
         # Define setter method for testing/mocking
@@ -126,18 +123,15 @@ module ActiveShopifyGraphQL
           # Resolve the target class
           target_class = association_class_name.constantize
 
-          # Determine which loader to use
-          loader = if self.class.graphql_associations[name][:loader_class]
-                     self.class.graphql_associations[name][:loader_class].new(target_class)
-                   else
-                     target_class.default_loader
-                   end
+          # Determine which loader class to use (if custom specified)
+          custom_loader_class = self.class.graphql_associations[name][:loader_class]
 
           # Query with foreign key filter if provided
           result = if self.class.graphql_associations[name][:foreign_key]
                      foreign_key_sym = self.class.graphql_associations[name][:foreign_key]
                      query_conditions = { foreign_key_sym => primary_key_value }
-                     target_class.where(query_conditions, loader: loader).first
+                     relation = Query::Relation.new(target_class, conditions: query_conditions, loader_class: custom_loader_class)
+                     relation.first
                    end
 
           # Cache the result
@@ -206,12 +200,8 @@ module ActiveShopifyGraphQL
           # Resolve the target class
           target_class = association_class_name.constantize
 
-          # Determine which loader to use
-          loader = if self.class.graphql_associations[name][:loader_class]
-                     self.class.graphql_associations[name][:loader_class].new(target_class)
-                   else
-                     target_class.default_loader
-                   end
+          # Determine which loader class to use (if custom specified)
+          custom_loader_class = self.class.graphql_associations[name][:loader_class]
 
           # Build query based on query_method
           result = if association_query_method == :connection
@@ -223,10 +213,10 @@ module ActiveShopifyGraphQL
                      # Query with foreign key filter
                      foreign_key_sym = self.class.graphql_associations[name][:foreign_key]
                      query_conditions = { foreign_key_sym => primary_key_value }.merge(options)
-                     target_class.where(query_conditions, loader: loader)
+                     Query::Relation.new(target_class, conditions: query_conditions, loader_class: custom_loader_class)
                    else
                      # No foreign key specified, just query with provided options
-                     target_class.where(options, loader: loader)
+                     Query::Relation.new(target_class, conditions: options, loader_class: custom_loader_class)
                    end
 
           # Cache if no runtime options provided

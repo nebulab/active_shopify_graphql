@@ -64,10 +64,10 @@ RSpec.describe ActiveShopifyGraphQL::GraphQLAssociations do
     it "loads and caches GraphQL object when foreign key is present" do
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
-      mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      allow(customer_class).to receive(:default_loader).and_return(mock_loader)
       mock_customer = customer_class.new(id: "gid://shopify/Customer/123", email: "test@example.com")
-      allow(customer_class).to receive(:find).with("gid://shopify/Customer/123", loader: mock_loader).and_return(mock_customer)
+      mock_relation = instance_double(ActiveShopifyGraphQL::Query::Relation)
+      allow(ActiveShopifyGraphQL::Query::Relation).to receive(:new).with(customer_class, loader_class: nil).and_return(mock_relation)
+      allow(mock_relation).to receive(:find).with("gid://shopify/Customer/123").and_return(mock_customer)
 
       reward_class = build_reward_class(with_customer: true)
 
@@ -83,10 +83,10 @@ RSpec.describe ActiveShopifyGraphQL::GraphQLAssociations do
     it "uses cached value on subsequent calls" do
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
-      mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      allow(customer_class).to receive(:default_loader).and_return(mock_loader)
       mock_customer = customer_class.new(id: "gid://shopify/Customer/123", email: "test@example.com")
-      allow(customer_class).to receive(:find).with("gid://shopify/Customer/123", loader: mock_loader).and_return(mock_customer)
+      mock_relation = instance_double(ActiveShopifyGraphQL::Query::Relation)
+      allow(ActiveShopifyGraphQL::Query::Relation).to receive(:new).with(customer_class, loader_class: nil).and_return(mock_relation)
+      allow(mock_relation).to receive(:find).with("gid://shopify/Customer/123").and_return(mock_customer)
 
       reward_class = build_reward_class(with_customer: true)
 
@@ -96,7 +96,7 @@ RSpec.describe ActiveShopifyGraphQL::GraphQLAssociations do
       result1 = reward.customer
       result2 = reward.customer
 
-      expect(customer_class).to have_received(:find).once
+      expect(mock_relation).to have_received(:find).once
       expect(result1).to eq(result2)
       expect(result1.object_id).to eq(result2.object_id)
     end
@@ -104,10 +104,10 @@ RSpec.describe ActiveShopifyGraphQL::GraphQLAssociations do
     it "works with numeric IDs and converts to GID" do
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
-      mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      allow(customer_class).to receive(:default_loader).and_return(mock_loader)
       mock_customer = customer_class.new(id: "gid://shopify/Customer/123", email: "test@example.com")
-      allow(customer_class).to receive(:find).with(123, loader: mock_loader).and_return(mock_customer)
+      mock_relation = instance_double(ActiveShopifyGraphQL::Query::Relation)
+      allow(ActiveShopifyGraphQL::Query::Relation).to receive(:new).with(customer_class, loader_class: nil).and_return(mock_relation)
+      allow(mock_relation).to receive(:find).with(123).and_return(mock_customer)
 
       reward_class = build_reward_class(with_customer: true)
 
@@ -124,10 +124,10 @@ RSpec.describe ActiveShopifyGraphQL::GraphQLAssociations do
       custom_loader_class = Class.new(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
       stub_const("Customer", customer_class)
       stub_const("CustomLoader", custom_loader_class)
-      mock_loader = instance_double(custom_loader_class)
-      allow(custom_loader_class).to receive(:new).with(customer_class).and_return(mock_loader)
       mock_customer = customer_class.new(id: "gid://shopify/Customer/123", email: "test@example.com")
-      allow(customer_class).to receive(:find).with("gid://shopify/Customer/123", loader: mock_loader).and_return(mock_customer)
+      mock_relation = instance_double(ActiveShopifyGraphQL::Query::Relation)
+      allow(ActiveShopifyGraphQL::Query::Relation).to receive(:new).with(customer_class, loader_class: CustomLoader).and_return(mock_relation)
+      allow(mock_relation).to receive(:find).with("gid://shopify/Customer/123").and_return(mock_customer)
 
       reward_class = build_reward_class(with_customer: true, customer_options: { loader_class: CustomLoader })
 
@@ -136,7 +136,7 @@ RSpec.describe ActiveShopifyGraphQL::GraphQLAssociations do
 
       result = reward.customer
 
-      expect(custom_loader_class).to have_received(:new).with(customer_class)
+      expect(ActiveShopifyGraphQL::Query::Relation).to have_received(:new).with(customer_class, loader_class: CustomLoader)
       expect(result).to eq(mock_customer)
     end
 
@@ -221,13 +221,6 @@ RSpec.describe ActiveShopifyGraphQL::GraphQLAssociations do
     it "queries GraphQL objects without foreign key filter" do
       variant_class = build_product_variant_class
       stub_const("ProductVariant", variant_class)
-      mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      allow(variant_class).to receive(:default_loader).and_return(mock_loader)
-      mock_variants = [
-        variant_class.new(id: "gid://shopify/ProductVariant/1", sku: "SKU-001"),
-        variant_class.new(id: "gid://shopify/ProductVariant/2", sku: "SKU-002")
-      ]
-      allow(variant_class).to receive(:where).with({}, loader: mock_loader).and_return(mock_variants)
 
       reward_class = build_reward_class(with_variants: true)
 
@@ -236,20 +229,14 @@ RSpec.describe ActiveShopifyGraphQL::GraphQLAssociations do
 
       result = reward.variants
 
-      expect(result).to eq(mock_variants)
-      expect(result.size).to eq(2)
+      expect(result).to be_a(ActiveShopifyGraphQL::Query::Relation)
+      expect(result.model_class).to eq(variant_class)
+      expect(result.conditions).to eq({})
     end
 
     it "queries GraphQL objects with foreign key filter" do
       order_class = build_order_class
       stub_const("Order", order_class)
-      mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      allow(order_class).to receive(:default_loader).and_return(mock_loader)
-      mock_orders = [
-        order_class.new(id: "gid://shopify/Order/1", name: "#1001"),
-        order_class.new(id: "gid://shopify/Order/2", name: "#1002")
-      ]
-      allow(order_class).to receive(:where).with({ customer_id: 123 }, loader: mock_loader).and_return(mock_orders)
 
       customer_class = build_ar_customer_class(with_orders: true, orders_options: { foreign_key: :customer_id })
 
@@ -258,19 +245,14 @@ RSpec.describe ActiveShopifyGraphQL::GraphQLAssociations do
 
       result = customer.orders
 
-      expect(result).to eq(mock_orders)
-      expect(result.size).to eq(2)
+      expect(result).to be_a(ActiveShopifyGraphQL::Query::Relation)
+      expect(result.model_class).to eq(order_class)
+      expect(result.conditions).to eq({ customer_id: 123 })
     end
 
     it "caches result when no runtime options provided" do
       variant_class = build_product_variant_class
       stub_const("ProductVariant", variant_class)
-      mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      allow(variant_class).to receive(:default_loader).and_return(mock_loader)
-      mock_variants = [
-        variant_class.new(id: "gid://shopify/ProductVariant/1", sku: "SKU-001")
-      ]
-      allow(variant_class).to receive(:where).and_return(mock_variants)
 
       reward_class = build_reward_class(with_variants: true)
 
@@ -280,7 +262,7 @@ RSpec.describe ActiveShopifyGraphQL::GraphQLAssociations do
       result1 = reward.variants
       result2 = reward.variants
 
-      expect(variant_class).to have_received(:where).once
+      expect(result1).to be_a(ActiveShopifyGraphQL::Query::Relation)
       expect(result1).to eq(result2)
       expect(result1.object_id).to eq(result2.object_id)
     end
@@ -288,31 +270,25 @@ RSpec.describe ActiveShopifyGraphQL::GraphQLAssociations do
     it "does not cache when runtime options are provided" do
       variant_class = build_product_variant_class
       stub_const("ProductVariant", variant_class)
-      mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      allow(variant_class).to receive(:default_loader).and_return(mock_loader)
-      mock_variants = [
-        variant_class.new(id: "gid://shopify/ProductVariant/1", sku: "SKU-001")
-      ]
-      allow(variant_class).to receive(:where).and_return(mock_variants)
 
       reward_class = build_reward_class(with_variants: true)
 
       reward = reward_class.new
       reward.id = 123
 
-      reward.variants(limit: 5)
-      reward.variants(limit: 10)
+      result1 = reward.variants(limit: 5)
+      result2 = reward.variants(limit: 10)
 
-      expect(variant_class).to have_received(:where).twice
+      expect(result1).to be_a(ActiveShopifyGraphQL::Query::Relation)
+      expect(result2).to be_a(ActiveShopifyGraphQL::Query::Relation)
+      expect(result1.object_id).not_to eq(result2.object_id)
+      expect(result1.conditions).to eq({ limit: 5 })
+      expect(result2.conditions).to eq({ limit: 10 })
     end
 
     it "merges runtime options with foreign key filter" do
       order_class = build_order_class
       stub_const("Order", order_class)
-      mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      allow(order_class).to receive(:default_loader).and_return(mock_loader)
-      mock_orders = [order_class.new(id: "gid://shopify/Order/1", name: "#1001")]
-      allow(order_class).to receive(:where).with({ customer_id: 123, status: "open" }, loader: mock_loader).and_return(mock_orders)
 
       customer_class = build_ar_customer_class(with_orders: true, orders_options: { foreign_key: :customer_id })
 
@@ -321,8 +297,8 @@ RSpec.describe ActiveShopifyGraphQL::GraphQLAssociations do
 
       result = customer.orders(status: "open")
 
-      expect(order_class).to have_received(:where).with({ customer_id: 123, status: "open" }, loader: mock_loader)
-      expect(result).to eq(mock_orders)
+      expect(result).to be_a(ActiveShopifyGraphQL::Query::Relation)
+      expect(result.conditions).to eq({ customer_id: 123, status: "open" })
     end
 
     it "uses custom loader class when specified" do
@@ -330,10 +306,12 @@ RSpec.describe ActiveShopifyGraphQL::GraphQLAssociations do
       custom_loader_class = Class.new(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
       stub_const("ProductVariant", variant_class)
       stub_const("CustomLoader", custom_loader_class)
-      mock_loader = instance_double(custom_loader_class)
-      allow(custom_loader_class).to receive(:new).with(variant_class).and_return(mock_loader)
-      mock_variants = [variant_class.new(id: "gid://shopify/ProductVariant/1", sku: "SKU-001")]
-      allow(variant_class).to receive(:where).with({}, loader: mock_loader).and_return(mock_variants)
+      mock_relation = instance_double(ActiveShopifyGraphQL::Query::Relation, conditions: {})
+      allow(ActiveShopifyGraphQL::Query::Relation).to receive(:new).with(
+        variant_class,
+        conditions: {},
+        loader_class: CustomLoader
+      ).and_return(mock_relation)
 
       reward_class = build_reward_class(with_variants: true, variants_options: { loader_class: CustomLoader })
 
@@ -342,8 +320,12 @@ RSpec.describe ActiveShopifyGraphQL::GraphQLAssociations do
 
       result = reward.variants
 
-      expect(custom_loader_class).to have_received(:new).with(variant_class)
-      expect(result).to eq(mock_variants)
+      expect(ActiveShopifyGraphQL::Query::Relation).to have_received(:new).with(
+        variant_class,
+        conditions: {},
+        loader_class: CustomLoader
+      )
+      expect(result).to eq(mock_relation)
     end
 
     it "allows setter to override cached value" do
@@ -381,10 +363,10 @@ RSpec.describe ActiveShopifyGraphQL::GraphQLAssociations do
     it "works with objects that respond_to foreign key method" do
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
-      mock_loader = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      allow(customer_class).to receive(:default_loader).and_return(mock_loader)
       mock_customer = customer_class.new(id: "gid://shopify/Customer/123", email: "test@example.com")
-      allow(customer_class).to receive(:find).with("gid://shopify/Customer/123", loader: mock_loader).and_return(mock_customer)
+      mock_relation = instance_double(ActiveShopifyGraphQL::Query::Relation)
+      allow(ActiveShopifyGraphQL::Query::Relation).to receive(:new).with(customer_class, loader_class: nil).and_return(mock_relation)
+      allow(mock_relation).to receive(:find).with("gid://shopify/Customer/123").and_return(mock_customer)
 
       # Create a plain Ruby object (not ActiveRecord)
       plain_object_class = build_plain_object_class(with_customer: true)
