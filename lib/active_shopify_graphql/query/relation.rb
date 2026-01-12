@@ -23,7 +23,7 @@ module ActiveShopifyGraphQL
 
       DEFAULT_PER_PAGE = 250
 
-      attr_reader :model_class, :included_connections, :conditions, :total_limit, :per_page
+      attr_reader :model_class, :included_connections, :conditions, :total_limit, :per_page, :sort_key, :reverse
 
       def initialize(
         model_class,
@@ -33,7 +33,9 @@ module ActiveShopifyGraphQL
         total_limit: nil,
         per_page: DEFAULT_PER_PAGE,
         loader_class: nil,
-        loader_extra_args: []
+        loader_extra_args: [],
+        sort_key: nil,
+        reverse: nil
       )
         @model_class = model_class
         @conditions = conditions
@@ -43,6 +45,8 @@ module ActiveShopifyGraphQL
         @per_page = [per_page, ActiveShopifyGraphQL.configuration.max_objects_per_paginated_query].min
         @loader_class = loader_class
         @loader_extra_args = loader_extra_args
+        @sort_key = sort_key
+        @reverse = reverse
         @loaded = false
         @records = nil
       end
@@ -64,6 +68,22 @@ module ActiveShopifyGraphQL
         end
 
         spawn(conditions: new_conditions)
+      end
+
+      # Set the sort order for the query
+      # @param sort_key [String] The Shopify sort key (e.g., "CREATED_AT", "UPDATED_AT")
+      # @param reverse [Boolean] Whether to reverse the sort order (optional)
+      # @return [Relation] A new relation with order applied
+      # @raise [ArgumentError] If order is called on a relation that already has ordering
+      # @example
+      #   Customer.where(email: "*@example.com").order(sort_key: "CREATED_AT", reverse: true)
+      def order(sort_key:, reverse: nil)
+        if has_ordering?
+          raise ArgumentError, "Chaining multiple order clauses is not supported. " \
+                               "Combine ordering in a single order call instead."
+        end
+
+        spawn(sort_key: sort_key, reverse: reverse)
       end
 
       # Find a single record by conditions
@@ -302,6 +322,8 @@ module ActiveShopifyGraphQL
           per_page: effective_per_page,
           after: after,
           before: before,
+          sort_key: @sort_key,
+          reverse: @reverse,
           query_scope: build_query_scope_for_pagination
         )
       end
@@ -324,7 +346,9 @@ module ActiveShopifyGraphQL
           total_limit: changes.fetch(:total_limit, @total_limit),
           per_page: changes.fetch(:per_page, @per_page),
           loader_class: changes.fetch(:loader_class, @loader_class),
-          loader_extra_args: changes.fetch(:loader_extra_args, @loader_extra_args)
+          loader_extra_args: changes.fetch(:loader_extra_args, @loader_extra_args),
+          sort_key: changes.fetch(:sort_key, @sort_key),
+          reverse: changes.fetch(:reverse, @reverse)
         )
       end
 
@@ -339,6 +363,10 @@ module ActiveShopifyGraphQL
         when Array then @conditions.any?
         else false
         end
+      end
+
+      def has_ordering?
+        !@sort_key.nil?
       end
 
       def build_loader
