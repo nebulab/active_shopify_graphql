@@ -320,6 +320,21 @@ Customer.where("email::email", email: "john@example.com")
 Customer.where(email: "@gmail.com").limit(100)
 ```
 
+#### Sorting
+
+```ruby
+# Sort by created_at ascending (default)
+Customer.where(email: "@example.com").order(sort_key: "CREATED_AT")
+
+# Sort by updated_at descending
+Customer.order(sort_key: "UPDATED_AT", reverse: true)
+
+# Combine with other chainable methods
+Customer.where(country: "Canada").order(sort_key: "CREATED_AT").limit(25)
+```
+
+**Note:** Sort keys are Shopify GraphQL enum values (e.g., `"CREATED_AT"`, `"UPDATED_AT"`, `"RELEVANCE"`). Available values depend on the specific Shopify API endpoint.
+
 #### Query Optimization
 
 ```ruby
