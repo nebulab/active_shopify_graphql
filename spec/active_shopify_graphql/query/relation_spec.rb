@@ -130,6 +130,43 @@ RSpec.describe ActiveShopifyGraphQL::Query::Relation do
     end
   end
 
+  describe "#order" do
+    it "returns a new relation with sort_key applied" do
+      product_class = build_product_class
+      stub_const("Product", product_class)
+
+      relation = described_class.new(product_class)
+      result = relation.order(sort_key: "CREATED_AT")
+
+      expect(result).to be_a(described_class)
+      expect(result.sort_key).to eq("CREATED_AT")
+      expect(result.reverse).to be_nil
+    end
+
+    it "returns a new relation with sort_key and reverse applied" do
+      product_class = build_product_class
+      stub_const("Product", product_class)
+
+      relation = described_class.new(product_class)
+      result = relation.order(sort_key: "UPDATED_AT", reverse: true)
+
+      expect(result).to be_a(described_class)
+      expect(result.sort_key).to eq("UPDATED_AT")
+      expect(result.reverse).to be true
+    end
+
+    it "raises an error when chaining multiple order clauses" do
+      product_class = build_product_class
+      stub_const("Product", product_class)
+
+      relation = described_class.new(product_class)
+
+      expect do
+        relation.order(sort_key: "CREATED_AT").order(sort_key: "UPDATED_AT")
+      end.to raise_error(ArgumentError, /Chaining multiple order clauses is not supported/)
+    end
+  end
+
   describe "#find" do
     it "fetches current customer without id when using Customer Account API" do
       customer_class = build_customer_class
@@ -279,6 +316,44 @@ RSpec.describe ActiveShopifyGraphQL::Query::Relation do
 
       expect(result).to be_a(described_class)
       expect(result.included_connections).to include(:variants)
+    end
+
+    it "allows chaining where and order" do
+      product_class = build_product_class
+      stub_const("Product", product_class)
+
+      relation = described_class.new(product_class)
+      result = relation.where(title: "test").order(sort_key: "CREATED_AT", reverse: true)
+
+      expect(result).to be_a(described_class)
+      expect(result.conditions).to eq(title: "test")
+      expect(result.sort_key).to eq("CREATED_AT")
+      expect(result.reverse).to be true
+    end
+
+    it "allows chaining order and where in any order" do
+      product_class = build_product_class
+      stub_const("Product", product_class)
+
+      relation = described_class.new(product_class)
+      result = relation.order(sort_key: "UPDATED_AT").where(title: "test")
+
+      expect(result).to be_a(described_class)
+      expect(result.conditions).to eq(title: "test")
+      expect(result.sort_key).to eq("UPDATED_AT")
+    end
+
+    it "allows chaining where, order, and limit" do
+      product_class = build_product_class
+      stub_const("Product", product_class)
+
+      relation = described_class.new(product_class)
+      result = relation.where(status: "active").order(sort_key: "CREATED_AT").limit(25)
+
+      expect(result).to be_a(described_class)
+      expect(result.conditions).to eq(status: "active")
+      expect(result.sort_key).to eq("CREATED_AT")
+      expect(result.total_limit).to eq(25)
     end
   end
 

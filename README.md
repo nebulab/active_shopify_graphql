@@ -90,7 +90,7 @@ orders = customer["orders"]["nodes"].map { |o| parse_order(o) }
 customer = Customer.includes(:orders).find(123456789)
 customer.email                # => "john@example.com"
 customer.created_at           # => #<DateTime>
-customer.orders.to_a          # Lazily loaded as a single query
+customer.orders               # Eagerly loaded as a single query
 ```
 
 **Benefits:**
@@ -309,7 +309,8 @@ Customer.where(email: "john@example.com")
 Customer.where(created_at: { gte: "2024-01-01", lt: "2024-02-01" })
 Customer.where(orders_count: { gte: 5 })
 
-# Wildcards (string query)
+# Wildcards are supported in string queries only
+# Use with caution as interpolation can lead to security issues
 Customer.where("email:*@example.com")
 
 # Parameter binding (safe)
@@ -318,6 +319,21 @@ Customer.where("email::email", email: "john@example.com")
 # With limits
 Customer.where(email: "@gmail.com").limit(100)
 ```
+
+#### Sorting
+
+```ruby
+# Sort by created_at ascending (default)
+Customer.where(email: "@example.com").order(sort_key: "CREATED_AT")
+
+# Sort by updated_at descending
+Customer.order(sort_key: "UPDATED_AT", reverse: true)
+
+# Combine with other chainable methods
+Customer.where(country: "Canada").order(sort_key: "CREATED_AT").limit(25)
+```
+
+**Note:** Sort keys are Shopify GraphQL enum values (e.g., `"CREATED_AT"`, `"UPDATED_AT"`, `"RELEVANCE"`). Available values depend on the specific Shopify API endpoint.
 
 #### Query Optimization
 
@@ -349,7 +365,7 @@ ProductVariant.where("sku:FRZ*").in_pages(of: 10) do |page|
 end
 
 # Lazy enumeration
-scope = Customer.where(email: "*@example.com")
+scope = Customer.where(email: "@example.com")
 scope.each { |c| puts c.name }  # Executes query
 scope.first                      # Fetches just first
 ```

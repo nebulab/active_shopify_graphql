@@ -635,6 +635,47 @@ RSpec.describe ActiveShopifyGraphQL::Model::FinderMethods do
     end
   end
 
+  describe ".order" do
+    it "returns a Relation with sort_key applied" do
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+
+      relation = customer_class.order(sort_key: "CREATED_AT")
+
+      expect(relation).to be_a(ActiveShopifyGraphQL::Query::Relation)
+      expect(relation.sort_key).to eq("CREATED_AT")
+      expect(relation.reverse).to be_nil
+    end
+
+    it "returns a Relation with sort_key and reverse applied" do
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+
+      relation = customer_class.order(sort_key: "UPDATED_AT", reverse: true)
+
+      expect(relation).to be_a(ActiveShopifyGraphQL::Query::Relation)
+      expect(relation.sort_key).to eq("UPDATED_AT")
+      expect(relation.reverse).to be true
+    end
+
+    it "can be chained with where" do
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+
+      relation = customer_class.order(sort_key: "CREATED_AT").where(email: "test@example.com")
+
+      expect(relation).to be_a(ActiveShopifyGraphQL::Query::Relation)
+      expect(relation.sort_key).to eq("CREATED_AT")
+      expect(relation.conditions).to eq(email: "test@example.com")
+    end
+  end
+
   describe ".default_loader" do
     it "returns the same instance on multiple calls" do
       mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")

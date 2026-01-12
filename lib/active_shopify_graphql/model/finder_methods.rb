@@ -120,6 +120,18 @@ module ActiveShopifyGraphQL::Model::FinderMethods
       all.includes(*connection_names)
     end
 
+    # Set the sort order for the query
+    # @param sort_key [String] The Shopify sort key (e.g., "CREATED_AT", "UPDATED_AT")
+    # @param reverse [Boolean] Whether to reverse the sort order (optional)
+    # @return [Relation] A relation with order applied
+    #
+    # @example
+    #   Customer.order(sort_key: "CREATED_AT").where(country: "Canada")
+    #   Customer.where(status: "active").order(sort_key: "UPDATED_AT", reverse: true)
+    def order(sort_key:, reverse: nil)
+      all.order(sort_key: sort_key, reverse: reverse)
+    end
+
     private
 
     # Validates that selected attributes exist in the model

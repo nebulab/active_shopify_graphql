@@ -86,15 +86,19 @@ module ActiveShopifyGraphQL
     # @param per_page [Integer] Number of records per page
     # @param after [String, nil] Cursor to fetch records after
     # @param before [String, nil] Cursor to fetch records before
+    # @param sort_key [String, nil] The Shopify sort key (e.g., "CREATED_AT")
+    # @param reverse [Boolean, nil] Whether to reverse the sort order
     # @param query_scope [Query::Scope] The query scope for navigation
     # @return [PaginatedResult] A paginated result with attribute hashes and page info
-    def load_paginated_collection(conditions:, per_page:, query_scope:, after: nil, before: nil)
+    def load_paginated_collection(conditions:, per_page:, query_scope:, after: nil, before: nil, sort_key: nil, reverse: nil)
       collection_query_name = context.query_name.pluralize
       variables = build_collection_variables(
         conditions,
         per_page: per_page,
         after: after,
-        before: before
+        before: before,
+        sort_key: sort_key,
+        reverse: reverse
       )
 
       query = Query::QueryBuilder.build_paginated_collection_query(
@@ -185,7 +189,7 @@ module ActiveShopifyGraphQL
       response
     end
 
-    def build_collection_variables(conditions, per_page:, after: nil, before: nil)
+    def build_collection_variables(conditions, per_page:, after: nil, before: nil, sort_key: nil, reverse: nil)
       search_query = SearchQuery.new(conditions)
       variables = { query: search_query.to_s }
 
@@ -196,6 +200,9 @@ module ActiveShopifyGraphQL
         variables[:first] = per_page
         variables[:after] = after if after
       end
+
+      variables[:sort_key] = sort_key if sort_key
+      variables[:reverse] = reverse unless reverse.nil?
 
       variables.compact
     end
