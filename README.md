@@ -309,7 +309,8 @@ Customer.where(email: "john@example.com")
 Customer.where(created_at: { gte: "2024-01-01", lt: "2024-02-01" })
 Customer.where(orders_count: { gte: 5 })
 
-# Wildcards (string query)
+# Wildcards are supported in string queries only
+# Use with caution as interpolation can lead to security issues
 Customer.where("email:*@example.com")
 
 # Parameter binding (safe)
@@ -349,7 +350,7 @@ ProductVariant.where("sku:FRZ*").in_pages(of: 10) do |page|
 end
 
 # Lazy enumeration
-scope = Customer.where(email: "*@example.com")
+scope = Customer.where(email: "@example.com")
 scope.each { |c| puts c.name }  # Executes query
 scope.first                      # Fetches just first
 ```
