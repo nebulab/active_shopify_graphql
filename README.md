@@ -90,7 +90,7 @@ orders = customer["orders"]["nodes"].map { |o| parse_order(o) }
 customer = Customer.includes(:orders).find(123456789)
 customer.email                # => "john@example.com"
 customer.created_at           # => #<DateTime>
-customer.orders.to_a          # Lazily loaded as a single query
+customer.orders               # Eagerly loaded as a single query
 ```
 
 **Benefits:**
