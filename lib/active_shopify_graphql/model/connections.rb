@@ -102,7 +102,7 @@ module ActiveShopifyGraphQL::Model::Connections
           )
         else
           # Create a new proxy for custom options (don't cache these)
-          Connections::ConnectionProxy.new(
+          ActiveShopifyGraphQL::Connections::ConnectionProxy.new(
             parent: self,
             connection_name: name,
             connection_config: self.class.connections[name],
