@@ -58,7 +58,7 @@ module ActiveShopifyGraphQL
 
     # Map the GraphQL response to model attributes
     def map_response_to_attributes(response_data, parent_instance: nil)
-      mapper = create_response_mapper
+      mapper = Response::ResponseMapper.new(context)
       attributes = mapper.map_response(response_data)
       cache_connections(mapper, response_data, target: attributes, parent_instance: parent_instance)
       attributes
@@ -74,7 +74,7 @@ module ActiveShopifyGraphQL
     # @return [Hash, nil] Attribute hash with connection cache, or nil if not found
     def load_attributes(id)
       query = Query::QueryBuilder.build_single_record_query(context)
-      response_data = execute_query(query, id: id)
+      response_data = perform_graphql_query(query, id: id)
       return nil if response_data.nil?
 
       map_response_to_attributes(response_data)
@@ -117,16 +117,16 @@ module ActiveShopifyGraphQL
       connection_loader.load_records(query_name, variables, parent, connection_config)
     end
 
+    def execute_query(query, **variables)
+      perform_graphql_query(query, **variables)
+    end
+
     # Abstract method for executing GraphQL queries
     def perform_graphql_query(query, **variables)
       raise NotImplementedError, "#{self.class} must implement perform_graphql_query"
     end
 
     private
-
-    def create_response_mapper
-      Response::ResponseMapper.new(context)
-    end
 
     def should_log?
       ActiveShopifyGraphQL.configuration.log_queries && ActiveShopifyGraphQL.configuration.logger
@@ -177,10 +177,6 @@ module ActiveShopifyGraphQL
 
       messages = warnings.map { |w| "#{w['field']}: #{w['message']}" }
       raise ArgumentError, "Shopify query validation failed: #{messages.join(', ')}"
-    end
-
-    def execute_query(query, **variables)
-      perform_graphql_query(query, **variables)
     end
 
     def execute_query_and_validate_search_response(query, **variables)
