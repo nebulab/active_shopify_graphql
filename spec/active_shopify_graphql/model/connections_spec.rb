@@ -517,10 +517,7 @@ RSpec.describe ActiveShopifyGraphQL::Model::Connections do
         product_class.has_many_connected :variants, class_name: "ProductVariant", default_arguments: { first: 10 }, inverse_of: :product
         variant_class.has_one_connected :product, class_name: "Product", inverse_of: :variants
 
-        # Create a real loader to test the actual flow
-        mock_graphql_client = double("GraphQL Client")
-        allow(ActiveShopifyGraphQL.configuration).to receive(:admin_api_client).and_return(mock_graphql_client)
-        allow(mock_graphql_client).to receive(:execute) do |_query, **kwargs|
+        mock_executor = lambda { |_query, **kwargs|
           {
             "data" => {
               "product" => {
@@ -535,7 +532,8 @@ RSpec.describe ActiveShopifyGraphQL::Model::Connections do
               }
             }
           }
-        end
+        }
+        ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
 
         product = product_class.includes(:variants).find("gid://shopify/Product/123")
 
@@ -555,13 +553,11 @@ RSpec.describe ActiveShopifyGraphQL::Model::Connections do
         product_class.has_many_connected :variants, class_name: "ProductVariant", default_arguments: { first: 10 }, inverse_of: :product
         variant_class.has_one_connected :product, class_name: "Product", inverse_of: :variants
 
-        # Create a real loader to test the actual flow
-        mock_graphql_client = double("GraphQL Client")
-        allow(ActiveShopifyGraphQL.configuration).to receive(:admin_api_client).and_return(mock_graphql_client)
-        allow(mock_graphql_client).to receive(:execute) do
+        mock_executor = lambda { |_query, **_variables|
           {
             "data" => {
               "products" => {
+                "pageInfo" => { "hasNextPage" => false },
                 "nodes" => [
                   {
                     "id" => "gid://shopify/Product/123",
@@ -586,7 +582,8 @@ RSpec.describe ActiveShopifyGraphQL::Model::Connections do
               }
             }
           }
-        end
+        }
+        ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
 
         products = product_class.includes(:variants).where(title: "Test")
 

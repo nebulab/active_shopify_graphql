@@ -68,9 +68,8 @@ RSpec.describe ActiveShopifyGraphQL::LoaderProxy do
     it "delegates to Relation and returns first matching result" do
       model_class = build_customer_class
       stub_const("Customer", model_class)
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      allow(mock_client).to receive(:execute).and_return({ "data" => { "customers" => { "nodes" => [] } } })
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = ->(_query, **_variables) { { "data" => { "customers" => { "nodes" => [] } } } }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
 
       loader = ActiveShopifyGraphQL::Loaders::AdminApiLoader.new(model_class)
       proxy = described_class.new(model_class, loader)

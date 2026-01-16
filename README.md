@@ -25,15 +25,21 @@ gem install active_shopify_graphql
 ```ruby
 # Configure in pure Ruby
 ActiveShopifyGraphQL.configure do |config|
-  config.admin_api_client = ShopifyGraphQL::Client
-  config.customer_account_client_class = Shopify::Account::Client
+  config.admin_api_executor = lambda do |query, **variables|
+    client = ShopifyAPI::Clients::Graphql::Admin.new(session: ShopifyAPI::Context.active_session)
+    response = client.query(query:, variables:)
+    response.body if response
+  end
 end
 
 # Or define a Rails initializer
 Rails.configuration.to_prepare do
   ActiveShopifyGraphQL.configure do |config|
-    config.admin_api_client = ShopifyGraphQL::Client
-    config.customer_account_client_class = Shopify::Account::Client
+    config.admin_api_executor = lambda do |query, **variables|
+      client = ShopifyAPI::Clients::Graphql::Admin.new(session: ShopifyAPI::Context.active_session)
+      response = client.query(query:, variables:)
+      response.body if response
+    end
   end
 end
 
@@ -138,11 +144,19 @@ Configure your Shopify GraphQL clients:
 # config/initializers/active_shopify_graphql.rb
 Rails.configuration.to_prepare do
   ActiveShopifyGraphQL.configure do |config|
-    # Admin API (must respond to #execute(query, **variables))
-    config.admin_api_client = ShopifyGraphQL::Client
+    # Admin API (receives query, **variables as arguments)
+    config.admin_api_executor = lambda do |query, **variables|
+      client = ShopifyAPI::Clients::Graphql::Admin.new(session: ShopifyAPI::Context.active_session)
+      response = client.query(query:, variables:)
+      response.body if response
+    end
 
-    # Customer Account API (must have .from_config(token) and #execute)
-    config.customer_account_client_class = Shopify::Account::Client
+    # Optional Customer Account API (receives query, customer_token, **variables as arguments)
+    config.customer_account_api_executor = lambda do |query, customer_token, **variables|
+      # This is a custom client example
+      client = Shopify::Account::Client.from_config(customer_token)
+      response = client.query(query, **variables)
+    end
   end
 end
 ```
