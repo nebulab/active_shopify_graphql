@@ -23,16 +23,13 @@ module ActiveShopifyGraphQL
         map_response_to_attributes(response_data)
       end
 
-      def client
-        client_class = ActiveShopifyGraphQL.configuration.customer_account_client_class
-        raise Error, "Customer Account API client class not configured" unless client_class
-
-        @client ||= client_class.from_config(@token)
-      end
-
       def perform_graphql_query(query, **variables)
         log_query("Customer Account API", query, variables)
-        client.query(query, variables)
+
+        executor = ActiveShopifyGraphQL.configuration.customer_account_api_executor
+        raise Error, "Customer Account API executor not configured. Please configure it using ActiveShopifyGraphQL.configure" unless executor
+
+        executor.call(query, @token, **variables)
       end
 
       def initialization_args

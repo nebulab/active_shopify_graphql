@@ -4,16 +4,16 @@ require "spec_helper"
 
 RSpec.describe ActiveShopifyGraphQL::Configuration do
   describe "#initialize" do
-    it "sets admin_api_executor to default executor" do
+    it "sets admin_api_executor to nil by default" do
       config = described_class.new
 
-      expect(config.admin_api_executor).to eq(described_class::DEFAULT_ADMIN_API_EXECUTOR)
+      expect(config.admin_api_executor).to be_nil
     end
 
-    it "sets customer_account_client_class to nil by default" do
+    it "sets customer_account_api_executor to nil by default" do
       config = described_class.new
 
-      expect(config.customer_account_client_class).to be_nil
+      expect(config.customer_account_api_executor).to be_nil
     end
 
     it "sets logger to nil by default" do
@@ -39,13 +39,13 @@ RSpec.describe ActiveShopifyGraphQL::Configuration do
       expect(config.admin_api_executor).to eq(custom_executor)
     end
 
-    it "allows setting and getting customer_account_client_class" do
+    it "allows setting and getting customer_account_api_executor" do
       config = described_class.new
-      mock_class = Class.new
+      custom_executor = ->(query, token, **variables) { { query: query, token: token, variables: variables } }
 
-      config.customer_account_client_class = mock_class
+      config.customer_account_api_executor = custom_executor
 
-      expect(config.customer_account_client_class).to eq(mock_class)
+      expect(config.customer_account_api_executor).to eq(custom_executor)
     end
 
     it "allows setting and getting logger" do
@@ -122,7 +122,7 @@ RSpec.describe ActiveShopifyGraphQL do
 
       new_config = described_class.configuration
       expect(new_config).not_to be(old_config)
-      expect(new_config.admin_api_executor).to eq(ActiveShopifyGraphQL::Configuration::DEFAULT_ADMIN_API_EXECUTOR)
+      expect(new_config.admin_api_executor).to be_nil
     end
 
     it "resets all configuration values to defaults" do
