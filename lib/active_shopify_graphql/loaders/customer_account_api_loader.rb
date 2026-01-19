@@ -24,8 +24,6 @@ module ActiveShopifyGraphQL
       end
 
       def perform_graphql_query(query, **variables)
-        log_query("Customer Account API", query, variables)
-
         executor = ActiveShopifyGraphQL.configuration.customer_account_api_executor
         raise Error, "Customer Account API executor not configured. Please configure it using ActiveShopifyGraphQL.configure" unless executor
 

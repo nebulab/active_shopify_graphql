@@ -118,6 +118,7 @@ module ActiveShopifyGraphQL
     end
 
     def execute_query(query, **variables)
+      log_query(self.class.name, query, variables)
       perform_graphql_query(query, **variables)
     end
 
