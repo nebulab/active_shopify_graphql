@@ -44,7 +44,7 @@ module ActiveShopifyGraphQL
         )
 
         parent_id = extract_gid(parent)
-        response_data = @loader_instance.perform_graphql_query(query, id: parent_id)
+        response_data = @loader_instance.execute_query(query, id: parent_id)
 
         return [] if response_data.nil?
 
@@ -76,7 +76,7 @@ module ActiveShopifyGraphQL
           singular: singular
         )
 
-        response_data = @loader_instance.perform_graphql_query(query)
+        response_data = @loader_instance.execute_query(query)
 
         return [] if response_data.nil?
 

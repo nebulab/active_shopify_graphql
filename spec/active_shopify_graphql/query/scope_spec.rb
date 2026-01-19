@@ -5,8 +5,8 @@ require "spec_helper"
 RSpec.describe ActiveShopifyGraphQL::Query::Scope do
   describe "#initialize" do
     it "stores model class and conditions" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = ->(_query, **_variables) { { "data" => {} } }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
       scope = ActiveShopifyGraphQL::Query::Scope.new(customer_class, conditions: { email: "test@example.com" })
@@ -16,8 +16,8 @@ RSpec.describe ActiveShopifyGraphQL::Query::Scope do
     end
 
     it "defaults per_page to 250" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = ->(_query, **_variables) { { "data" => {} } }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
       scope = described_class.new(customer_class, conditions: {})
@@ -26,8 +26,8 @@ RSpec.describe ActiveShopifyGraphQL::Query::Scope do
     end
 
     it "accepts custom per_page" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = ->(_query, **_variables) { { "data" => {} } }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
       scope = described_class.new(customer_class, conditions: {}, per_page: 50)
@@ -36,8 +36,8 @@ RSpec.describe ActiveShopifyGraphQL::Query::Scope do
     end
 
     it "caps per_page at 250" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = ->(_query, **_variables) { { "data" => {} } }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
       scope = described_class.new(customer_class, conditions: {}, per_page: 500)
@@ -48,8 +48,8 @@ RSpec.describe ActiveShopifyGraphQL::Query::Scope do
 
   describe "#limit" do
     it "returns a new scope with total_limit set" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = ->(_query, **_variables) { { "data" => {} } }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
       scope = described_class.new(customer_class, conditions: {})
@@ -62,16 +62,13 @@ RSpec.describe ActiveShopifyGraphQL::Query::Scope do
     end
 
     it "is chainable" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = lambda { |_query, **_variables|
+        { "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
+      }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
       scope = described_class.new(customer_class, conditions: { email: "test" })
-      allow(mock_client).to receive(:execute).and_return(
-        {
-          "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } }
-        }
-      )
 
       limited_scope = scope.limit(50)
       result = limited_scope.to_a
@@ -82,15 +79,12 @@ RSpec.describe ActiveShopifyGraphQL::Query::Scope do
 
   describe "#in_pages" do
     it "returns a PaginatedResult without a block" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = lambda { |_query, **_variables|
+        { "data" => { "customers" => { "pageInfo" => { "hasNextPage" => true, "endCursor" => "abc" }, "nodes" => [] } } }
+      }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
-      allow(mock_client).to receive(:execute).and_return(
-        {
-          "data" => { "customers" => { "pageInfo" => { "hasNextPage" => true, "endCursor" => "abc" }, "nodes" => [] } }
-        }
-      )
       scope = customer_class.where(email: "test")
 
       result = scope.in_pages(of: 10)
@@ -99,12 +93,8 @@ RSpec.describe ActiveShopifyGraphQL::Query::Scope do
     end
 
     it "yields each page with a block" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
-      customer_class = build_customer_class
-      stub_const("Customer", customer_class)
       call_count = 0
-      allow(mock_client).to receive(:execute) do
+      mock_executor = lambda { |_query, **_variables|
         call_count += 1
         if call_count == 1
           { "data" => { "customers" => {
@@ -117,7 +107,10 @@ RSpec.describe ActiveShopifyGraphQL::Query::Scope do
             "nodes" => [{ "id" => "gid://shopify/Customer/2", "email" => "b@test.com" }]
           } } }
         end
-      end
+      }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
       scope = customer_class.where(email: "*")
       pages_yielded = []
 
@@ -129,42 +122,42 @@ RSpec.describe ActiveShopifyGraphQL::Query::Scope do
     end
 
     it "respects per_page size" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      received_variables = nil
+      mock_executor = lambda { |_query, **variables|
+        received_variables = variables
+        { "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
+      }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
-      expect(mock_client).to receive(:execute) do |_query, **variables|
-        expect(variables[:first]).to eq(25)
-        { "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
-      end
       scope = customer_class.where(email: "test")
 
       scope.in_pages(of: 25).to_a
+
+      expect(received_variables[:first]).to eq(25)
     end
 
     it "caps per_page at 250" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      received_variables = nil
+      mock_executor = lambda { |_query, **variables|
+        received_variables = variables
+        { "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
+      }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
-      expect(mock_client).to receive(:execute) do |_query, **variables|
-        expect(variables[:first]).to eq(250)
-        { "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
-      end
       scope = customer_class.where(email: "test")
 
       scope.in_pages(of: 500).to_a
+
+      expect(received_variables[:first]).to eq(250)
     end
   end
 
   describe "#to_a" do
     it "loads all records across multiple pages" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
-      customer_class = build_customer_class
-      stub_const("Customer", customer_class)
       call_count = 0
-      allow(mock_client).to receive(:execute) do
+      mock_executor = lambda { |_query, **_variables|
         call_count += 1
         if call_count == 1
           { "data" => { "customers" => {
@@ -177,7 +170,10 @@ RSpec.describe ActiveShopifyGraphQL::Query::Scope do
             "nodes" => [{ "id" => "gid://shopify/Customer/2", "email" => "b@test.com" }]
           } } }
         end
-      end
+      }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
       scope = customer_class.where(email: "*").in_pages(of: 1)
 
       result = scope.to_a
@@ -186,18 +182,17 @@ RSpec.describe ActiveShopifyGraphQL::Query::Scope do
     end
 
     it "respects total_limit across pages" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
-      customer_class = build_customer_class
-      stub_const("Customer", customer_class)
       call_count = 0
-      allow(mock_client).to receive(:execute) do
+      mock_executor = lambda { |_query, **_variables|
         call_count += 1
         { "data" => { "customers" => {
           "pageInfo" => { "hasNextPage" => call_count < 5, "endCursor" => "cursor#{call_count}" },
           "nodes" => [{ "id" => "gid://shopify/Customer/#{call_count}", "email" => "#{call_count}@test.com" }]
         } } }
-      end
+      }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
       scope = customer_class.where(email: "*").limit(3)
 
       records = []
@@ -209,18 +204,15 @@ RSpec.describe ActiveShopifyGraphQL::Query::Scope do
 
   describe "#first" do
     it "returns the first record" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = lambda { |_query, **_variables|
+        { "data" => { "customers" => {
+          "pageInfo" => { "hasNextPage" => false },
+          "nodes" => [{ "id" => "gid://shopify/Customer/1", "email" => "first@test.com" }]
+        } } }
+      }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
-      allow(mock_client).to receive(:execute).and_return(
-        {
-          "data" => { "customers" => {
-            "pageInfo" => { "hasNextPage" => false },
-            "nodes" => [{ "id" => "gid://shopify/Customer/1", "email" => "first@test.com" }]
-          } }
-        }
-      )
       scope = customer_class.where(email: "*")
 
       result = scope.first
@@ -230,15 +222,12 @@ RSpec.describe ActiveShopifyGraphQL::Query::Scope do
     end
 
     it "returns nil when no results" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = lambda { |_query, **_variables|
+        { "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
+      }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
-      allow(mock_client).to receive(:execute).and_return(
-        {
-          "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } }
-        }
-      )
       scope = customer_class.where(email: "nonexistent")
 
       result = scope.first
@@ -247,21 +236,18 @@ RSpec.describe ActiveShopifyGraphQL::Query::Scope do
     end
 
     it "returns n records when count is given" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = lambda { |_query, **_variables|
+        { "data" => { "customers" => {
+          "pageInfo" => { "hasNextPage" => false },
+          "nodes" => [
+            { "id" => "gid://shopify/Customer/1", "email" => "a@test.com" },
+            { "id" => "gid://shopify/Customer/2", "email" => "b@test.com" }
+          ]
+        } } }
+      }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
-      allow(mock_client).to receive(:execute).and_return(
-        {
-          "data" => { "customers" => {
-            "pageInfo" => { "hasNextPage" => false },
-            "nodes" => [
-              { "id" => "gid://shopify/Customer/1", "email" => "a@test.com" },
-              { "id" => "gid://shopify/Customer/2", "email" => "b@test.com" }
-            ]
-          } }
-        }
-      )
       scope = customer_class.where(email: "*")
 
       result = scope.first(2)
@@ -273,12 +259,8 @@ RSpec.describe ActiveShopifyGraphQL::Query::Scope do
 
   describe "#each" do
     it "iterates over all records across pages" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
-      customer_class = build_customer_class
-      stub_const("Customer", customer_class)
       call_count = 0
-      allow(mock_client).to receive(:execute) do
+      mock_executor = lambda { |_query, **_variables|
         call_count += 1
         if call_count == 1
           { "data" => { "customers" => {
@@ -291,7 +273,10 @@ RSpec.describe ActiveShopifyGraphQL::Query::Scope do
             "nodes" => [{ "id" => "gid://shopify/Customer/2", "email" => "b@test.com" }]
           } } }
         end
-      end
+      }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
       scope = customer_class.where(email: "*")
       emails = []
 
@@ -301,8 +286,8 @@ RSpec.describe ActiveShopifyGraphQL::Query::Scope do
     end
 
     it "returns an enumerator when no block given" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = ->(_query, **_variables) { { "data" => {} } }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
       scope = customer_class.where(email: "*")
@@ -315,21 +300,18 @@ RSpec.describe ActiveShopifyGraphQL::Query::Scope do
 
   describe "Enumerable compatibility" do
     it "supports map" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = lambda { |_query, **_variables|
+        { "data" => { "customers" => {
+          "pageInfo" => { "hasNextPage" => false },
+          "nodes" => [
+            { "id" => "gid://shopify/Customer/1", "email" => "a@test.com" },
+            { "id" => "gid://shopify/Customer/2", "email" => "b@test.com" }
+          ]
+        } } }
+      }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
-      allow(mock_client).to receive(:execute).and_return(
-        {
-          "data" => { "customers" => {
-            "pageInfo" => { "hasNextPage" => false },
-            "nodes" => [
-              { "id" => "gid://shopify/Customer/1", "email" => "a@test.com" },
-              { "id" => "gid://shopify/Customer/2", "email" => "b@test.com" }
-            ]
-          } }
-        }
-      )
       scope = customer_class.where(email: "*")
 
       emails = scope.map(&:email)
@@ -338,36 +320,30 @@ RSpec.describe ActiveShopifyGraphQL::Query::Scope do
     end
 
     it "supports empty?" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = lambda { |_query, **_variables|
+        { "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } } }
+      }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
-      allow(mock_client).to receive(:execute).and_return(
-        {
-          "data" => { "customers" => { "pageInfo" => { "hasNextPage" => false }, "nodes" => [] } }
-        }
-      )
       scope = customer_class.where(email: "*")
 
       expect(scope.empty?).to be true
     end
 
     it "supports size/length" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = lambda { |_query, **_variables|
+        { "data" => { "customers" => {
+          "pageInfo" => { "hasNextPage" => false },
+          "nodes" => [
+            { "id" => "gid://shopify/Customer/1", "email" => "a@test.com" },
+            { "id" => "gid://shopify/Customer/2", "email" => "b@test.com" }
+          ]
+        } } }
+      }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
-      allow(mock_client).to receive(:execute).and_return(
-        {
-          "data" => { "customers" => {
-            "pageInfo" => { "hasNextPage" => false },
-            "nodes" => [
-              { "id" => "gid://shopify/Customer/1", "email" => "a@test.com" },
-              { "id" => "gid://shopify/Customer/2", "email" => "b@test.com" }
-            ]
-          } }
-        }
-      )
       scope = customer_class.where(email: "*")
 
       expect(scope.size).to eq(2)
@@ -375,21 +351,18 @@ RSpec.describe ActiveShopifyGraphQL::Query::Scope do
     end
 
     it "supports array indexing" do
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = lambda { |_query, **_variables|
+        { "data" => { "customers" => {
+          "pageInfo" => { "hasNextPage" => false },
+          "nodes" => [
+            { "id" => "gid://shopify/Customer/1", "email" => "a@test.com" },
+            { "id" => "gid://shopify/Customer/2", "email" => "b@test.com" }
+          ]
+        } } }
+      }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
-      allow(mock_client).to receive(:execute).and_return(
-        {
-          "data" => { "customers" => {
-            "pageInfo" => { "hasNextPage" => false },
-            "nodes" => [
-              { "id" => "gid://shopify/Customer/1", "email" => "a@test.com" },
-              { "id" => "gid://shopify/Customer/2", "email" => "b@test.com" }
-            ]
-          } }
-        }
-      )
       scope = customer_class.where(email: "*")
 
       expect(scope[0].email).to eq("a@test.com")

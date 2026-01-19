@@ -68,9 +68,8 @@ RSpec.describe ActiveShopifyGraphQL::LoaderProxy do
     it "delegates to Relation and returns first matching result" do
       model_class = build_customer_class
       stub_const("Customer", model_class)
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      allow(mock_client).to receive(:execute).and_return({ "data" => { "customers" => { "nodes" => [] } } })
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = ->(_query, **_variables) { { "data" => { "customers" => { "nodes" => [] } } } }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
 
       loader = ActiveShopifyGraphQL::Loaders::AdminApiLoader.new(model_class)
       proxy = described_class.new(model_class, loader)
@@ -85,18 +84,17 @@ RSpec.describe ActiveShopifyGraphQL::LoaderProxy do
     it "fetches current customer without id when using Customer Account API" do
       model_class = build_customer_class
       stub_const("Customer", model_class)
-      mock_client = instance_double("CustomerAccountClient")
-      allow(mock_client).to receive(:query).and_return({
-                                                         "data" => {
-                                                           "customer" => {
-                                                             "id" => "gid://shopify/Customer/123",
-                                                             "email" => "current@customer.com"
-                                                           }
-                                                         }
-                                                       })
-      customer_account_client_class = class_double("CustomerAccountClient")
-      allow(customer_account_client_class).to receive(:from_config).with("test_token").and_return(mock_client)
-      ActiveShopifyGraphQL.configure { |c| c.customer_account_client_class = customer_account_client_class }
+      mock_executor = lambda { |_query, _token, **_variables|
+        {
+          "data" => {
+            "customer" => {
+              "id" => "gid://shopify/Customer/123",
+              "email" => "current@customer.com"
+            }
+          }
+        }
+      }
+      ActiveShopifyGraphQL.configure { |c| c.customer_account_api_executor = mock_executor }
 
       loader = ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader.new(model_class, "test_token")
       proxy = described_class.new(model_class, loader)
@@ -111,11 +109,8 @@ RSpec.describe ActiveShopifyGraphQL::LoaderProxy do
     it "returns nil when current customer is not found" do
       model_class = build_customer_class
       stub_const("Customer", model_class)
-      mock_client = instance_double("CustomerAccountClient")
-      allow(mock_client).to receive(:query).and_return(nil)
-      customer_account_client_class = class_double("CustomerAccountClient")
-      allow(customer_account_client_class).to receive(:from_config).with("test_token").and_return(mock_client)
-      ActiveShopifyGraphQL.configure { |c| c.customer_account_client_class = customer_account_client_class }
+      mock_executor = ->(_query, _token, **_variables) {}
+      ActiveShopifyGraphQL.configure { |c| c.customer_account_api_executor = mock_executor }
 
       loader = ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader.new(model_class, "test_token")
       proxy = described_class.new(model_class, loader)

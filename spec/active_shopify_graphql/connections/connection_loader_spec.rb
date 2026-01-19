@@ -7,7 +7,7 @@ RSpec.describe ActiveShopifyGraphQL::Connections::ConnectionLoader do
     it "loads records from root-level connection and returns empty array for empty response" do
       context = build_context(graphql_type: "Order")
       loader_instance = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      allow(loader_instance).to receive(:perform_graphql_query).and_return({ "data" => { "orders" => { "nodes" => [] } } })
+      allow(loader_instance).to receive(:execute_query).and_return({ "data" => { "orders" => { "nodes" => [] } } })
       loader = described_class.new(context, loader_instance: loader_instance)
 
       result = loader.load_records("orders", { first: 10 })
@@ -18,7 +18,7 @@ RSpec.describe ActiveShopifyGraphQL::Connections::ConnectionLoader do
     it "returns empty array when response is nil" do
       context = build_context(graphql_type: "Order")
       loader_instance = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      allow(loader_instance).to receive(:perform_graphql_query).and_return(nil)
+      allow(loader_instance).to receive(:execute_query).and_return(nil)
       loader = described_class.new(context, loader_instance: loader_instance)
 
       result = loader.load_records("orders", { first: 10 })
@@ -37,13 +37,13 @@ RSpec.describe ActiveShopifyGraphQL::Connections::ConnectionLoader do
       parent.id = "gid://shopify/Customer/123"
       context = build_context(graphql_type: "Order")
       loader_instance = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      allow(loader_instance).to receive(:perform_graphql_query).and_return({ "data" => { "customer" => { "orders" => { "nodes" => [] } } } })
+      allow(loader_instance).to receive(:execute_query).and_return({ "data" => { "customer" => { "orders" => { "nodes" => [] } } } })
       loader = described_class.new(context, loader_instance: loader_instance)
 
       result = loader.load_records("orders", { first: 10 }, parent, { nested: true })
 
       expect(result).to eq([])
-      expect(loader_instance).to have_received(:perform_graphql_query) do |query, **vars|
+      expect(loader_instance).to have_received(:execute_query) do |query, **vars|
         expect(query).to include("customer(id: $id)")
         expect(query).to include("orders")
         expect(vars[:id]).to eq("gid://shopify/Customer/123")
@@ -61,12 +61,12 @@ RSpec.describe ActiveShopifyGraphQL::Connections::ConnectionLoader do
       parent.id = 123
       context = build_context(graphql_type: "Order")
       loader_instance = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      allow(loader_instance).to receive(:perform_graphql_query).and_return({ "data" => { "customer" => { "orders" => { "nodes" => [] } } } })
+      allow(loader_instance).to receive(:execute_query).and_return({ "data" => { "customer" => { "orders" => { "nodes" => [] } } } })
       loader = described_class.new(context, loader_instance: loader_instance)
 
       loader.load_records("orders", {}, parent, { nested: true })
 
-      expect(loader_instance).to have_received(:perform_graphql_query) do |_query, **vars|
+      expect(loader_instance).to have_received(:execute_query) do |_query, **vars|
         expect(vars[:id]).to eq("gid://shopify/Customer/123")
       end
     end
@@ -83,12 +83,12 @@ RSpec.describe ActiveShopifyGraphQL::Connections::ConnectionLoader do
       parent.gid = "gid://shopify/Customer/789"
       context = build_context(graphql_type: "Order")
       loader_instance = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      allow(loader_instance).to receive(:perform_graphql_query).and_return({ "data" => { "customer" => { "orders" => { "nodes" => [] } } } })
+      allow(loader_instance).to receive(:execute_query).and_return({ "data" => { "customer" => { "orders" => { "nodes" => [] } } } })
       loader = described_class.new(context, loader_instance: loader_instance)
 
       loader.load_records("orders", {}, parent, { nested: true })
 
-      expect(loader_instance).to have_received(:perform_graphql_query) do |_query, **vars|
+      expect(loader_instance).to have_received(:execute_query) do |_query, **vars|
         expect(vars[:id]).to eq("gid://shopify/Customer/789")
       end
     end
@@ -103,7 +103,7 @@ RSpec.describe ActiveShopifyGraphQL::Connections::ConnectionLoader do
       parent.id = "gid://shopify/Customer/123"
       context = build_context(graphql_type: "Order")
       loader_instance = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      allow(loader_instance).to receive(:perform_graphql_query).and_return(nil)
+      allow(loader_instance).to receive(:execute_query).and_return(nil)
       loader = described_class.new(context, loader_instance: loader_instance)
 
       result = loader.load_records("orders", {}, parent, { nested: true })
@@ -120,12 +120,12 @@ RSpec.describe ActiveShopifyGraphQL::Connections::ConnectionLoader do
       parent.id = "gid://shopify/ProductVariant/456"
       context = build_context(graphql_type: "Product", model_class: product_class)
       loader_instance = instance_double(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
-      allow(loader_instance).to receive(:perform_graphql_query).and_return({ "data" => { "productVariant" => { "product" => { "id" => "gid://shopify/Product/123", "title" => "Test Product" } } } })
+      allow(loader_instance).to receive(:execute_query).and_return({ "data" => { "productVariant" => { "product" => { "id" => "gid://shopify/Product/123", "title" => "Test Product" } } } })
       loader = described_class.new(context, loader_instance: loader_instance)
 
       loader.load_records("product", {}, parent, { nested: true, type: :singular })
 
-      expect(loader_instance).to have_received(:perform_graphql_query) do |query, **_vars|
+      expect(loader_instance).to have_received(:execute_query) do |query, **_vars|
         expect(query).to include("productVariant(id: $id)")
         expect(query).not_to include("productvariant")
       end

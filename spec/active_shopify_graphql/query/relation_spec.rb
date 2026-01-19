@@ -3,14 +3,9 @@
 require "spec_helper"
 
 RSpec.describe ActiveShopifyGraphQL::Query::Relation do
-  mock_client = nil
-
   before do
-    mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-    allow(mock_client).to receive(:execute).and_return(
-      { "data" => {} }
-    )
-    ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+    mock_executor = ->(_query, **_variables) { { "data" => {} } }
+    ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
   end
 
   describe "#initialize" do
@@ -171,18 +166,17 @@ RSpec.describe ActiveShopifyGraphQL::Query::Relation do
     it "fetches current customer without id when using Customer Account API" do
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
-      mock_client = instance_double("CustomerAccountClient")
-      allow(mock_client).to receive(:query).and_return({
-                                                         "data" => {
-                                                           "customer" => {
-                                                             "id" => "gid://shopify/Customer/123",
-                                                             "email" => "current@customer.com"
-                                                           }
-                                                         }
-                                                       })
-      customer_account_client_class = class_double("CustomerAccountClient")
-      allow(customer_account_client_class).to receive(:from_config).with("test_token").and_return(mock_client)
-      ActiveShopifyGraphQL.configure { |c| c.customer_account_client_class = customer_account_client_class }
+      mock_executor = lambda { |_query, _token, **_variables|
+        {
+          "data" => {
+            "customer" => {
+              "id" => "gid://shopify/Customer/123",
+              "email" => "current@customer.com"
+            }
+          }
+        }
+      }
+      ActiveShopifyGraphQL.configure { |c| c.customer_account_api_executor = mock_executor }
 
       relation = described_class.new(
         customer_class,
@@ -199,8 +193,8 @@ RSpec.describe ActiveShopifyGraphQL::Query::Relation do
     it "raises ArgumentError when called without id using Admin API" do
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = ->(_query, **_variables) { { "data" => {} } }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
 
       relation = described_class.new(customer_class)
 
@@ -210,11 +204,8 @@ RSpec.describe ActiveShopifyGraphQL::Query::Relation do
     it "raises ObjectNotFoundError when current customer is not found" do
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
-      mock_client = instance_double("CustomerAccountClient")
-      allow(mock_client).to receive(:query).and_return(nil)
-      customer_account_client_class = class_double("CustomerAccountClient")
-      allow(customer_account_client_class).to receive(:from_config).with("test_token").and_return(mock_client)
-      ActiveShopifyGraphQL.configure { |c| c.customer_account_client_class = customer_account_client_class }
+      mock_executor = ->(_query, _token, **_variables) {}
+      ActiveShopifyGraphQL.configure { |c| c.customer_account_api_executor = mock_executor }
 
       relation = described_class.new(
         customer_class,
@@ -230,9 +221,8 @@ RSpec.describe ActiveShopifyGraphQL::Query::Relation do
     it "returns nil when no records match" do
       product_class = build_product_class
       stub_const("Product", product_class)
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      allow(mock_client).to receive(:execute).and_return({ "data" => { "products" => { "nodes" => [] } } })
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = ->(_query, **_variables) { { "data" => { "products" => { "nodes" => [] } } } }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
 
       relation = described_class.new(product_class)
       result = relation.find_by(title: "nonexistent")
@@ -390,9 +380,8 @@ RSpec.describe ActiveShopifyGraphQL::Query::Relation do
       customer_class = build_customer_class(with_orders: true)
       stub_const("Customer", customer_class)
       stub_const("Order", build_order_class)
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      allow(mock_client).to receive(:execute).and_return({ "data" => { "customers" => { "nodes" => [] } } })
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = ->(_query, **_variables) { { "data" => { "customers" => { "nodes" => [] } } } }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
 
       result = customer_class.includes(:orders).find_by(email: "test@example.com")
 
@@ -403,9 +392,8 @@ RSpec.describe ActiveShopifyGraphQL::Query::Relation do
       customer_class = build_customer_class(with_orders: true)
       stub_const("Customer", customer_class)
       stub_const("Order", build_order_class)
-      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
-      allow(mock_client).to receive(:execute).and_return({ "data" => { "customers" => { "nodes" => [] } } })
-      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      mock_executor = ->(_query, **_variables) { { "data" => { "customers" => { "nodes" => [] } } } }
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_executor = mock_executor }
 
       result = customer_class.includes(:orders).where(country: "Canada").first
 
