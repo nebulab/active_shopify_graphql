@@ -183,8 +183,8 @@ Attributes auto-generate GraphQL fragments and handle response mapping:
 class Customer < ActiveShopifyGraphQL::Model
   graphql_type "Customer"
 
-  # Auto-inferred path: displayName
-  attribute :name, type: :string
+  # Renaming an attribute
+  attribute :name, path: "displayName", type: :string
 
   # Custom path with dot notation
   attribute :email, path: "defaultEmailAddress.emailAddress", type: :string
@@ -201,7 +201,7 @@ Connections to related Shopify data with lazy/eager loading:
 ```ruby
 class Customer < ActiveShopifyGraphQL::Model
   # Lazy by default — loaded on first access
-  has_many_connected :orders
+  has_many_connected :orders, default_arguments: { first: 10 }
 
   # Always eager load — no N+1 queries
   has_many_connected :addresses, eager_load: true, default_arguments: { first: 5 }
