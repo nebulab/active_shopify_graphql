@@ -59,21 +59,42 @@ module ActiveShopifyGraphQL::Model::LoaderSwitchable
     # Class-level method to execute with admin API loader
     # @return [LoaderProxy] Proxy object with find method
     def with_admin_api
-      ActiveShopifyGraphQL::LoaderProxy.new(self, ActiveShopifyGraphQL::Loaders::AdminApiLoader.new(self))
+      loader = build_loader_for_test_mode(ActiveShopifyGraphQL::Loaders::AdminApiLoader)
+      ActiveShopifyGraphQL::LoaderProxy.new(self, loader)
     end
 
     # Class-level method to execute with customer account API loader
     # @return [LoaderProxy] Proxy object with find method
     def with_customer_account_api(token = nil)
-      ActiveShopifyGraphQL::LoaderProxy.new(self, ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader.new(self, token))
+      loader = build_loader_for_test_mode(
+        ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader,
+        token
+      )
+      ActiveShopifyGraphQL::LoaderProxy.new(self, loader)
     end
 
     private
 
+    # Build a loader, using TestLoader in test mode while tracking the original class
+    # @param loader_class [Class] The loader class that would be used in production
+    # @param args [Array] Additional arguments for the loader
+    # @return [Loader] The appropriate loader instance
+    def build_loader_for_test_mode(loader_class, *args)
+      if ActiveShopifyGraphQL.configuration.test_mode?
+        ActiveShopifyGraphQL::Testing::TestLoader.new(self, original_loader_class: loader_class)
+      else
+        loader_class.new(self, *args)
+      end
+    end
+
     # Returns the default loader class (either set via DSL or inferred)
     # @return [Class] The default loader class
     def default_loader_class
-      @default_loader_class ||= ActiveShopifyGraphQL::Loaders::AdminApiLoader
+      if ActiveShopifyGraphQL.configuration.test_mode?
+        ActiveShopifyGraphQL::Testing::TestLoader
+      else
+        @default_loader_class || ActiveShopifyGraphQL::Loaders::AdminApiLoader
+      end
     end
   end
 end
