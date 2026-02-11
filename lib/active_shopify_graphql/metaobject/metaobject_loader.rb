@@ -34,9 +34,9 @@ module ActiveShopifyGraphQL
       # @param per_page [Integer] Number of records per page
       # @param after [String, nil] Cursor for forward pagination
       # @param before [String, nil] Cursor for backward pagination
-      # @param relation [MetaobjectRelation] The relation for building results
-      # @return [MetaobjectPaginatedResult] A paginated result
-      def load_collection(metaobject_type:, conditions:, per_page:, relation:, after: nil, before: nil)
+      # @param query_scope [MetaobjectRelation] The relation for building results
+      # @return [Response::PaginatedResult] A paginated result
+      def load_collection(metaobject_type:, conditions:, per_page:, query_scope:, after: nil, before: nil)
         query = build_collection_query(
           metaobject_type: metaobject_type,
           conditions: conditions,
@@ -46,7 +46,7 @@ module ActiveShopifyGraphQL
         )
 
         response = execute_query(query)
-        map_paginated_response(response, relation)
+        map_paginated_response(response, query_scope)
       end
 
       private
@@ -214,42 +214,30 @@ module ActiveShopifyGraphQL
         value
       end
 
-      def map_node_to_record(node_data)
-        attributes = map_metaobject_to_attributes(node_data)
-        build_record(attributes)
-      end
-
-      def map_paginated_response(response_data, relation)
+      def map_paginated_response(response_data, query_scope)
         connection_data = response_data.dig("data", "metaobjects")
-        return empty_paginated_result(relation) unless connection_data
+        return empty_paginated_result(query_scope) unless connection_data
 
         page_info_data = connection_data["pageInfo"] || {}
         page_info = Response::PageInfo.new(page_info_data)
 
         nodes = connection_data["nodes"] || []
-        records = nodes.map { |node_data| map_node_to_record(node_data) }
+        attributes = nodes.map { |node_data| map_metaobject_to_attributes(node_data) }
 
-        MetaobjectPaginatedResult.new(
-          records: records,
+        Response::PaginatedResult.new(
+          attributes: attributes,
+          model_class: @model_class,
           page_info: page_info,
-          relation: relation
+          query_scope: query_scope
         )
       end
 
-      def build_record(attributes)
-        instance = @model_class.new
-        attributes.each do |key, value|
-          setter = "#{key}="
-          instance.public_send(setter, value) if instance.respond_to?(setter)
-        end
-        instance
-      end
-
-      def empty_paginated_result(relation)
-        MetaobjectPaginatedResult.new(
-          records: [],
+      def empty_paginated_result(query_scope)
+        Response::PaginatedResult.new(
+          attributes: [],
+          model_class: @model_class,
           page_info: Response::PageInfo.new,
-          relation: relation
+          query_scope: query_scope
         )
       end
     end
