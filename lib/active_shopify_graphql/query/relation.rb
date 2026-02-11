@@ -112,7 +112,7 @@ module ActiveShopifyGraphQL
         end
 
         # Standard case: find by ID
-        gid = GidHelper.normalize_gid(id, @model_class.model_name.name.demodulize)
+        gid = GidHelper.normalize_gid(id, @model_class.graphql_type)
         attributes = loader.load_attributes(gid)
 
         raise ObjectNotFoundError, "Couldn't find #{@model_class.name} with id=#{id}" if attributes.nil?
