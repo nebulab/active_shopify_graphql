@@ -29,14 +29,16 @@ module ActiveShopifyGraphQL
       end
 
       # Load a collection of metaobjects
+      # @param metaobject_type [String] The metaobject type to query
       # @param conditions [Hash, String, Array] Query conditions
       # @param per_page [Integer] Number of records per page
       # @param after [String, nil] Cursor for forward pagination
       # @param before [String, nil] Cursor for backward pagination
       # @param relation [MetaobjectRelation] The relation for building results
       # @return [MetaobjectPaginatedResult] A paginated result
-      def load_collection(conditions:, per_page:, relation:, after: nil, before: nil)
+      def load_collection(metaobject_type:, conditions:, per_page:, relation:, after: nil, before: nil)
         query = build_collection_query(
+          metaobject_type: metaobject_type,
           conditions: conditions,
           per_page: per_page,
           after: after,
@@ -64,8 +66,7 @@ module ActiveShopifyGraphQL
         GRAPHQL
       end
 
-      def build_collection_query(conditions:, per_page:, after: nil, before: nil)
-        metaobject_type = @model_class.metaobject_type
+      def build_collection_query(metaobject_type:, conditions:, per_page:, after: nil, before: nil)
         fields_fragment = build_fields_fragment
 
         # Build pagination arguments
