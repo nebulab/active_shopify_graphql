@@ -132,6 +132,46 @@ module ActiveShopifyGraphQL::Model::FinderMethods
       all.order(sort_key: sort_key, reverse: reverse)
     end
 
+    # Execute a raw GraphQL query and return model instances.
+    # Similar to ActiveRecord's find_by_sql, this provides an escape hatch
+    # for complex queries that don't fit the abstracted query builder.
+    #
+    # The query must return data in a structure where nodes can be extracted.
+    # The method will look for nodes in the response and map them to model instances.
+    #
+    # @param query [String] The raw GraphQL query string
+    # @param variables [Hash] Variables to pass to the GraphQL query
+    # @return [Array<Object>] Array of model instances
+    #
+    # @example Basic query
+    #   Customer.find_by_gql(<<~GQL)
+    #     query {
+    #       customers(first: 10, query: "state:enabled") {
+    #         nodes {
+    #           id
+    #           firstName
+    #           email
+    #         }
+    #       }
+    #     }
+    #   GQL
+    #
+    # @example Query with variables
+    #   Customer.find_by_gql(<<~GQL, first: 5, query: "country:US")
+    #     query($first: Int!, $query: String) {
+    #       customers(first: $first, query: $query) {
+    #         nodes {
+    #           id
+    #           firstName
+    #           email
+    #         }
+    #       }
+    #     }
+    #   GQL
+    def find_by_gql(query, variables = {})
+      default_loader.execute_raw_gql(query, variables)
+    end
+
     private
 
     # Validates that selected attributes exist in the model

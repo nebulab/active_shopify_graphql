@@ -545,6 +545,121 @@ RSpec.describe ActiveShopifyGraphQL::Model::FinderMethods do
     end
   end
 
+  describe ".find_by_gql" do
+    it "executes a raw GraphQL query and returns model instances" do
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+      expect(mock_client).to receive(:execute) do |query, **_variables|
+        expect(query).to include("customers")
+        { "data" => { "customers" => { "nodes" => [
+          { "id" => "gid://shopify/Customer/123", "displayName" => "John", "email" => "john@example.com" },
+          { "id" => "gid://shopify/Customer/456", "displayName" => "Jane", "email" => "jane@example.com" }
+        ] } } }
+      end
+
+      results = customer_class.find_by_gql(<<~GQL)
+        query {
+          customers(first: 10) {
+            nodes {
+              id
+              displayName
+              email
+            }
+          }
+        }
+      GQL
+
+      expect(results.size).to eq(2)
+      expect(results.first).to be_a(customer_class)
+      expect(results.first.id).to eq("gid://shopify/Customer/123")
+      expect(results.last.email).to eq("jane@example.com")
+    end
+
+    it "passes variables to the GraphQL query" do
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+      expect(mock_client).to receive(:execute) do |_query, **variables|
+        expect(variables[:first]).to eq(5)
+        expect(variables[:query]).to eq("state:enabled")
+        { "data" => { "customers" => { "nodes" => [
+          { "id" => "gid://shopify/Customer/123", "email" => "john@example.com" }
+        ] } } }
+      end
+
+      customer_class.find_by_gql(<<~GQL, first: 5, query: "state:enabled")
+        query($first: Int!, $query: String) {
+          customers(first: $first, query: $query) {
+            nodes { id email }
+          }
+        }
+      GQL
+    end
+
+    it "returns empty array when no nodes found" do
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+      allow(mock_client).to receive(:execute).and_return({ "data" => { "customers" => { "nodes" => [] } } })
+
+      results = customer_class.find_by_gql("query { customers(first: 10) { nodes { id } } }")
+
+      expect(results).to eq([])
+    end
+
+    it "returns empty array when response is nil" do
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+      allow(mock_client).to receive(:execute).and_return(nil)
+
+      results = customer_class.find_by_gql("query { customers(first: 10) { nodes { id } } }")
+
+      expect(results).to eq([])
+    end
+
+    it "handles nested response structures" do
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+      allow(mock_client).to receive(:execute).and_return({
+        "data" => {
+          "shop" => {
+            "customers" => {
+              "nodes" => [
+                { "id" => "gid://shopify/Customer/123", "email" => "test@example.com" }
+              ]
+            }
+          }
+        }
+      })
+
+      results = customer_class.find_by_gql("query { shop { customers(first: 10) { nodes { id email } } } }")
+
+      expect(results.size).to eq(1)
+      expect(results.first.id).to eq("gid://shopify/Customer/123")
+    end
+
+    it "accepts string keys in variables hash" do
+      mock_client = instance_double("ShopifyAPI::Clients::Graphql::Admin")
+      ActiveShopifyGraphQL.configure { |c| c.admin_api_client = mock_client }
+      customer_class = build_customer_class
+      stub_const("Customer", customer_class)
+      expect(mock_client).to receive(:execute) do |_query, **variables|
+        expect(variables[:first]).to eq(3)
+        { "data" => { "customers" => { "nodes" => [] } } }
+      end
+
+      customer_class.find_by_gql("query($first: Int!) { customers(first: $first) { nodes { id } } }", "first" => 3)
+    end
+  end
+
   describe ".select" do
     it "returns a Relation that can be used for method chaining" do
       mock_executor = ->(_query, **_variables) { { "data" => {} } }

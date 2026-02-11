@@ -454,6 +454,40 @@ product.variants.each do |variant|
 end
 ```
 
+### Raw GraphQL Queries with `find_by_gql`
+
+For complex queries that don't fit the abstracted query builder, use `find_by_gql` to execute raw GraphQL queries directly. This is similar to ActiveRecord's `find_by_sql`:
+
+```ruby
+# Execute a raw GraphQL query
+customers = Customer.find_by_gql(<<~GQL)
+  query {
+    customers(first: 10, query: "state:enabled") {
+      nodes {
+        id
+        firstName
+        email
+      }
+    }
+  }
+GQL
+
+# With variables
+customers = Customer.find_by_gql(<<~GQL, first: 5, query: "country:US")
+  query($first: Int!, $query: String) {
+    customers(first: $first, query: $query) {
+      nodes {
+        id
+        firstName
+        email
+      }
+    }
+  }
+GQL
+```
+
+**Note:** The query must return data containing a `nodes` array. The method automatically extracts nodes from the response (even nested structures) and maps them to model instances using the model's attribute definitions.
+
 ### ActiveRecord Associations
 
 Bridge between your ActiveRecord models and Shopify GraphQL:
