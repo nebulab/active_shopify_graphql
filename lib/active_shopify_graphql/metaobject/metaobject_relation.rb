@@ -164,7 +164,7 @@ module ActiveShopifyGraphQL
           per_page: effective_per_page,
           after: after,
           before: before,
-          relation: self
+          query_scope: self
         )
       end
 

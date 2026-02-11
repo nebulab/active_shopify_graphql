@@ -105,9 +105,9 @@ RSpec.describe ActiveShopifyGraphQL::Metaobject::MetaobjectLoader do
 
       loader = described_class.new(Provider)
       relation = ActiveShopifyGraphQL::Metaobject::MetaobjectRelation.new(Provider)
-      result = loader.load_collection(metaobject_type: "provider", conditions: {}, per_page: 10, relation: relation)
+      result = loader.load_collection(metaobject_type: "provider", conditions: {}, per_page: 10, query_scope: relation)
 
-      expect(result).to be_a(ActiveShopifyGraphQL::Metaobject::MetaobjectPaginatedResult)
+      expect(result).to be_a(ActiveShopifyGraphQL::Response::PaginatedResult)
       expect(result.size).to eq(2)
 
       first_provider = result.first
@@ -141,7 +141,7 @@ RSpec.describe ActiveShopifyGraphQL::Metaobject::MetaobjectLoader do
 
       loader = described_class.new(Provider)
       relation = ActiveShopifyGraphQL::Metaobject::MetaobjectRelation.new(Provider)
-      loader.load_collection(metaobject_type: "provider", conditions: { display_name: "Acme" }, per_page: 10, relation: relation)
+      loader.load_collection(metaobject_type: "provider", conditions: { display_name: "Acme" }, per_page: 10, query_scope: relation)
     end
 
     it "uses the explicit metaobject_type parameter in the query" do
@@ -164,7 +164,7 @@ RSpec.describe ActiveShopifyGraphQL::Metaobject::MetaobjectLoader do
 
       loader = described_class.new(Provider)
       relation = ActiveShopifyGraphQL::Metaobject::MetaobjectRelation.new(Provider)
-      loader.load_collection(metaobject_type: "custom_type", conditions: {}, per_page: 10, relation: relation)
+      loader.load_collection(metaobject_type: "custom_type", conditions: {}, per_page: 10, query_scope: relation)
     end
   end
 end
