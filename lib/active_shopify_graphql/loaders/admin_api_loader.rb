@@ -4,10 +4,10 @@ module ActiveShopifyGraphQL
   module Loaders
     class AdminApiLoader < Loader
       def perform_graphql_query(query, **variables)
-        executor = ActiveShopifyGraphQL.configuration.admin_api_executor
-        raise Error, "Admin API executor not configured. Please configure it using ActiveShopifyGraphQL.configure" unless executor
+        adapter = ActiveShopifyGraphQL.configuration.adapter_for(:admin_api)
+        raise Error, "Admin API adapter not configured. Please configure it using ActiveShopifyGraphQL.configure" unless adapter
 
-        executor.call(query, **variables)
+        adapter.execute(query, **variables)
       end
     end
   end

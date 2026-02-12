@@ -24,14 +24,36 @@ module ActiveShopifyGraphQL
       end
 
       def perform_graphql_query(query, **variables)
-        executor = ActiveShopifyGraphQL.configuration.customer_account_api_executor
-        raise Error, "Customer Account API executor not configured. Please configure it using ActiveShopifyGraphQL.configure" unless executor
+        config = ActiveShopifyGraphQL.configuration
 
-        executor.call(query, @token, **variables)
+        # Try adapter first (new approach)
+        if config.customer_account_api_adapter
+          adapter = instantiate_adapter(config.customer_account_api_adapter)
+          return adapter.execute(query, **variables)
+        end
+
+        # Fall back to executor for backward compatibility
+        if config.customer_account_api_executor
+          return config.customer_account_api_executor.call(query, @token, **variables)
+        end
+
+        raise Error, "Customer Account API adapter not configured. Please configure it using ActiveShopifyGraphQL.configure"
       end
 
       def initialization_args
         [@token]
+      end
+
+      private
+
+      def instantiate_adapter(adapter_or_class)
+        # If it responds to :new, treat it as a class that needs instantiation
+        if adapter_or_class.respond_to?(:new)
+          adapter_or_class.new(access_token: @token)
+        else
+          # Already an instance, use it as-is
+          adapter_or_class
+        end
       end
     end
   end

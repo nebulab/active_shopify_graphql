@@ -32,10 +32,58 @@ RSpec.describe ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader do
   end
 
   describe "#perform_graphql_query" do
-    it "executes query using configured customer_account_api_executor" do
+    it "executes query using configured customer_account_api_adapter instance" do
+      expected_response = { "customer" => { "id" => "123" } }
+      mock_adapter = instance_double(ActiveShopifyGraphQL::Adapters::Base)
+      allow(mock_adapter).to receive(:execute).and_return(expected_response)
+      ActiveShopifyGraphQL.configure { |c| c.customer_account_api_adapter = mock_adapter }
+      model_class = build_customer_class
+      loader = described_class.new(model_class, "test_token")
+
+      result = loader.perform_graphql_query("query { customer }")
+
+      expect(result).to eq(expected_response)
+      expect(mock_adapter).to have_received(:execute).with("query { customer }")
+    end
+
+    it "instantiates adapter class with token when class is configured" do
+      expected_response = { "customer" => { "id" => "123" } }
+      mock_adapter_instance = instance_double(ActiveShopifyGraphQL::Adapters::ShopifyApiCustomerAccount)
+      mock_adapter_class = class_double(ActiveShopifyGraphQL::Adapters::ShopifyApiCustomerAccount)
+      allow(mock_adapter_class).to receive(:new).with(access_token: "my_token").and_return(mock_adapter_instance)
+      allow(mock_adapter_instance).to receive(:execute).and_return(expected_response)
+      ActiveShopifyGraphQL.configure { |c| c.customer_account_api_adapter = mock_adapter_class }
+      model_class = build_customer_class
+      loader = described_class.new(model_class, "my_token")
+
+      result = loader.perform_graphql_query("query { customer }")
+
+      expect(result).to eq(expected_response)
+      expect(mock_adapter_class).to have_received(:new).with(access_token: "my_token")
+      expect(mock_adapter_instance).to have_received(:execute).with("query { customer }")
+    end
+
+    it "passes variables to adapter" do
+      expected_response = { "customer" => { "id" => "123" } }
+      mock_adapter = instance_double(ActiveShopifyGraphQL::Adapters::Base)
+      allow(mock_adapter).to receive(:execute).and_return(expected_response)
+      ActiveShopifyGraphQL.configure { |c| c.customer_account_api_adapter = mock_adapter }
+      model_class = build_customer_class
+      loader = described_class.new(model_class, "test_token")
+
+      result = loader.perform_graphql_query("query { customer(id: $id) }", id: "123")
+
+      expect(result).to eq(expected_response)
+      expect(mock_adapter).to have_received(:execute).with("query { customer(id: $id) }", id: "123")
+    end
+
+    it "maintains backward compatibility with customer_account_api_executor" do
       expected_response = { "data" => { "customer" => { "id" => "123" } } }
       mock_executor = ->(query, token, **_variables) { expected_response if query == "query { customer }" && token == "test_token" }
-      ActiveShopifyGraphQL.configure { |c| c.customer_account_api_executor = mock_executor }
+      ActiveShopifyGraphQL.configure do |c|
+        c.customer_account_api_adapter = nil
+        c.customer_account_api_executor = mock_executor
+      end
       model_class = build_customer_class
       loader = described_class.new(model_class, "test_token")
 
@@ -44,7 +92,7 @@ RSpec.describe ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader do
       expect(result).to eq(expected_response)
     end
 
-    it "passes token and variables to executor" do
+    it "passes token and variables to executor for backward compatibility" do
       received_query = nil
       received_token = nil
       received_variables = nil
@@ -54,7 +102,10 @@ RSpec.describe ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader do
         received_variables = variables
         {}
       }
-      ActiveShopifyGraphQL.configure { |c| c.customer_account_api_executor = mock_executor }
+      ActiveShopifyGraphQL.configure do |c|
+        c.customer_account_api_adapter = nil
+        c.customer_account_api_executor = mock_executor
+      end
       model_class = build_customer_class
       loader = described_class.new(model_class, "my_customer_token")
 
@@ -65,13 +116,16 @@ RSpec.describe ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader do
       expect(received_variables).to eq({ id: "123" })
     end
 
-    it "raises error when customer_account_api_executor is nil" do
-      ActiveShopifyGraphQL.configure { |c| c.customer_account_api_executor = nil }
+    it "raises error when neither adapter nor executor is configured" do
+      ActiveShopifyGraphQL.configure do |c|
+        c.customer_account_api_adapter = nil
+        c.customer_account_api_executor = nil
+      end
       model_class = build_customer_class
       loader = described_class.new(model_class, "test_token")
 
       expect { loader.perform_graphql_query("query { customer }") }
-        .to raise_error(ActiveShopifyGraphQL::Error, /Customer Account API executor not configured/)
+        .to raise_error(ActiveShopifyGraphQL::Error, /Customer Account API adapter not configured/)
     end
   end
 
