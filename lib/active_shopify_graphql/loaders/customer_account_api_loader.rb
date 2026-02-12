@@ -33,9 +33,7 @@ module ActiveShopifyGraphQL
         end
 
         # Fall back to executor for backward compatibility
-        if config.customer_account_api_executor
-          return config.customer_account_api_executor.call(query, @token, **variables)
-        end
+        return config.customer_account_api_executor.call(query, @token, **variables) if config.customer_account_api_executor
 
         raise Error, "Customer Account API adapter not configured. Please configure it using ActiveShopifyGraphQL.configure"
       end
