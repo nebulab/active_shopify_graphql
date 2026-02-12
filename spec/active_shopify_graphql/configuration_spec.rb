@@ -27,6 +27,38 @@ RSpec.describe ActiveShopifyGraphQL::Configuration do
 
       expect(config.log_queries).to be false
     end
+
+    it "auto-detects ShopifyApi admin adapter when shopify_api gem is available" do
+      stub_const("ShopifyAPI::Clients::Graphql::Admin", Class.new)
+
+      config = described_class.new
+
+      expect(config.admin_api_adapter).to be_a(ActiveShopifyGraphQL::Adapters::ShopifyApiAdmin)
+    end
+
+    it "sets customer_account_api_adapter to nil by default even when shopify_api is available" do
+      stub_const("ShopifyAPI::Clients::Graphql::Admin", Class.new)
+
+      config = described_class.new
+
+      expect(config.customer_account_api_adapter).to be_nil
+    end
+
+    it "sets admin_api_adapter to nil when shopify_api gem is not available" do
+      hide_const("ShopifyAPI::Clients::Graphql::Admin") if defined?(ShopifyAPI::Clients::Graphql::Admin)
+
+      config = described_class.new
+
+      expect(config.admin_api_adapter).to be_nil
+    end
+
+    it "sets customer_account_api_adapter to nil when shopify_api gem is not available" do
+      hide_const("ShopifyAPI::Clients::Graphql::Admin") if defined?(ShopifyAPI::Clients::Graphql::Admin)
+
+      config = described_class.new
+
+      expect(config.customer_account_api_adapter).to be_nil
+    end
   end
 
   describe "attribute accessors" do
@@ -48,6 +80,24 @@ RSpec.describe ActiveShopifyGraphQL::Configuration do
       expect(config.customer_account_api_executor).to eq(custom_executor)
     end
 
+    it "allows setting and getting admin_api_adapter" do
+      config = described_class.new
+      custom_adapter = ActiveShopifyGraphQL::Adapters::Proc.new(->(query, **variables) { { data: {} } })
+
+      config.admin_api_adapter = custom_adapter
+
+      expect(config.admin_api_adapter).to eq(custom_adapter)
+    end
+
+    it "allows setting and getting customer_account_api_adapter" do
+      config = described_class.new
+      custom_adapter = ActiveShopifyGraphQL::Adapters::Proc.new(->(query, **variables) { { data: {} } })
+
+      config.customer_account_api_adapter = custom_adapter
+
+      expect(config.customer_account_api_adapter).to eq(custom_adapter)
+    end
+
     it "allows setting and getting logger" do
       config = described_class.new
       mock_logger = instance_double(Logger)
@@ -63,6 +113,81 @@ RSpec.describe ActiveShopifyGraphQL::Configuration do
       config.log_queries = true
 
       expect(config.log_queries).to be true
+    end
+  end
+
+  describe "#adapter_for" do
+    it "returns the admin_api_adapter when explicitly set" do
+      config = described_class.new
+      custom_adapter = ActiveShopifyGraphQL::Adapters::Proc.new(->(query, **variables) { { data: {} } })
+      config.admin_api_adapter = custom_adapter
+
+      adapter = config.adapter_for(:admin_api)
+
+      expect(adapter).to eq(custom_adapter)
+    end
+
+    it "returns the customer_account_api_adapter when explicitly set" do
+      config = described_class.new
+      custom_adapter = ActiveShopifyGraphQL::Adapters::Proc.new(->(query, **variables) { { data: {} } })
+      config.customer_account_api_adapter = custom_adapter
+
+      adapter = config.adapter_for(:customer_account_api)
+
+      expect(adapter).to eq(custom_adapter)
+    end
+
+    it "wraps admin_api_executor in Proc adapter for backward compatibility" do
+      config = described_class.new
+      config.admin_api_adapter = nil
+      custom_executor = ->(query, **variables) { { data: {} } }
+      config.admin_api_executor = custom_executor
+
+      adapter = config.adapter_for(:admin_api)
+
+      expect(adapter).to be_a(ActiveShopifyGraphQL::Adapters::Proc)
+      expect(adapter.execute("query", var: "value")).to eq({ data: {} })
+    end
+
+    it "wraps customer_account_api_executor in Proc adapter for backward compatibility" do
+      config = described_class.new
+      config.customer_account_api_adapter = nil
+      custom_executor = ->(query, **variables) { { data: {} } }
+      config.customer_account_api_executor = custom_executor
+
+      adapter = config.adapter_for(:customer_account_api)
+
+      expect(adapter).to be_a(ActiveShopifyGraphQL::Adapters::Proc)
+      expect(adapter.execute("query", var: "value")).to eq({ data: {} })
+    end
+
+    it "prefers adapter over executor when both are set" do
+      config = described_class.new
+      custom_adapter = ActiveShopifyGraphQL::Adapters::Proc.new(->(query, **variables) { { from: "adapter" } })
+      custom_executor = ->(query, **variables) { { from: "executor" } }
+      config.admin_api_adapter = custom_adapter
+      config.admin_api_executor = custom_executor
+
+      adapter = config.adapter_for(:admin_api)
+
+      expect(adapter).to eq(custom_adapter)
+      expect(adapter.execute("query")).to eq({ from: "adapter" })
+    end
+
+    it "returns nil when neither adapter nor executor is configured" do
+      config = described_class.new
+      config.admin_api_adapter = nil
+      config.admin_api_executor = nil
+
+      adapter = config.adapter_for(:admin_api)
+
+      expect(adapter).to be_nil
+    end
+
+    it "raises ArgumentError for unknown API type" do
+      config = described_class.new
+
+      expect { config.adapter_for(:unknown_api) }.to raise_error(ArgumentError, "Unknown API type: unknown_api")
     end
   end
 end
