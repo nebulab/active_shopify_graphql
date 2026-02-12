@@ -113,6 +113,17 @@ module ActiveShopifyGraphQL
       connection_loader.load_records(query_name, variables, parent, connection_config)
     end
 
+    # Execute a raw GraphQL query and return model instances.
+    # This method extracts nodes from the response and maps them to model instances.
+    #
+    # @param query [String] The raw GraphQL query string
+    # @param variables [Hash] Variables to pass to the GraphQL query
+    # @return [Array<Object>] Array of model instances
+    def execute_raw_gql(query, variables = {})
+      response = perform_graphql_query(query, **variables.transform_keys(&:to_sym))
+      extract_and_build_models(response)
+    end
+
     # Abstract method for executing GraphQL queries
     def perform_graphql_query(query, **variables)
       raise NotImplementedError, "#{self.class} must implement perform_graphql_query"
@@ -230,6 +241,36 @@ module ActiveShopifyGraphQL
         page_info: Response::PageInfo.new,
         query_scope: query_scope
       )
+    end
+
+    # Extract nodes from a raw GraphQL response and build model instances.
+    # Recursively searches the response for "nodes" arrays.
+    def extract_and_build_models(response)
+      return [] unless response.is_a?(Hash)
+
+      nodes = find_nodes_in_response(response.dig("data"))
+      return [] if nodes.empty?
+
+      nodes.filter_map do |node_data|
+        attributes = map_node_to_attributes(node_data)
+        ModelBuilder.build(@model_class, attributes) if attributes
+      end
+    end
+
+    # Recursively find the first "nodes" array in the response
+    def find_nodes_in_response(data)
+      return [] unless data.is_a?(Hash)
+
+      data.each do |key, value|
+        return value if key == "nodes" && value.is_a?(Array)
+
+        if value.is_a?(Hash)
+          found = find_nodes_in_response(value)
+          return found unless found.empty?
+        end
+      end
+
+      []
     end
   end
 end

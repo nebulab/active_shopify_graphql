@@ -105,7 +105,7 @@ RSpec.describe ActiveShopifyGraphQL::Metaobject::MetaobjectLoader do
 
       loader = described_class.new(Provider)
       relation = ActiveShopifyGraphQL::Metaobject::MetaobjectRelation.new(Provider)
-      result = loader.load_collection(conditions: {}, per_page: 10, relation: relation)
+      result = loader.load_collection(metaobject_type: "provider", conditions: {}, per_page: 10, relation: relation)
 
       expect(result).to be_a(ActiveShopifyGraphQL::Metaobject::MetaobjectPaginatedResult)
       expect(result.size).to eq(2)
@@ -141,7 +141,30 @@ RSpec.describe ActiveShopifyGraphQL::Metaobject::MetaobjectLoader do
 
       loader = described_class.new(Provider)
       relation = ActiveShopifyGraphQL::Metaobject::MetaobjectRelation.new(Provider)
-      loader.load_collection(conditions: { display_name: "Acme" }, per_page: 10, relation: relation)
+      loader.load_collection(metaobject_type: "provider", conditions: { display_name: "Acme" }, per_page: 10, relation: relation)
+    end
+
+    it "uses the explicit metaobject_type parameter in the query" do
+      mock_client = instance_double("ShopifyClient")
+      allow(ActiveShopifyGraphQL.configuration).to receive(:admin_api_client).and_return(mock_client)
+
+      response = {
+        "data" => {
+          "metaobjects" => {
+            "pageInfo" => { "hasNextPage" => false, "hasPreviousPage" => false },
+            "nodes" => []
+          }
+        }
+      }
+
+      expect(mock_client).to receive(:execute) do |query, **_variables|
+        expect(query).to include('metaobjects(type: "custom_type"')
+        response
+      end
+
+      loader = described_class.new(Provider)
+      relation = ActiveShopifyGraphQL::Metaobject::MetaobjectRelation.new(Provider)
+      loader.load_collection(metaobject_type: "custom_type", conditions: {}, per_page: 10, relation: relation)
     end
   end
 end
