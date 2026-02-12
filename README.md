@@ -472,6 +472,55 @@ reward.customer        # Loads Customer from shopify_customer_id
 reward.variants        # Queries ProductVariant.where({})
 ```
 
+### Logging
+
+Track GraphQL query performance and costs in your Rails logs:
+
+```ruby
+# config/initializers/active_shopify_graphql.rb
+require "benchmark"
+
+Rails.configuration.to_prepare do
+  ActiveShopifyGraphQL.configure do |config|
+    config.admin_api_executor = lambda do |query, **variables|
+      client = ShopifyAPI::Clients::Graphql::Admin.new(session: ShopifyAPI::Context.active_session)
+      response = nil
+      duration_ms = Benchmark.realtime { response = client.query(query:, variables:) } * 1000
+      cost = response.body.dig("extensions", "cost")
+
+      # Log query with timing and cost
+      ActiveShopifyGraphQL::Logging::GraphqlLogger.log(
+        query: query,
+        duration_ms: duration_ms,
+        cost: cost,
+        variables: variables
+      )
+
+      errors = response.body["errors"]
+      raise errors.inspect if errors.present?
+      response.body if response
+    end
+  end
+end
+```
+
+#### Controller Runtime (Optional)
+
+Add GraphQL timing to your Rails request logs (`Completed 200 OK ... GraphQL: 45.2ms, 38 cost`):
+
+```ruby
+# config/initializers/graphql_controller_runtime.rb
+ActiveSupport.on_load(:action_controller) do
+  include ActiveShopifyGraphQL::Logging::GraphqlControllerRuntime
+end
+```
+
+This will append GraphQL timing and cost summaries to your controller logs:
+
+```
+Completed 200 OK in 250ms (Views: 12.3ms | ActiveRecord: 5.2ms | GraphQL: 45.2ms, 38 cost)
+```
+
 ---
 
 ## API Reference
@@ -597,8 +646,8 @@ bundle exec rubocop
 - [x] Query optimization with `select`
 - [x] GraphQL connections with lazy/eager loading
 - [x] Cursor-based pagination
+- [x] Builtin instrumentation to track query costs
 - [ ] Metaobjects as models
-- [ ] Builtin instrumentation to track query costs
 - [ ] Advanced error handling and retry mechanisms
 - [ ] Caching layer
 - [ ] Chained `.where` with `.not` support
