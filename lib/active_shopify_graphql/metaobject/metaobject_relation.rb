@@ -159,11 +159,12 @@ module ActiveShopifyGraphQL
       # Fetch a specific page
       def fetch_page(after: nil, before: nil)
         loader.load_collection(
+          metaobject_type: @model_class.metaobject_type,
           conditions: @conditions,
           per_page: effective_per_page,
           after: after,
           before: before,
-          relation: self
+          query_scope: self
         )
       end
 
