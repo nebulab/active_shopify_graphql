@@ -107,15 +107,19 @@ module ActiveShopifyGraphQL
 
       def build_fields_fragment
         # Request all defined fields from the metaobject
-        field_keys = @model_class.metaobject_attributes.values.map { |config| config[:key] }
+        attributes = @model_class.metaobject_attributes
 
-        # If no specific fields defined, request all fields
-        if field_keys.empty?
-          "fields { key value jsonValue }"
+        # If no specific fields defined, request all fields with both value types
+        if attributes.empty?
+          "fields { value jsonValue }"
         else
-          # Build specific field requests for each attribute
-          field_queries = field_keys.map do |key|
-            "#{key.gsub(/[^a-zA-Z0-9_]/, '_')}: field(key: \"#{key}\") { key value jsonValue }"
+          # Build specific field requests for each attribute, only querying needed value field
+          field_queries = attributes.map do |_attr_name, config|
+            key = config[:key]
+            aliased_key = key.gsub(/[^a-zA-Z0-9_]/, '_')
+            # Only query the value field we actually need based on type
+            value_field = config[:type] == :json ? 'jsonValue' : 'value'
+            "#{aliased_key}: field(key: \"#{key}\") { #{value_field} }"
           end
           field_queries.join("\n")
         end

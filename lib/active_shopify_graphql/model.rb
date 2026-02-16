@@ -29,6 +29,7 @@ module ActiveShopifyGraphQL
     include FinderMethods
     include Associations
     include Connections
+    include MetaobjectConnections
     include Attributes
     include MetafieldAttributes
     include LoaderSwitchable

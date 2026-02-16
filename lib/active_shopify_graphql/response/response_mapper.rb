@@ -61,7 +61,8 @@ module ActiveShopifyGraphQL
           next unless connection_config
 
           records = extract_connection_records(node_data, connection_config, nested_includes, parent_instance: parent_instance)
-          connection_cache[connection_name] = records if records
+          # Always cache, even if nil (for metaobject references that don't exist)
+          connection_cache[connection_name] = records
         end
 
         connection_cache
@@ -178,6 +179,9 @@ module ActiveShopifyGraphQL
         connection_type = connection_config[:type] || :connection
         target_class = connection_config[:class_name].constantize
 
+        # Handle metaobject reference connections
+        return extract_metaobject_reference(node_data, response_key, target_class, nested_includes, parent_instance, connection_config) if connection_type == :metaobject_reference
+
         if connection_type == :singular
           item_data = node_data[response_key]
           return nil unless item_data
@@ -236,6 +240,96 @@ module ActiveShopifyGraphQL
         end
 
         instance
+      end
+
+      def extract_metaobject_reference(node_data, response_key, target_class, _nested_includes, parent_instance, connection_config)
+        metafield_data = node_data[response_key]
+        return nil unless metafield_data
+
+        reference_data = metafield_data["reference"]
+        return nil unless reference_data
+
+        # Build metaobject instance from the reference data
+        build_metaobject_instance(reference_data, target_class, parent_instance, connection_config)
+      end
+
+      def build_metaobject_instance(metaobject_data, target_class, parent_instance, connection_config)
+        attributes = map_metaobject_to_attributes(metaobject_data, target_class)
+
+        instance = target_class.new(attributes)
+
+        # Populate inverse cache if specified
+        if connection_config[:inverse_of] && parent_instance
+          instance.instance_variable_set(:@_connection_cache, {}) unless instance.instance_variable_get(:@_connection_cache)
+          cache = instance.instance_variable_get(:@_connection_cache)
+          cache[connection_config[:inverse_of]] = parent_instance
+        end
+
+        instance
+      end
+
+      def map_metaobject_to_attributes(data, target_class)
+        attributes = {
+          id: data["id"],
+          handle: data["handle"],
+          type: data["type"],
+          display_name: data["displayName"]
+        }
+
+        # Map metaobject fields to model attributes
+        target_class.metaobject_attributes.each do |attr_name, config|
+          field_key = config[:key]
+          aliased_key = field_key.gsub(/[^a-zA-Z0-9_]/, '_')
+
+          # Try aliased field first, then fall back to fields array
+          field_data = data[aliased_key] || find_field_in_array(data["fields"], field_key)
+          value = extract_metaobject_field_value(field_data, config)
+          attributes[attr_name] = value
+        end
+
+        attributes
+      end
+
+      def find_field_in_array(fields, key)
+        return nil unless fields.is_a?(Array)
+
+        fields.find { |f| f["key"] == key }
+      end
+
+      def extract_metaobject_field_value(field_data, config)
+        return config[:default] unless field_data
+
+        raw_value = if config[:type] == :json
+                      field_data["jsonValue"]
+                    else
+                      field_data["value"]
+                    end
+
+        return config[:default] if raw_value.nil?
+
+        coerced_value = coerce_metaobject_value(raw_value, config[:type])
+        config[:transform] ? config[:transform].call(coerced_value) : coerced_value
+      end
+
+      def coerce_metaobject_value(value, type)
+        case type
+        when :integer
+          value.to_i
+        when :float
+          value.to_f
+        when :boolean
+          [true, "true"].include?(value)
+        when :datetime
+          begin
+            Time.parse(value)
+          rescue ArgumentError
+            value
+          end
+        when :json
+          value # Already parsed by GraphQL
+        else
+          value.to_s
+        end
       end
     end
   end
