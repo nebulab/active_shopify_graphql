@@ -46,8 +46,8 @@ RSpec.describe ActiveShopifyGraphQL::Testing do
 
     it "preserves existing GIDs" do
       described_class.register(customer_class, [
-        { id: "gid://shopify/Customer/42", email: "jane@example.com" }
-      ])
+                                 { id: "gid://shopify/Customer/42", email: "jane@example.com" }
+                               ])
 
       customer = customer_class.find(42)
       expect(customer.id).to eq("gid://shopify/Customer/42")
@@ -57,9 +57,9 @@ RSpec.describe ActiveShopifyGraphQL::Testing do
   describe "find" do
     before do
       described_class.register(customer_class, [
-        { id: 1, email: "john@example.com", display_name: "John" },
-        { id: 2, email: "jane@example.com", display_name: "Jane" }
-      ])
+                                 { id: 1, email: "john@example.com", display_name: "John" },
+                                 { id: 2, email: "jane@example.com", display_name: "Jane" }
+                               ])
     end
 
     it "finds a record by bare integer ID" do
@@ -81,10 +81,10 @@ RSpec.describe ActiveShopifyGraphQL::Testing do
   describe "where" do
     before do
       described_class.register(customer_class, [
-        { id: 1, email: "john@example.com", display_name: "John" },
-        { id: 2, email: "jane@example.com", display_name: "Jane" },
-        { id: 3, email: "john@other.com", display_name: "John" }
-      ])
+                                 { id: 1, email: "john@example.com", display_name: "John" },
+                                 { id: 2, email: "jane@example.com", display_name: "Jane" },
+                                 { id: 3, email: "john@other.com", display_name: "John" }
+                               ])
     end
 
     it "filters by hash conditions" do
@@ -107,8 +107,8 @@ RSpec.describe ActiveShopifyGraphQL::Testing do
   describe "find_by" do
     before do
       described_class.register(customer_class, [
-        { id: 1, email: "john@example.com", display_name: "John" }
-      ])
+                                 { id: 1, email: "john@example.com", display_name: "John" }
+                               ])
     end
 
     it "returns the first matching record" do
@@ -126,9 +126,9 @@ RSpec.describe ActiveShopifyGraphQL::Testing do
   describe "search fields (non-attribute filtering)" do
     it "matches on search fields that are not model attributes" do
       described_class.register(product_variant_class, [
-        { id: 1, sku: "ABC", product_id: 10 },
-        { id: 2, sku: "DEF", product_id: 20 }
-      ])
+                                 { id: 1, sku: "ABC", product_id: 10 },
+                                 { id: 2, sku: "DEF", product_id: 20 }
+                               ])
 
       results = product_variant_class.where(product_id: 10).to_a
       expect(results.size).to eq(1)
@@ -137,8 +137,8 @@ RSpec.describe ActiveShopifyGraphQL::Testing do
 
     it "strips search fields from model attributes" do
       described_class.register(product_variant_class, [
-        { id: 1, sku: "ABC", product_id: 10 }
-      ])
+                                 { id: 1, sku: "ABC", product_id: 10 }
+                               ])
 
       variant = product_variant_class.find(1)
       expect(variant).not_to respond_to(:product_id)
@@ -149,16 +149,16 @@ RSpec.describe ActiveShopifyGraphQL::Testing do
   describe "includes (eager loading)" do
     before do
       described_class.register(customer_class, [
-        {
-          id: 1,
-          email: "john@example.com",
-          display_name: "John",
-          orders: [
-            { id: "gid://shopify/Order/100", name: "#1001" },
-            { id: "gid://shopify/Order/101", name: "#1002" }
-          ]
-        }
-      ])
+                                 {
+                                   id: 1,
+                                   email: "john@example.com",
+                                   display_name: "John",
+                                   orders: [
+                                     { id: "gid://shopify/Order/100", name: "#1001" },
+                                     { id: "gid://shopify/Order/101", name: "#1002" }
+                                   ]
+                                 }
+                               ])
     end
 
     it "eager loads connections" do
@@ -184,15 +184,15 @@ RSpec.describe ActiveShopifyGraphQL::Testing do
   describe "lazy-loaded connections" do
     before do
       described_class.register(customer_class, [
-        {
-          id: 1,
-          email: "john@example.com",
-          display_name: "John",
-          orders: [
-            { id: "gid://shopify/Order/100", name: "#1001" }
-          ]
-        }
-      ])
+                                 {
+                                   id: 1,
+                                   email: "john@example.com",
+                                   display_name: "John",
+                                   orders: [
+                                     { id: "gid://shopify/Order/100", name: "#1001" }
+                                   ]
+                                 }
+                               ])
     end
 
     it "lazy-loads connections from the store" do
@@ -212,12 +212,12 @@ RSpec.describe ActiveShopifyGraphQL::Testing do
   describe "pagination" do
     before do
       described_class.register(customer_class, [
-        { id: 1, email: "a@example.com", display_name: "A" },
-        { id: 2, email: "b@example.com", display_name: "B" },
-        { id: 3, email: "c@example.com", display_name: "C" },
-        { id: 4, email: "d@example.com", display_name: "D" },
-        { id: 5, email: "e@example.com", display_name: "E" }
-      ])
+                                 { id: 1, email: "a@example.com", display_name: "A" },
+                                 { id: 2, email: "b@example.com", display_name: "B" },
+                                 { id: 3, email: "c@example.com", display_name: "C" },
+                                 { id: 4, email: "d@example.com", display_name: "D" },
+                                 { id: 5, email: "e@example.com", display_name: "E" }
+                               ])
     end
 
     it "returns paginated results" do

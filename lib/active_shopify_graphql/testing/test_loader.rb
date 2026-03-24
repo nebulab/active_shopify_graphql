@@ -16,9 +16,7 @@ module ActiveShopifyGraphQL
 
         attrs = filter_to_model_attributes(record)
 
-        if @included_connections.any?
-          populate_connection_cache(record, attrs)
-        end
+        populate_connection_cache(record, attrs) if @included_connections.any?
 
         attrs
       end
@@ -38,7 +36,7 @@ module ActiveShopifyGraphQL
 
         page_info = Response::PageInfo.new(
           "hasNextPage" => end_index < all_records.size - 1,
-          "hasPreviousPage" => start_index > 0,
+          "hasPreviousPage" => start_index.positive?,
           "startCursor" => start_index.to_s,
           "endCursor" => end_index.to_s
         )
@@ -60,7 +58,7 @@ module ActiveShopifyGraphQL
       # Load records for a connection (lazy-loaded or explicit).
       #
       # @return [Object, Array<Object>, nil] Built model instance(s)
-      def load_connection_records(query_name, variables, parent = nil, connection_config = nil)
+      def load_connection_records(_query_name, _variables, parent = nil, connection_config = nil)
         return [] unless parent && connection_config
 
         connection_name = connection_config[:original_name]
