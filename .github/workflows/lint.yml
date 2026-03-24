@@ -17,12 +17,11 @@ permissions:
   contents: read
 
 jobs:
-  test:
-
+  lint:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        ruby-version: ['3.4']
+        ruby-version: ['4.0']
 
     steps:
     - uses: actions/checkout@v4
