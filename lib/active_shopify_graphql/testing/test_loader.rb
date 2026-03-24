@@ -24,7 +24,7 @@ module ActiveShopifyGraphQL
       # Load a paginated collection matching the given conditions.
       #
       # @return [Response::PaginatedResult]
-      def load_paginated_collection(conditions:, per_page:, query_scope:, after: nil, before: nil, sort_key: nil, reverse: nil)
+      def load_paginated_collection(conditions:, per_page:, query_scope:, after: nil, before: nil, sort_key: nil, reverse: nil) # rubocop:disable Lint/UnusedMethodArgument
         all_records = Testing.store.where(@model_class, conditions)
 
         # Simple cursor-based pagination using array indices
