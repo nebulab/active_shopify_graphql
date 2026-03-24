@@ -8,8 +8,7 @@ module ActiveShopifyGraphQL::Model::GraphqlTypeResolver
     # Set or get the base GraphQL type for this model.
     #
     # @param type [String, nil] The GraphQL type name to set, or nil to get
-    # @return [String] The GraphQL type name
-    # @raise [NotImplementedError] If no type is defined
+    # @return [String] The GraphQL type name, inferred from the class name if not explicitly set
     def graphql_type(type = nil)
       if type
         if @current_loader_context
@@ -20,7 +19,7 @@ module ActiveShopifyGraphQL::Model::GraphqlTypeResolver
         end
       end
 
-      @base_graphql_type || raise(NotImplementedError, "#{self} must define graphql_type")
+      @base_graphql_type || name.demodulize
     end
 
     # Get the GraphQL type for a specific loader class.
