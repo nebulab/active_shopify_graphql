@@ -607,15 +607,64 @@ Customer.with_loader(MyCustomLoader).find(123)
 
 ### Testing
 
-Mock data for tests:
+The gem ships with a built-in testing module that lets you register test data using Ruby-level attributes. `find`, `where`, `find_by`, `includes`, and connections all work transparently without real API calls.
+
+#### Setup
 
 ```ruby
-# Mock associations
-customer = Customer.new(id: 'gid://shopify/Customer/123')
-customer.orders = [Order.new(id: 'gid://shopify/Order/1')]
+# spec/spec_helper.rb (or test_helper.rb)
+require "active_shopify_graphql/testing"
 
-# Mock connections
-customer.orders = mock_orders
+RSpec.configure do |config|
+  config.before(:each) { ActiveShopifyGraphQL::Testing.enable! }
+  config.after(:each)  { ActiveShopifyGraphQL::Testing.reset! }
+end
+```
+
+#### Registering Test Data
+
+```ruby
+# Register records using Ruby attribute names — IDs are auto-normalized to GIDs
+ActiveShopifyGraphQL::Testing.register(Customer, [
+  { id: 1, email: "john@example.com", display_name: "John" },
+  { id: 2, email: "jane@example.com", display_name: "Jane" }
+])
+
+# With inline connections
+ActiveShopifyGraphQL::Testing.register(Customer, [
+  {
+    id: 1,
+    email: "john@example.com",
+    orders: [{ id: "gid://shopify/Order/100", name: "#1001" }]
+  }
+])
+
+# With extra search fields (not model attributes, used only for where matching)
+ActiveShopifyGraphQL::Testing.register(ProductVariant, [
+  { id: 1, sku: "ABC", product_id: 10 }
+])
+```
+
+#### Using in Tests
+
+All query patterns work the same as in production:
+
+```ruby
+Customer.find(1)                                    # => Customer instance
+Customer.where(email: "john@example.com").to_a      # => [Customer]
+Customer.find_by(email: "john@example.com")         # => Customer or nil
+Customer.includes(:orders).find(1)                  # => Customer with orders eager-loaded
+customer.orders                                     # => lazy-loads from store
+ProductVariant.where(product_id: 10).to_a           # => matches on search field
+```
+
+#### Manual Mocking
+
+For simpler cases, you can also mock data directly:
+
+```ruby
+customer = Customer.new(id: "gid://shopify/Customer/123")
+customer.orders = [Order.new(id: "gid://shopify/Order/1")]
 expect(customer.orders.size).to eq(1)
 ```
 
