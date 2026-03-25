@@ -14,6 +14,8 @@ loader.inflector.inflect(
   "active_shopify_graphql" => "ActiveShopifyGraphQL",
   "graphql_associations" => "GraphQLAssociations"
 )
+loader.ignore("#{__dir__}/active_shopify_graphql/testing")
+loader.ignore("#{__dir__}/active_shopify_graphql/testing.rb")
 loader.setup
 
 module ActiveShopifyGraphQL
