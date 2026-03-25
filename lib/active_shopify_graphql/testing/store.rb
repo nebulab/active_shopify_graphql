@@ -99,12 +99,13 @@ module ActiveShopifyGraphQL
         graphql_type = model_class.graphql_type_for_loader(model_class.send(:default_loader_class))
         normalized = conditions.dup
 
-        normalized[:id] = case conditions[:id]
-        when Array
-          conditions[:id].map { |v| GidHelper.normalize_gid(v, graphql_type) }
-        else
-          GidHelper.normalize_gid(conditions[:id], graphql_type)
-        end
+        normalized[:id] =
+          case conditions[:id]
+          when Array
+            conditions[:id].map { |v| GidHelper.normalize_gid(v, graphql_type) }
+          else
+            GidHelper.normalize_gid(conditions[:id], graphql_type)
+          end
 
         normalized
       end
