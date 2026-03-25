@@ -23,23 +23,20 @@ gem install active_shopify_graphql
 ```
 
 ```ruby
-# Configure in pure Ruby
+# Zero config with shopify_api gem! Auto-detects and uses ShopifyAPI::Context.active_session
+# Or configure a custom adapter:
+ActiveShopifyGraphQL.configure do |config|
+  config.admin_api_adapter = ActiveShopifyGraphQL::Adapters::Proc.new do |query, **variables|
+    MyCustomClient.execute(query, variables)
+  end
+end
+
+# Legacy lambdas still work too:
 ActiveShopifyGraphQL.configure do |config|
   config.admin_api_executor = lambda do |query, **variables|
     client = ShopifyAPI::Clients::Graphql::Admin.new(session: ShopifyAPI::Context.active_session)
     response = client.query(query:, variables:)
     response.body if response
-  end
-end
-
-# Or define a Rails initializer
-Rails.configuration.to_prepare do
-  ActiveShopifyGraphQL.configure do |config|
-    config.admin_api_executor = lambda do |query, **variables|
-      client = ShopifyAPI::Clients::Graphql::Admin.new(session: ShopifyAPI::Context.active_session)
-      response = client.query(query:, variables:)
-      response.body if response
-    end
   end
 end
 
@@ -139,6 +136,58 @@ gem install active_shopify_graphql
 ## Configuration
 
 Configure your Shopify GraphQL clients:
+
+### Zero-Config Setup (Recommended)
+
+If you're using the `shopify_api` gem, the library auto-detects it and configures the Admin API adapter automatically:
+
+```ruby
+# That's it! No configuration needed for Admin API
+# Just ensure ShopifyAPI::Context.active_session is set
+Customer.find(123456789)
+```
+
+### Using Adapters (New)
+
+Adapters provide a clean interface for GraphQL execution:
+
+```ruby
+# config/initializers/active_shopify_graphql.rb
+Rails.configuration.to_prepare do
+  ActiveShopifyGraphQL.configure do |config|
+    # For Admin API, auto-detected when shopify_api gem is present
+    # Or explicitly set:
+    config.admin_api_adapter = ActiveShopifyGraphQL::Adapters::ShopifyApiAdmin.new
+
+    # For Customer Account API (requires access token per request)
+    config.customer_account_api_adapter = ActiveShopifyGraphQL::Adapters::ShopifyApiCustomerAccount
+  end
+end
+```
+
+### Custom Adapters
+
+Create custom adapters for any GraphQL client:
+
+```ruby
+# Using a Proc adapter
+config.admin_api_adapter = ActiveShopifyGraphQL::Adapters::Proc.new do |query, **variables|
+  MyCustomClient.execute(query, variables)
+end
+
+# Or subclass Base for more control
+class MyAdapter < ActiveShopifyGraphQL::Adapters::Base
+  def execute(query, **variables)
+    # Your implementation
+  end
+end
+
+config.admin_api_adapter = MyAdapter.new
+```
+
+### Legacy Executors (Backward Compatible)
+
+The old executor-based configuration still works:
 
 ```ruby
 # config/initializers/active_shopify_graphql.rb
