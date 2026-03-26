@@ -44,7 +44,7 @@ module ActiveShopifyGraphQL::Model::GraphqlTypeResolver
       return loader_type if loader_type
 
       # 4. Infer from model name
-      return name.demodulize if respond_to?(:name) && name
+      return name.demodulize if name
 
       raise NotImplementedError,
             "#{self} must define graphql_type or #{loader_class} must define graphql_type"
