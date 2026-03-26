@@ -88,7 +88,7 @@ module ActiveShopifyGraphQL
     # @param before [String, nil] Cursor to fetch records before
     # @param sort_key [String, nil] The Shopify sort key (e.g., "CREATED_AT")
     # @param reverse [Boolean, nil] Whether to reverse the sort order
-    # @param query_scope [Query::Scope] The query scope for navigation
+    # @param query_scope [Query::Relation] The query scope for navigation
     # @return [PaginatedResult] A paginated result with attribute hashes and page info
     def load_paginated_collection(conditions:, per_page:, query_scope:, after: nil, before: nil, sort_key: nil, reverse: nil)
       collection_query_name = context.query_name.pluralize

@@ -192,7 +192,7 @@ module ActiveShopifyGraphQL
               current_page = PaginatedResult.new(
                 records: trimmed_records,
                 page_info: PageInfo.new,
-                query_scope: build_query_scope_for_pagination
+                query_scope: self
               )
             end
           end
@@ -324,7 +324,7 @@ module ActiveShopifyGraphQL
           before: before,
           sort_key: @sort_key,
           reverse: @reverse,
-          query_scope: build_query_scope_for_pagination
+          query_scope: self
         )
       end
 
@@ -407,17 +407,6 @@ module ActiveShopifyGraphQL
         else
           options
         end
-      end
-
-      # Build a Query::Scope for backward compatibility with PaginatedResult
-      def build_query_scope_for_pagination
-        Query::Scope.new(
-          @model_class,
-          conditions: @conditions,
-          loader: loader,
-          total_limit: @total_limit,
-          per_page: @per_page
-        )
       end
 
       def validate_includes_connections!(connection_names)
