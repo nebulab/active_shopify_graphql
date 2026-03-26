@@ -57,17 +57,7 @@ module ActiveShopifyGraphQL::Model::GraphqlTypeResolver
     # @param loader_class [Class, nil] The loader class
     # @return [String] The resolved GraphQL type
     def resolve_graphql_type(model_class: nil, loader_class: nil)
-      if model_class.respond_to?(:graphql_type_for_loader) && loader_class
-        model_class.graphql_type_for_loader(loader_class)
-      elsif model_class.respond_to?(:graphql_type)
-        model_class.graphql_type
-      elsif loader_class.respond_to?(:graphql_type)
-        loader_class.graphql_type
-      elsif model_class.respond_to?(:name) && model_class.name
-        model_class.name.demodulize
-      else
-        raise ArgumentError, "Cannot resolve graphql_type from provided arguments"
-      end
+      ActiveShopifyGraphQL::Model::GraphqlTypeResolver.resolve(model_class: model_class, loader_class: loader_class)
     end
   end
 
