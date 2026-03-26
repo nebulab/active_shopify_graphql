@@ -30,7 +30,7 @@ module ActiveShopifyGraphQL
 
       # Get the records for this page (builds instances on first access)
       def records
-        @records ||= ModelBuilder.build_many(@model_class, @attributes)
+        @records ||= @attributes.filter_map { |attrs| @model_class.new(attrs) if attrs }
       end
 
       # Iterate over records in this page

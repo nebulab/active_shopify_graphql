@@ -108,7 +108,7 @@ module ActiveShopifyGraphQL
           attributes = loader.load_attributes
           raise ObjectNotFoundError, "Couldn't find current customer" if attributes.nil?
 
-          return ModelBuilder.build(@model_class, attributes)
+          return @model_class.new(attributes)
         end
 
         # Standard case: find by ID
@@ -117,7 +117,7 @@ module ActiveShopifyGraphQL
 
         raise ObjectNotFoundError, "Couldn't find #{@model_class.name} with id=#{id}" if attributes.nil?
 
-        ModelBuilder.build(@model_class, attributes)
+        @model_class.new(attributes)
       end
 
       # Include connections for eager loading

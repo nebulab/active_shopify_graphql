@@ -56,12 +56,12 @@ module ActiveShopifyGraphQL
           return nil if attributes.nil?
 
           wire_inverse_of(parent, attributes, connection_config)
-          ModelBuilder.build(@context.model_class, attributes)
+          @context.model_class.new(attributes)
         else
           return [] if attributes.nil? || attributes.empty?
 
           attributes.each { |attrs| wire_inverse_of(parent, attrs, connection_config) }
-          ModelBuilder.build_many(@context.model_class, attributes)
+          attributes.filter_map { |attrs| @context.model_class.new(attrs) if attrs }
         end
       end
 
@@ -87,11 +87,11 @@ module ActiveShopifyGraphQL
         if singular
           return nil if attributes.nil?
 
-          ModelBuilder.build(@context.model_class, attributes)
+          @context.model_class.new(attributes)
         else
           return [] if attributes.nil? || attributes.empty?
 
-          ModelBuilder.build_many(@context.model_class, attributes)
+          attributes.filter_map { |attrs| @context.model_class.new(attrs) if attrs }
         end
       end
 

@@ -75,13 +75,13 @@ module ActiveShopifyGraphQL
 
           attrs = filter_to_model_attributes(data, target_class)
           wire_inverse_of(parent, attrs, connection_config)
-          ModelBuilder.build(target_class, attrs)
+          target_class.new(attrs)
         else
           items = connection_data.is_a?(Array) ? connection_data : [connection_data]
           items.filter_map do |item|
             attrs = filter_to_model_attributes(item, target_class)
             wire_inverse_of(parent, attrs, connection_config)
-            ModelBuilder.build(target_class, attrs)
+            target_class.new(attrs)
           end
         end
       end
@@ -159,14 +159,14 @@ module ActiveShopifyGraphQL
             if data
               child_attrs = filter_to_model_attributes(data, target_class)
               populate_nested_connections(data, child_attrs, target_class, nested_includes)
-              cache[connection_name] = ModelBuilder.build(target_class, child_attrs)
+              cache[connection_name] = target_class.new(child_attrs)
             end
           else
             items = connection_data.is_a?(Array) ? connection_data : [connection_data]
             cache[connection_name] = items.filter_map do |item|
               child_attrs = filter_to_model_attributes(item, target_class)
               populate_nested_connections(item, child_attrs, target_class, nested_includes)
-              ModelBuilder.build(target_class, child_attrs)
+              target_class.new(child_attrs)
             end
           end
         end
@@ -196,14 +196,14 @@ module ActiveShopifyGraphQL
             if data
               child_attrs = filter_to_model_attributes(data, target_class)
               populate_nested_connections(data, child_attrs, target_class, deeper_includes)
-              cache[connection_name] = ModelBuilder.build(target_class, child_attrs)
+              cache[connection_name] = target_class.new(child_attrs)
             end
           else
             items = connection_data.is_a?(Array) ? connection_data : [connection_data]
             cache[connection_name] = items.filter_map do |item|
               child_attrs = filter_to_model_attributes(item, target_class)
               populate_nested_connections(item, child_attrs, target_class, deeper_includes)
-              ModelBuilder.build(target_class, child_attrs)
+              target_class.new(child_attrs)
             end
           end
         end
