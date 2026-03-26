@@ -213,20 +213,7 @@ module ActiveShopifyGraphQL
 
       # Wire inverse_of associations into the connection cache.
       def wire_inverse_of(parent, attributes, connection_config)
-        return unless attributes.is_a?(Hash) && connection_config&.dig(:inverse_of)
-
-        inverse_name = connection_config[:inverse_of]
-        target_class = connection_config[:class_name].constantize
-        return unless target_class.respond_to?(:connections) && target_class.connections[inverse_name]
-
-        attributes[:_connection_cache] ||= {}
-        inverse_type = target_class.connections[inverse_name][:type]
-        attributes[:_connection_cache][inverse_name] =
-          if inverse_type == :singular
-            parent
-          else
-            [parent]
-          end
+        Connections::InverseCacheWiring.wire_attributes(attributes, connection_config, parent)
       end
     end
   end

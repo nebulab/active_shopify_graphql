@@ -209,23 +209,7 @@ module ActiveShopifyGraphQL
         instance = target_class.new(attributes)
 
         # Populate inverse cache if inverse_of is specified
-        if parent_instance && connection_config && connection_config[:inverse_of]
-          inverse_name = connection_config[:inverse_of]
-          instance.instance_variable_set(:@_connection_cache, {}) unless instance.instance_variable_get(:@_connection_cache)
-          cache = instance.instance_variable_get(:@_connection_cache)
-
-          # Check the type of the inverse connection to determine how to cache
-          if target_class.respond_to?(:connections) && target_class.connections[inverse_name]
-            inverse_type = target_class.connections[inverse_name][:type]
-            cache[inverse_name] =
-              if inverse_type == :singular
-                parent_instance
-              else
-                # For collection inverses, wrap parent in an array
-                [parent_instance]
-              end
-          end
-        end
+        Connections::InverseCacheWiring.wire_instance(instance, connection_config, parent_instance) if parent_instance && connection_config
 
         # Handle nested connections recursively (instance becomes parent for its children)
         if nested_includes.any?

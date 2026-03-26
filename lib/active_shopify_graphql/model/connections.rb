@@ -153,28 +153,8 @@ module ActiveShopifyGraphQL::Model::Connections
     return unless connection_config[:inverse_of]
     return if records.nil? || (records.is_a?(Array) && records.empty?)
 
-    inverse_name = connection_config[:inverse_of]
-    target_class = connection_config[:class_name].constantize
-
-    # Ensure target class has the inverse connection defined
-    return unless target_class.respond_to?(:connections) && target_class.connections[inverse_name]
-
-    inverse_type = target_class.connections[inverse_name][:type]
-    records_array = records.is_a?(Array) ? records : [records]
-
-    records_array.each do |record|
-      next unless record
-
-      record.instance_variable_set(:@_connection_cache, {}) unless record.instance_variable_get(:@_connection_cache)
-      cache = record.instance_variable_get(:@_connection_cache)
-
-      cache[inverse_name] =
-        if inverse_type == :singular
-          parent
-        else
-          # For collection inverses, wrap parent in an array
-          [parent]
-        end
+    Array(records).compact.each do |record|
+      ActiveShopifyGraphQL::Connections::InverseCacheWiring.wire_instance(record, connection_config, parent)
     end
   end
 end
