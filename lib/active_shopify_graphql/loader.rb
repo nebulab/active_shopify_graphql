@@ -56,6 +56,14 @@ module ActiveShopifyGraphQL
       []
     end
 
+    # Whether this loader can load a record without an explicit ID.
+    # Subclasses that support "current entity" semantics (e.g. Customer Account API)
+    # should override this to return true.
+    # @return [Boolean]
+    def supports_nil_id?
+      false
+    end
+
     # Map the GraphQL response to model attributes
     def map_response_to_attributes(response_data, parent_instance: nil)
       mapper = Response::ResponseMapper.new(context)
@@ -88,7 +96,7 @@ module ActiveShopifyGraphQL
     # @param before [String, nil] Cursor to fetch records before
     # @param sort_key [String, nil] The Shopify sort key (e.g., "CREATED_AT")
     # @param reverse [Boolean, nil] Whether to reverse the sort order
-    # @param query_scope [Query::Scope] The query scope for navigation
+    # @param query_scope [Query::Relation] The query scope for navigation
     # @return [PaginatedResult] A paginated result with attribute hashes and page info
     def load_paginated_collection(conditions:, per_page:, query_scope:, after: nil, before: nil, sort_key: nil, reverse: nil)
       collection_query_name = context.query_name.pluralize

@@ -198,7 +198,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::Relation do
 
       relation = described_class.new(customer_class)
 
-      expect { relation.find }.to raise_error(ArgumentError, "find requires an ID argument unless using Customer Account API")
+      expect { relation.find }.to raise_error(ArgumentError, "find requires an ID argument")
     end
 
     it "raises ObjectNotFoundError when current customer is not found" do
@@ -213,7 +213,7 @@ RSpec.describe ActiveShopifyGraphQL::Query::Relation do
         loader_extra_args: ["test_token"]
       )
 
-      expect { relation.find }.to raise_error(ActiveShopifyGraphQL::ObjectNotFoundError, "Couldn't find current customer")
+      expect { relation.find }.to raise_error(ActiveShopifyGraphQL::ObjectNotFoundError, "Couldn't find Customer")
     end
   end
 

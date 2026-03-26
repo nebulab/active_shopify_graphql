@@ -6,6 +6,8 @@ module ActiveShopifyGraphQL
     # executing GraphQL queries. Overrides the three main loading methods
     # and raises on any attempt to perform a real GraphQL query.
     class TestLoader < Loader
+      include TypeCoercion
+
       # Load attributes for a single record by ID.
       #
       # @param id [String] The GID of the record
@@ -75,13 +77,13 @@ module ActiveShopifyGraphQL
 
           attrs = filter_to_model_attributes(data, target_class)
           wire_inverse_of(parent, attrs, connection_config)
-          ModelBuilder.build(target_class, attrs)
+          target_class.new(attrs)
         else
           items = connection_data.is_a?(Array) ? connection_data : [connection_data]
           items.filter_map do |item|
             attrs = filter_to_model_attributes(item, target_class)
             wire_inverse_of(parent, attrs, connection_config)
-            ModelBuilder.build(target_class, attrs)
+            target_class.new(attrs)
           end
         end
       end
@@ -125,20 +127,6 @@ module ActiveShopifyGraphQL
         config[:transform] ? config[:transform].call(value) : value
       end
 
-      def coerce_value(value, type)
-        return nil if value.nil?
-        return value if value.is_a?(Array)
-
-        case type
-        when :string   then ActiveModel::Type::String.new
-        when :integer  then ActiveModel::Type::Integer.new
-        when :float    then ActiveModel::Type::Float.new
-        when :boolean  then ActiveModel::Type::Boolean.new
-        when :datetime then ActiveModel::Type::DateTime.new
-        else ActiveModel::Type::Value.new
-        end.cast(value)
-      end
-
       # Build connection cache from inline connection data in the stored record.
       def populate_connection_cache(record, attrs)
         normalized = Query::QueryBuilder.normalize_includes(@included_connections)
@@ -159,14 +147,14 @@ module ActiveShopifyGraphQL
             if data
               child_attrs = filter_to_model_attributes(data, target_class)
               populate_nested_connections(data, child_attrs, target_class, nested_includes)
-              cache[connection_name] = ModelBuilder.build(target_class, child_attrs)
+              cache[connection_name] = target_class.new(child_attrs)
             end
           else
             items = connection_data.is_a?(Array) ? connection_data : [connection_data]
             cache[connection_name] = items.filter_map do |item|
               child_attrs = filter_to_model_attributes(item, target_class)
               populate_nested_connections(item, child_attrs, target_class, nested_includes)
-              ModelBuilder.build(target_class, child_attrs)
+              target_class.new(child_attrs)
             end
           end
         end
@@ -196,14 +184,14 @@ module ActiveShopifyGraphQL
             if data
               child_attrs = filter_to_model_attributes(data, target_class)
               populate_nested_connections(data, child_attrs, target_class, deeper_includes)
-              cache[connection_name] = ModelBuilder.build(target_class, child_attrs)
+              cache[connection_name] = target_class.new(child_attrs)
             end
           else
             items = connection_data.is_a?(Array) ? connection_data : [connection_data]
             cache[connection_name] = items.filter_map do |item|
               child_attrs = filter_to_model_attributes(item, target_class)
               populate_nested_connections(item, child_attrs, target_class, deeper_includes)
-              ModelBuilder.build(target_class, child_attrs)
+              target_class.new(child_attrs)
             end
           end
         end
@@ -213,20 +201,7 @@ module ActiveShopifyGraphQL
 
       # Wire inverse_of associations into the connection cache.
       def wire_inverse_of(parent, attributes, connection_config)
-        return unless attributes.is_a?(Hash) && connection_config&.dig(:inverse_of)
-
-        inverse_name = connection_config[:inverse_of]
-        target_class = connection_config[:class_name].constantize
-        return unless target_class.respond_to?(:connections) && target_class.connections[inverse_name]
-
-        attributes[:_connection_cache] ||= {}
-        inverse_type = target_class.connections[inverse_name][:type]
-        attributes[:_connection_cache][inverse_name] =
-          if inverse_type == :singular
-            parent
-          else
-            [parent]
-          end
+        Connections::InverseCacheWiring.wire_attributes(attributes, connection_config, parent)
       end
     end
   end

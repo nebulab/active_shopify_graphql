@@ -5,6 +5,8 @@ module ActiveShopifyGraphQL
     # Handles mapping GraphQL responses to model attributes.
     # Refactored to use LoaderContext and unified mapping methods.
     class ResponseMapper
+      include TypeCoercion
+
       attr_reader :context
 
       def initialize(context)
@@ -154,24 +156,6 @@ module ActiveShopifyGraphQL
         raise ArgumentError, "Attribute '#{attr_name}' (GraphQL path: '#{config[:path]}') cannot be null but received nil"
       end
 
-      def coerce_value(value, type)
-        return nil if value.nil?
-        return value if value.is_a?(Array) # Preserve arrays
-
-        type_caster(type).cast(value)
-      end
-
-      def type_caster(type)
-        case type
-        when :string   then ActiveModel::Type::String.new
-        when :integer  then ActiveModel::Type::Integer.new
-        when :float    then ActiveModel::Type::Float.new
-        when :boolean  then ActiveModel::Type::Boolean.new
-        when :datetime then ActiveModel::Type::DateTime.new
-        else ActiveModel::Type::Value.new
-        end
-      end
-
       def extract_connection_records(node_data, connection_config, nested_includes, parent_instance: nil)
         # Use original_name (Ruby attr name) as the response key since we alias connections
         response_key = connection_config[:original_name].to_s
@@ -209,23 +193,7 @@ module ActiveShopifyGraphQL
         instance = target_class.new(attributes)
 
         # Populate inverse cache if inverse_of is specified
-        if parent_instance && connection_config && connection_config[:inverse_of]
-          inverse_name = connection_config[:inverse_of]
-          instance.instance_variable_set(:@_connection_cache, {}) unless instance.instance_variable_get(:@_connection_cache)
-          cache = instance.instance_variable_get(:@_connection_cache)
-
-          # Check the type of the inverse connection to determine how to cache
-          if target_class.respond_to?(:connections) && target_class.connections[inverse_name]
-            inverse_type = target_class.connections[inverse_name][:type]
-            cache[inverse_name] =
-              if inverse_type == :singular
-                parent_instance
-              else
-                # For collection inverses, wrap parent in an array
-                [parent_instance]
-              end
-          end
-        end
+        Connections::InverseCacheWiring.wire_instance(instance, connection_config, parent_instance) if parent_instance && connection_config
 
         # Handle nested connections recursively (instance becomes parent for its children)
         if nested_includes.any?

@@ -56,12 +56,12 @@ module ActiveShopifyGraphQL
           return nil if attributes.nil?
 
           wire_inverse_of(parent, attributes, connection_config)
-          ModelBuilder.build(@context.model_class, attributes)
+          @context.model_class.new(attributes)
         else
           return [] if attributes.nil? || attributes.empty?
 
           attributes.each { |attrs| wire_inverse_of(parent, attrs, connection_config) }
-          ModelBuilder.build_many(@context.model_class, attributes)
+          attributes.filter_map { |attrs| @context.model_class.new(attrs) if attrs }
         end
       end
 
@@ -87,33 +87,17 @@ module ActiveShopifyGraphQL
         if singular
           return nil if attributes.nil?
 
-          ModelBuilder.build(@context.model_class, attributes)
+          @context.model_class.new(attributes)
         else
           return [] if attributes.nil? || attributes.empty?
 
-          ModelBuilder.build_many(@context.model_class, attributes)
+          attributes.filter_map { |attrs| @context.model_class.new(attrs) if attrs }
         end
       end
 
       # Wire up inverse_of associations by adding parent to attributes cache
       def wire_inverse_of(parent, attributes, connection_config)
-        return unless attributes.is_a?(Hash) && connection_config&.dig(:inverse_of)
-
-        inverse_name = connection_config[:inverse_of]
-        attributes[:_connection_cache] ||= {}
-
-        # Check the type of the inverse connection
-        target_class = @context.model_class
-        return unless target_class.respond_to?(:connections) && target_class.connections[inverse_name]
-
-        inverse_type = target_class.connections[inverse_name][:type]
-        attributes[:_connection_cache][inverse_name] =
-          if inverse_type == :singular
-            parent
-          else
-            # For collection inverses, wrap parent in an array
-            [parent]
-          end
+        InverseCacheWiring.wire_attributes(attributes, connection_config, parent)
       end
 
       def extract_gid(parent)

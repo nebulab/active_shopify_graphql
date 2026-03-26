@@ -191,7 +191,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::PaginatedResult do
         "hasNextPage" => true,
         "endCursor" => "cursor123"
       )
-      query_scope = instance_double(ActiveShopifyGraphQL::Query::Scope)
+      query_scope = instance_double(ActiveShopifyGraphQL::Query::Relation)
       next_page_result = double("next_page")
       paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         attributes: [],
@@ -227,7 +227,7 @@ RSpec.describe ActiveShopifyGraphQL::Response::PaginatedResult do
         "hasPreviousPage" => true,
         "startCursor" => "cursor456"
       )
-      query_scope = instance_double(ActiveShopifyGraphQL::Query::Scope)
+      query_scope = instance_double(ActiveShopifyGraphQL::Query::Relation)
       previous_page_result = double("previous_page")
       paginated_result = ActiveShopifyGraphQL::Response::PaginatedResult.new(
         attributes: [],

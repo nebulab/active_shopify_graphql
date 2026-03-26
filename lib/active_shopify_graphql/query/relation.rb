@@ -95,20 +95,19 @@ module ActiveShopifyGraphQL
       end
 
       # Find a single record by ID
-      # For Customer Account API, if no ID is provided, fetches the current customer
       # @param id [String, Integer, nil] The record ID (will be converted to GID automatically)
       # @return [Object] The model instance
       # @raise [ObjectNotFoundError] If the record is not found
-      # @raise [ArgumentError] If id is nil and not using Customer Account API loader
+      # @raise [ArgumentError] If id is nil and the loader does not support it
       def find(id = nil)
-        # Handle Customer Account API case where no ID means "current customer"
+        # Handle "current entity" case where no ID is supported by the loader
         if id.nil?
-          raise ArgumentError, "find requires an ID argument unless using Customer Account API" unless loader.is_a?(ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader)
+          raise ArgumentError, "find requires an ID argument" unless loader.supports_nil_id?
 
           attributes = loader.load_attributes
-          raise ObjectNotFoundError, "Couldn't find current customer" if attributes.nil?
+          raise ObjectNotFoundError, "Couldn't find #{@model_class.name}" if attributes.nil?
 
-          return ModelBuilder.build(@model_class, attributes)
+          return @model_class.new(attributes)
         end
 
         # Standard case: find by ID
@@ -117,7 +116,7 @@ module ActiveShopifyGraphQL
 
         raise ObjectNotFoundError, "Couldn't find #{@model_class.name} with id=#{id}" if attributes.nil?
 
-        ModelBuilder.build(@model_class, attributes)
+        @model_class.new(attributes)
       end
 
       # Include connections for eager loading
@@ -192,7 +191,7 @@ module ActiveShopifyGraphQL
               current_page = PaginatedResult.new(
                 records: trimmed_records,
                 page_info: PageInfo.new,
-                query_scope: build_query_scope_for_pagination
+                query_scope: self
               )
             end
           end
@@ -324,7 +323,7 @@ module ActiveShopifyGraphQL
           before: before,
           sort_key: @sort_key,
           reverse: @reverse,
-          query_scope: build_query_scope_for_pagination
+          query_scope: self
         )
       end
 
@@ -407,17 +406,6 @@ module ActiveShopifyGraphQL
         else
           options
         end
-      end
-
-      # Build a Query::Scope for backward compatibility with PaginatedResult
-      def build_query_scope_for_pagination
-        Query::Scope.new(
-          @model_class,
-          conditions: @conditions,
-          loader: loader,
-          total_limit: @total_limit,
-          per_page: @per_page
-        )
       end
 
       def validate_includes_connections!(connection_names)
