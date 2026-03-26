@@ -6,6 +6,13 @@ module ActiveShopifyGraphQL
     # executing GraphQL queries. Overrides the three main loading methods
     # and raises on any attempt to perform a real GraphQL query.
     class TestLoader < Loader
+      TYPE_CASTERS = {
+        string: ActiveModel::Type::String.new,
+        integer: ActiveModel::Type::Integer.new,
+        float: ActiveModel::Type::Float.new,
+        boolean: ActiveModel::Type::Boolean.new,
+        datetime: ActiveModel::Type::DateTime.new
+      }.freeze
       # Load attributes for a single record by ID.
       #
       # @param id [String] The GID of the record
@@ -129,14 +136,7 @@ module ActiveShopifyGraphQL
         return nil if value.nil?
         return value if value.is_a?(Array)
 
-        case type
-        when :string   then ActiveModel::Type::String.new
-        when :integer  then ActiveModel::Type::Integer.new
-        when :float    then ActiveModel::Type::Float.new
-        when :boolean  then ActiveModel::Type::Boolean.new
-        when :datetime then ActiveModel::Type::DateTime.new
-        else ActiveModel::Type::Value.new
-        end.cast(value)
+        TYPE_CASTERS.fetch(type, ActiveModel::Type::Value.new).cast(value)
       end
 
       # Build connection cache from inline connection data in the stored record.

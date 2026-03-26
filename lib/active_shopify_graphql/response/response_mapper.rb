@@ -5,6 +5,13 @@ module ActiveShopifyGraphQL
     # Handles mapping GraphQL responses to model attributes.
     # Refactored to use LoaderContext and unified mapping methods.
     class ResponseMapper
+      TYPE_CASTERS = {
+        string: ActiveModel::Type::String.new,
+        integer: ActiveModel::Type::Integer.new,
+        float: ActiveModel::Type::Float.new,
+        boolean: ActiveModel::Type::Boolean.new,
+        datetime: ActiveModel::Type::DateTime.new
+      }.freeze
       attr_reader :context
 
       def initialize(context)
@@ -162,14 +169,7 @@ module ActiveShopifyGraphQL
       end
 
       def type_caster(type)
-        case type
-        when :string   then ActiveModel::Type::String.new
-        when :integer  then ActiveModel::Type::Integer.new
-        when :float    then ActiveModel::Type::Float.new
-        when :boolean  then ActiveModel::Type::Boolean.new
-        when :datetime then ActiveModel::Type::DateTime.new
-        else ActiveModel::Type::Value.new
-        end
+        TYPE_CASTERS.fetch(type, ActiveModel::Type::Value.new)
       end
 
       def extract_connection_records(node_data, connection_config, nested_includes, parent_instance: nil)
