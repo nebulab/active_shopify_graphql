@@ -69,7 +69,7 @@ RSpec.describe ActiveShopifyGraphQL::Model::FinderMethods do
       customer_class = build_customer_class
       stub_const("Customer", customer_class)
 
-      expect { customer_class.find }.to raise_error(ArgumentError, "find requires an ID argument unless using Customer Account API")
+      expect { customer_class.find }.to raise_error(ArgumentError, "find requires an ID argument")
     end
 
     it "fetches current customer when called without id using Customer Account API" do

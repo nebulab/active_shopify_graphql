@@ -33,16 +33,16 @@ module ActiveShopifyGraphQL
     end
 
     def find(id = nil)
-      # For Customer Account API, if no ID is provided, load the current customer
-      if id.nil? && @loader.is_a?(ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader)
+      # For loaders that support nil ID (e.g. Customer Account API current customer),
+      # delegate directly; otherwise require an ID via the standard flow.
+      if id.nil?
+        return nil unless @loader.supports_nil_id?
+
         attributes = @loader.load_attributes
-        return nil if attributes.nil?
+        return @model_class.new(attributes) unless attributes.nil?
 
-        return @model_class.new(attributes)
+        return nil
       end
-
-      # For other cases, require ID and use standard flow
-      return nil if id.nil?
 
       build_relation.find(id)
     end

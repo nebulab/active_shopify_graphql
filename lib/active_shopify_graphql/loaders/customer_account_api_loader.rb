@@ -33,6 +33,10 @@ module ActiveShopifyGraphQL
       def initialization_args
         [@token]
       end
+
+      def supports_nil_id?
+        context.graphql_type == "Customer"
+      end
     end
   end
 end

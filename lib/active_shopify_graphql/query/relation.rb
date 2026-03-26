@@ -95,18 +95,17 @@ module ActiveShopifyGraphQL
       end
 
       # Find a single record by ID
-      # For Customer Account API, if no ID is provided, fetches the current customer
       # @param id [String, Integer, nil] The record ID (will be converted to GID automatically)
       # @return [Object] The model instance
       # @raise [ObjectNotFoundError] If the record is not found
-      # @raise [ArgumentError] If id is nil and not using Customer Account API loader
+      # @raise [ArgumentError] If id is nil and the loader does not support it
       def find(id = nil)
-        # Handle Customer Account API case where no ID means "current customer"
+        # Handle "current entity" case where no ID is supported by the loader
         if id.nil?
-          raise ArgumentError, "find requires an ID argument unless using Customer Account API" unless loader.is_a?(ActiveShopifyGraphQL::Loaders::CustomerAccountApiLoader)
+          raise ArgumentError, "find requires an ID argument" unless loader.supports_nil_id?
 
           attributes = loader.load_attributes
-          raise ObjectNotFoundError, "Couldn't find current customer" if attributes.nil?
+          raise ObjectNotFoundError, "Couldn't find #{@model_class.name}" if attributes.nil?
 
           return @model_class.new(attributes)
         end

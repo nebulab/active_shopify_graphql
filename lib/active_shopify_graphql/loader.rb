@@ -56,6 +56,14 @@ module ActiveShopifyGraphQL
       []
     end
 
+    # Whether this loader can load a record without an explicit ID.
+    # Subclasses that support "current entity" semantics (e.g. Customer Account API)
+    # should override this to return true.
+    # @return [Boolean]
+    def supports_nil_id?
+      false
+    end
+
     # Map the GraphQL response to model attributes
     def map_response_to_attributes(response_data, parent_instance: nil)
       mapper = Response::ResponseMapper.new(context)
