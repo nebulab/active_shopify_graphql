@@ -6,13 +6,8 @@ module ActiveShopifyGraphQL
     # executing GraphQL queries. Overrides the three main loading methods
     # and raises on any attempt to perform a real GraphQL query.
     class TestLoader < Loader
-      TYPE_CASTERS = {
-        string: ActiveModel::Type::String.new,
-        integer: ActiveModel::Type::Integer.new,
-        float: ActiveModel::Type::Float.new,
-        boolean: ActiveModel::Type::Boolean.new,
-        datetime: ActiveModel::Type::DateTime.new
-      }.freeze
+      include TypeCoercion
+
       # Load attributes for a single record by ID.
       #
       # @param id [String] The GID of the record
@@ -130,13 +125,6 @@ module ActiveShopifyGraphQL
         end
 
         config[:transform] ? config[:transform].call(value) : value
-      end
-
-      def coerce_value(value, type)
-        return nil if value.nil?
-        return value if value.is_a?(Array)
-
-        TYPE_CASTERS.fetch(type, ActiveModel::Type::Value.new).cast(value)
       end
 
       # Build connection cache from inline connection data in the stored record.

@@ -5,13 +5,8 @@ module ActiveShopifyGraphQL
     # Handles mapping GraphQL responses to model attributes.
     # Refactored to use LoaderContext and unified mapping methods.
     class ResponseMapper
-      TYPE_CASTERS = {
-        string: ActiveModel::Type::String.new,
-        integer: ActiveModel::Type::Integer.new,
-        float: ActiveModel::Type::Float.new,
-        boolean: ActiveModel::Type::Boolean.new,
-        datetime: ActiveModel::Type::DateTime.new
-      }.freeze
+      include TypeCoercion
+
       attr_reader :context
 
       def initialize(context)
@@ -159,17 +154,6 @@ module ActiveShopifyGraphQL
         return unless !config[:null] && value.nil?
 
         raise ArgumentError, "Attribute '#{attr_name}' (GraphQL path: '#{config[:path]}') cannot be null but received nil"
-      end
-
-      def coerce_value(value, type)
-        return nil if value.nil?
-        return value if value.is_a?(Array) # Preserve arrays
-
-        type_caster(type).cast(value)
-      end
-
-      def type_caster(type)
-        TYPE_CASTERS.fetch(type, ActiveModel::Type::Value.new)
       end
 
       def extract_connection_records(node_data, connection_config, nested_includes, parent_instance: nil)
